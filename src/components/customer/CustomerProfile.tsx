@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Save, RefreshCw } from 'lucide-react';
+import { User, Save, RefreshCw, Globe } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,11 +16,34 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
+
+const countries = [
+  { code: 'LK', name: 'Sri Lanka', flag: '🇱🇰' },
+  { code: 'MY', name: 'Malaysia', flag: '🇲🇾' },
+  { code: 'IN', name: 'India', flag: '🇮🇳' },
+  { code: 'TH', name: 'Thailand', flag: '🇹🇭' },
+  { code: 'SG', name: 'Singapore', flag: '🇸🇬' },
+  { code: 'ID', name: 'Indonesia', flag: '🇮🇩' },
+  { code: 'PH', name: 'Philippines', flag: '🇵🇭' },
+  { code: 'VN', name: 'Vietnam', flag: '🇻🇳' },
+  { code: 'MM', name: 'Myanmar', flag: '🇲🇲' },
+  { code: 'NP', name: 'Nepal', flag: '🇳🇵' },
+  { code: 'BD', name: 'Bangladesh', flag: '🇧🇩' },
+  { code: 'PK', name: 'Pakistan', flag: '🇵🇰' },
+];
 
 const profileSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters').max(100),
   phone: z.string().max(20).optional(),
+  country: z.string().min(2, 'Please select a country'),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -35,6 +58,7 @@ const CustomerProfile = () => {
     defaultValues: {
       fullName: '',
       phone: '',
+      country: 'LK',
     },
   });
 
@@ -44,7 +68,7 @@ const CustomerProfile = () => {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('full_name, phone')
+          .select('full_name, phone, country')
           .eq('user_id', user.id)
           .maybeSingle();
 
@@ -54,6 +78,7 @@ const CustomerProfile = () => {
           form.reset({
             fullName: data.full_name || '',
             phone: data.phone || '',
+            country: data.country || 'LK',
           });
         }
       } catch (error) {
@@ -75,6 +100,7 @@ const CustomerProfile = () => {
         .update({
           full_name: values.fullName,
           phone: values.phone || null,
+          country: values.country,
         })
         .eq('user_id', user.id);
 
@@ -154,6 +180,37 @@ const CustomerProfile = () => {
                   <FormControl>
                     <Input placeholder="+94 XX XXX XXXX" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="country"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Country</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <div className="flex items-center gap-2">
+                          <Globe className="h-4 w-4 text-muted-foreground" />
+                          <SelectValue placeholder="Select your country" />
+                        </div>
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="max-h-[200px]">
+                      {countries.map((c) => (
+                        <SelectItem key={c.code} value={c.code}>
+                          <span className="flex items-center gap-2">
+                            <span>{c.flag}</span>
+                            <span>{c.name}</span>
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
