@@ -10,19 +10,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { sriLankaLocations } from '@/lib/locations';
+import { getLocationsForCountry } from '@/lib/locations';
 
 interface TempleSearchProps {
   onSearch?: (filters: { query: string; province: string; district: string }) => void;
+  countryCode?: string;
 }
 
-const TempleSearch = ({ onSearch }: TempleSearchProps) => {
+const TempleSearch = ({ onSearch, countryCode = 'LK' }: TempleSearchProps) => {
   const [query, setQuery] = useState('');
   const [province, setProvince] = useState('');
   const [district, setDistrict] = useState('');
 
+  // Get locations based on the selected country
+  const locations = getLocationsForCountry(countryCode);
+  const provinces = locations.provinces || [];
   const districts = province
-    ? sriLankaLocations.districts[province as keyof typeof sriLankaLocations.districts] || []
+    ? locations.districts[province as keyof typeof locations.districts] || []
     : [];
 
   const handleProvinceChange = (value: string) => {
@@ -58,8 +62,8 @@ const TempleSearch = ({ onSearch }: TempleSearchProps) => {
           <SelectTrigger className="w-full sm:w-44">
             <SelectValue placeholder="Province" />
           </SelectTrigger>
-          <SelectContent>
-            {sriLankaLocations.provinces.map((p) => (
+          <SelectContent className="bg-background z-50">
+            {provinces.map((p) => (
               <SelectItem key={p.id} value={p.id}>
                 {p.name}
               </SelectItem>
@@ -72,7 +76,7 @@ const TempleSearch = ({ onSearch }: TempleSearchProps) => {
           <SelectTrigger className="w-full sm:w-40">
             <SelectValue placeholder="District" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-background z-50">
             {districts.map((d) => (
               <SelectItem key={d.id} value={d.id}>
                 {d.name}

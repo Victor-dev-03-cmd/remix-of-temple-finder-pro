@@ -20,6 +20,7 @@ const Index = () => {
   const heroCtaText = settings?.heroCtaText || 'Become a Temple Vendor';
   const heroCtaLink = settings?.heroCtaLink || '/become-vendor';
   const heroImageUrl = settings?.heroImageUrl || heroImage;
+  const defaultCountry = settings?.defaultCountry || 'LK';
 
   return (
     <div className="min-h-screen bg-background">
@@ -57,7 +58,7 @@ const Index = () => {
           </motion.p>
 
           {/* Search */}
-          <TempleSearch />
+          <TempleSearch countryCode={defaultCountry} />
 
           {/* CTA Button */}
           <motion.div
