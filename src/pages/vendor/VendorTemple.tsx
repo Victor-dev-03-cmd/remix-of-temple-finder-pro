@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Building, MapPin, Phone, Clock, Star, ExternalLink, Package, Loader2 } from 'lucide-react';
+import { Building, MapPin, ExternalLink, Package, Loader2, Edit } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVendorTemple } from '@/hooks/useVendorTemple';
@@ -14,6 +15,7 @@ const VendorTemple = () => {
   const { user } = useAuth();
   const { temple, application, loading, refetch } = useVendorTemple(user?.id);
   const { products } = useProducts({ vendorId: user?.id, status: 'approved' });
+  const [isEditing, setIsEditing] = useState(false);
 
   if (loading) {
     return (
@@ -43,6 +45,29 @@ const VendorTemple = () => {
     );
   }
 
+  if (isEditing) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Edit Temple</h1>
+            <p className="text-muted-foreground">Update your temple information</p>
+          </div>
+          
+          <VendorTempleForm 
+            onSuccess={() => {
+              setIsEditing(false);
+              refetch();
+            }}
+            onCancel={() => setIsEditing(false)}
+            temple={temple}
+            isEditing
+          />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -51,12 +76,18 @@ const VendorTemple = () => {
             <h1 className="text-3xl font-bold text-foreground">My Temple</h1>
             <p className="text-muted-foreground">Manage your temple and products</p>
           </div>
-          <Link to={`/temples/${temple.id}`}>
-            <Button variant="outline" className="gap-2">
-              <ExternalLink className="h-4 w-4" />
-              View Public Page
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsEditing(true)}>
+              <Edit className="mr-2 h-4 w-4" />
+              Edit Temple
             </Button>
-          </Link>
+            <Link to={`/temples/${temple.id}`}>
+              <Button variant="outline" className="gap-2">
+                <ExternalLink className="h-4 w-4" />
+                View Public Page
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Temple Info Card */}
@@ -97,6 +128,12 @@ const VendorTemple = () => {
                 </CardHeader>
                 
                 <CardContent className="p-0">
+                  {temple.description && (
+                    <p className="text-muted-foreground text-sm mb-4 line-clamp-2">
+                      {temple.description}
+                    </p>
+                  )}
+                  
                   <div className="grid gap-4 sm:grid-cols-2">
                     {/* Stats */}
                     <div className="rounded-lg bg-muted/50 p-4">
@@ -111,7 +148,7 @@ const VendorTemple = () => {
                     
                     <div className="rounded-lg bg-muted/50 p-4">
                       <div className="flex items-center gap-2 text-muted-foreground">
-                        <Star className="h-4 w-4" />
+                        <Building className="h-4 w-4" />
                         <span className="text-sm">Business Name</span>
                       </div>
                       <p className="mt-1 text-lg font-semibold text-foreground truncate">
