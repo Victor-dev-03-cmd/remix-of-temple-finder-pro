@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -22,6 +22,9 @@ export interface ChatMessage {
   created_at: string;
 }
 
+// Notification sound URL (using a simple beep sound)
+const NOTIFICATION_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3';
+
 export const useChat = () => {
   const { user, isAdmin } = useAuth();
   const { toast } = useToast();
@@ -30,6 +33,29 @@ export const useChat = () => {
   const [activeConversation, setActiveConversation] = useState<ChatConversation | null>(null);
   const [loading, setLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Initialize audio element
+  useEffect(() => {
+    audioRef.current = new Audio(NOTIFICATION_SOUND_URL);
+    audioRef.current.volume = 0.5;
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  // Play notification sound
+  const playNotificationSound = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(err => {
+        console.log('Could not play notification sound:', err);
+      });
+    }
+  }, []);
 
   // Fetch conversations
   const fetchConversations = useCallback(async () => {
@@ -183,6 +209,15 @@ export const useChat = () => {
         },
         (payload) => {
           const newMessage = payload.new as ChatMessage;
+          
+          // Play sound if message is from someone else
+          if (newMessage.sender_id !== user.id) {
+            playNotificationSound();
+            // Update unread count immediately
+            setUnreadCount(prev => prev + 1);
+          }
+          
+          // Add to messages if in active conversation
           if (activeConversation && newMessage.conversation_id === activeConversation.id) {
             setMessages(prev => [...prev, newMessage]);
           }
@@ -210,7 +245,7 @@ export const useChat = () => {
       supabase.removeChannel(messagesChannel);
       supabase.removeChannel(conversationsChannel);
     };
-  }, [user, activeConversation, fetchConversations]);
+  }, [user, activeConversation, fetchConversations, playNotificationSound]);
 
   // Fetch messages when active conversation changes
   useEffect(() => {
