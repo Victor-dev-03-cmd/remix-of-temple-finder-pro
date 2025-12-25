@@ -8,10 +8,11 @@ import { useProducts } from '@/hooks/useProducts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import VendorTempleForm from '@/components/vendor/VendorTempleForm';
 
 const VendorTemple = () => {
   const { user } = useAuth();
-  const { temple, application, loading } = useVendorTemple(user?.id);
+  const { temple, application, loading, refetch } = useVendorTemple(user?.id);
   const { products } = useProducts({ vendorId: user?.id, status: 'approved' });
 
   if (loading) {
@@ -30,23 +31,13 @@ const VendorTemple = () => {
         <div className="space-y-6">
           <div>
             <h1 className="text-3xl font-bold text-foreground">My Temple</h1>
-            <p className="text-muted-foreground">Your assigned temple information</p>
+            <p className="text-muted-foreground">Create your temple to start selling products</p>
           </div>
           
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Building className="mx-auto mb-4 h-12 w-12 text-muted-foreground opacity-50" />
-              <h3 className="mb-2 text-lg font-semibold text-foreground">No Temple Assigned</h3>
-              <p className="text-muted-foreground mb-4">
-                You don't have a temple assigned to your vendor account yet.
-              </p>
-              {application && (
-                <Badge variant="secondary">
-                  Business: {application.business_name}
-                </Badge>
-              )}
-            </CardContent>
-          </Card>
+          <VendorTempleForm 
+            onSuccess={refetch} 
+            businessName={application?.business_name}
+          />
         </div>
       </DashboardLayout>
     );
