@@ -38,8 +38,6 @@ const templeFormSchema = z.object({
   description: z.string().optional(),
   contact: z.string().optional(),
   opening_hours: z.string().optional(),
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
 });
 
 type TempleFormValues = z.infer<typeof templeFormSchema>;
@@ -54,8 +52,6 @@ interface Temple {
   description: string | null;
   contact: string | null;
   opening_hours: string | null;
-  latitude: number;
-  longitude: number;
   image_url: string | null;
 }
 
@@ -105,8 +101,6 @@ const VendorTempleForm = ({ onSuccess, onCancel, businessName, temple, isEditing
       description: temple?.description || '',
       contact: temple?.contact || '',
       opening_hours: temple?.opening_hours || '',
-      latitude: temple?.latitude || 0,
-      longitude: temple?.longitude || 0,
     },
   });
 
@@ -169,9 +163,9 @@ const VendorTempleForm = ({ onSuccess, onCancel, businessName, temple, isEditing
         description: values.description || null,
         contact: values.contact || null,
         opening_hours: values.opening_hours || null,
-        latitude: values.latitude,
-        longitude: values.longitude,
         image_url: imageUrl,
+        latitude: 0,
+        longitude: 0,
       };
 
       if (isEditing && temple) {
@@ -450,48 +444,6 @@ const VendorTempleForm = ({ onSuccess, onCancel, businessName, temple, isEditing
                     <FormLabel>Opening Hours</FormLabel>
                     <FormControl>
                       <Input placeholder="6:00 AM - 8:00 PM" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="latitude"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Latitude *</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        step="any"
-                        placeholder="6.9271" 
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="longitude"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Longitude *</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        step="any"
-                        placeholder="79.8612" 
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
