@@ -336,8 +336,16 @@ const ProductManagement = () => {
                 className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors"
               >
                 <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                    <Package className="h-6 w-6 text-primary" />
+                  <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg bg-primary/10">
+                    {product.image_url ? (
+                      <img
+                        src={product.image_url}
+                        alt={product.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <Package className="h-6 w-6 text-primary" />
+                    )}
                   </div>
                   <div>
                     <p className="font-medium text-foreground">{product.name}</p>
