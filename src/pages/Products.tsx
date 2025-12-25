@@ -23,18 +23,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { useProducts } from '@/hooks/useProducts';
-
-const categories = [
-  'All Categories',
-  'Pooja Items',
-  'Flowers & Garlands',
-  'Incense & Camphor',
-  'Lamps & Diyas',
-  'Religious Books',
-  'Idols & Statues',
-  'Prasadam',
-  'Clothing & Accessories',
-];
+import { productCategories, getCategoryLabel } from '@/lib/categories';
 
 const sortOptions = [
   { value: 'newest', label: 'Newest First' },
@@ -45,13 +34,13 @@ const sortOptions = [
 
 const Products = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All Categories');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 100000]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const { products, loading, error } = useProducts({
-    category: selectedCategory !== 'All Categories' ? selectedCategory : undefined,
+    category: selectedCategory !== 'all' ? selectedCategory : undefined,
   });
 
   // Filter and sort products
@@ -96,13 +85,13 @@ const Products = () => {
 
   const clearFilters = () => {
     setSearchQuery('');
-    setSelectedCategory('All Categories');
+    setSelectedCategory('all');
     setSortBy('newest');
     setPriceRange([0, 100000]);
   };
 
   const hasActiveFilters =
-    searchQuery || selectedCategory !== 'All Categories' || sortBy !== 'newest';
+    searchQuery || selectedCategory !== 'all' || sortBy !== 'newest';
 
   const FilterContent = () => (
     <div className="space-y-6">
@@ -110,17 +99,27 @@ const Products = () => {
       <div className="space-y-3">
         <h3 className="font-medium text-foreground">Categories</h3>
         <div className="flex flex-wrap gap-2">
-          {categories.map((category) => (
+          <Badge
+            variant={selectedCategory === 'all' ? 'default' : 'outline'}
+            className="cursor-pointer transition-colors"
+            onClick={() => {
+              setSelectedCategory('all');
+              setIsFilterOpen(false);
+            }}
+          >
+            All Categories
+          </Badge>
+          {productCategories.map((category) => (
             <Badge
-              key={category}
-              variant={selectedCategory === category ? 'default' : 'outline'}
+              key={category.value}
+              variant={selectedCategory === category.value ? 'default' : 'outline'}
               className="cursor-pointer transition-colors"
               onClick={() => {
-                setSelectedCategory(category);
+                setSelectedCategory(category.value);
                 setIsFilterOpen(false);
               }}
             >
-              {category}
+              {category.label}
             </Badge>
           ))}
         </div>
@@ -248,10 +247,10 @@ const Products = () => {
             className="mb-4 flex flex-wrap items-center gap-2"
           >
             <span className="text-sm text-muted-foreground">Active filters:</span>
-            {selectedCategory !== 'All Categories' && (
+            {selectedCategory !== 'all' && (
               <Badge variant="secondary" className="gap-1">
-                {selectedCategory}
-                <button onClick={() => setSelectedCategory('All Categories')}>
+                {getCategoryLabel(selectedCategory)}
+                <button onClick={() => setSelectedCategory('all')}>
                   <X className="h-3 w-3" />
                 </button>
               </Badge>
