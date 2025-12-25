@@ -112,6 +112,8 @@ const SiteSettings = () => {
     emailNotifications: true,
     newVendorAlerts: true,
     orderAlerts: true,
+    chatNotifications: true,
+    chatNotificationSound: true,
     primaryFont: 'Outfit',
     displayFont: 'Playfair Display',
     darkMode: false,
@@ -167,6 +169,8 @@ const SiteSettings = () => {
             emailNotifications: data.email_notifications,
             newVendorAlerts: data.new_vendor_alerts,
             orderAlerts: data.order_alerts,
+            chatNotifications: (data as any).chat_notifications ?? true,
+            chatNotificationSound: (data as any).chat_notification_sound ?? true,
             primaryFont: data.primary_font,
             displayFont: data.display_font,
             darkMode: data.dark_mode,
@@ -642,6 +646,36 @@ const SiteSettings = () => {
                 checked={settings.orderAlerts}
                 onCheckedChange={(checked) =>
                   setSettings({ ...settings, orderAlerts: checked })
+                }
+              />
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Chat Notifications</Label>
+                <p className="text-sm text-muted-foreground">
+                  Get notified of new chat messages
+                </p>
+              </div>
+              <Switch
+                checked={settings.chatNotifications}
+                onCheckedChange={(checked) =>
+                  setSettings({ ...settings, chatNotifications: checked })
+                }
+              />
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Chat Sound</Label>
+                <p className="text-sm text-muted-foreground">
+                  Play sound for new messages
+                </p>
+              </div>
+              <Switch
+                checked={settings.chatNotificationSound}
+                onCheckedChange={(checked) =>
+                  setSettings({ ...settings, chatNotificationSound: checked })
                 }
               />
             </div>

@@ -9,6 +9,7 @@ import { CartProvider } from "./contexts/CartContext";
 import { SiteSettingsProvider } from "./contexts/SiteSettingsContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import CartSheet from "./components/cart/CartSheet";
+import ChatWidget from "./components/chat/ChatWidget";
 import Index from "./pages/Index";
 import Products from "./pages/Products";
 import ProductDetail from "./pages/ProductDetail";
@@ -212,6 +213,7 @@ const App = () => (
                 <Toaster />
                 <Sonner />
                 <AppRoutes />
+                <ChatWidget />
               </CartProvider>
             </SiteSettingsProvider>
           </AuthProvider>
