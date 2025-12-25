@@ -20,6 +20,7 @@ interface UserWithRole {
   user_id: string;
   email: string | null;
   full_name: string | null;
+  country: string | null;
   role: AppRole;
   created_at: string;
 }
@@ -36,6 +37,13 @@ const roleColors = {
   customer: 'bg-muted text-muted-foreground',
 };
 
+const countryFlags: Record<string, string> = {
+  'LK': '🇱🇰', 'MY': '🇲🇾', 'IN': '🇮🇳', 'TH': '🇹🇭', 'SG': '🇸🇬',
+  'ID': '🇮🇩', 'PH': '🇵🇭', 'VN': '🇻🇳', 'MM': '🇲🇲', 'NP': '🇳🇵',
+  'BD': '🇧🇩', 'PK': '🇵🇰', 'JP': '🇯🇵', 'KR': '🇰🇷', 'CN': '🇨🇳',
+  'AU': '🇦🇺', 'NZ': '🇳🇿', 'GB': '🇬🇧', 'US': '🇺🇸', 'CA': '🇨🇦',
+};
+
 const UserManagement = () => {
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,15 +56,25 @@ const UserManagement = () => {
       // Fetch profiles with their roles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('user_id, email, full_name, created_at');
+        .select('user_id, email, full_name, country, created_at');
 
-      if (profilesError) throw profilesError;
+      if (profilesError) {
+        console.error('Profiles fetch error:', profilesError);
+        throw profilesError;
+      }
+
+      console.log('Fetched profiles:', profiles);
 
       const { data: roles, error: rolesError } = await supabase
         .from('user_roles')
         .select('user_id, role');
 
-      if (rolesError) throw rolesError;
+      if (rolesError) {
+        console.error('Roles fetch error:', rolesError);
+        throw rolesError;
+      }
+
+      console.log('Fetched roles:', roles);
 
       // Combine profiles with roles
       const usersWithRoles: UserWithRole[] = (profiles || []).map((profile) => {
@@ -65,6 +83,7 @@ const UserManagement = () => {
           user_id: profile.user_id,
           email: profile.email,
           full_name: profile.full_name,
+          country: profile.country,
           role: (userRole?.role as AppRole) || 'customer',
           created_at: profile.created_at,
         };
@@ -176,6 +195,9 @@ const UserManagement = () => {
                 Email
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
+                Country
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
                 Current Role
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
@@ -189,14 +211,14 @@ const UserManagement = () => {
           <tbody className="divide-y divide-border">
             {loading ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                   <RefreshCw className="mx-auto h-6 w-6 animate-spin" />
                   <p className="mt-2">Loading users...</p>
                 </td>
               </tr>
             ) : filteredUsers.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                   No users found.
                 </td>
               </tr>
@@ -215,6 +237,16 @@ const UserManagement = () => {
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
                     {user.email || 'No email'}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm">
+                    {user.country && countryFlags[user.country] ? (
+                      <span className="flex items-center gap-1.5">
+                        <span className="text-base">{countryFlags[user.country]}</span>
+                        <span className="text-muted-foreground">{user.country}</span>
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <Badge className={roleColors[user.role]} variant="secondary">
