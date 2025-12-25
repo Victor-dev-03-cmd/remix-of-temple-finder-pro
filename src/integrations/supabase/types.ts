@@ -629,6 +629,7 @@ export type Database = {
           longitude: number
           name: string
           opening_hours: string | null
+          owner_user_id: string | null
           province: string
           rating: number | null
           review_count: number | null
@@ -649,6 +650,7 @@ export type Database = {
           longitude: number
           name: string
           opening_hours?: string | null
+          owner_user_id?: string | null
           province: string
           rating?: number | null
           review_count?: number | null
@@ -669,6 +671,7 @@ export type Database = {
           longitude?: number
           name?: string
           opening_hours?: string | null
+          owner_user_id?: string | null
           province?: string
           rating?: number | null
           review_count?: number | null
