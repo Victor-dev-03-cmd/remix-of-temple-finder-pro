@@ -84,12 +84,13 @@ const Header = () => {
   const { user, userRole, signOut, isAdmin, isVendor } = useAuth();
   const { totalItems, setIsCartOpen } = useCart();
 
+  // Filter nav links based on user role - hide "Become a Vendor" for admins
   const navLinks = [
     { href: '/', label: 'Home' },
     { href: '/temples', label: 'Temples' },
     { href: '/products', label: 'Products' },
     { href: '/booking', label: 'My Booking' },
-    { href: '/become-vendor', label: 'Become a Vendor' },
+    ...(isAdmin ? [] : [{ href: '/become-vendor', label: 'Become a Vendor' }]),
   ];
 
   // Fetch user's country from profile

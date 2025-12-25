@@ -197,12 +197,13 @@ const ProductManagement = () => {
           category: values.category,
           image_url: values.image_url || null,
           temple_id: templeId,
+          status: 'approved', // Auto-approve vendor products
         });
 
         if (error) throw error;
         toast({
           title: 'Product Added',
-          description: 'Your product has been submitted for approval.',
+          description: 'Your product has been added and is now live.',
         });
       }
 
