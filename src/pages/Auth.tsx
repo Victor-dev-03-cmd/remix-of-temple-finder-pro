@@ -1,13 +1,20 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, Eye, EyeOff, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, ArrowRight, ArrowLeft, Globe } from 'lucide-react';
 import { z } from 'zod';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,12 +25,28 @@ const nameSchema = z.string().min(2, 'Name must be at least 2 characters');
 
 type AuthMode = 'login' | 'signup' | 'forgot-password' | 'reset-password';
 
+const countries = [
+  { code: 'LK', name: 'Sri Lanka', flag: '🇱🇰' },
+  { code: 'MY', name: 'Malaysia', flag: '🇲🇾' },
+  { code: 'IN', name: 'India', flag: '🇮🇳' },
+  { code: 'TH', name: 'Thailand', flag: '🇹🇭' },
+  { code: 'SG', name: 'Singapore', flag: '🇸🇬' },
+  { code: 'ID', name: 'Indonesia', flag: '🇮🇩' },
+  { code: 'PH', name: 'Philippines', flag: '🇵🇭' },
+  { code: 'VN', name: 'Vietnam', flag: '🇻🇳' },
+  { code: 'MM', name: 'Myanmar', flag: '🇲🇲' },
+  { code: 'NP', name: 'Nepal', flag: '🇳🇵' },
+  { code: 'BD', name: 'Bangladesh', flag: '🇧🇩' },
+  { code: 'PK', name: 'Pakistan', flag: '🇵🇰' },
+];
+
 const Auth = () => {
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [country, setCountry] = useState('LK');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -178,7 +201,7 @@ const Auth = () => {
           navigate('/');
         }
       } else if (mode === 'signup') {
-        const { error } = await signUp(email, password, fullName);
+        const { error } = await signUp(email, password, fullName, country);
         if (error) {
           if (error.message.includes('User already registered')) {
             toast({
@@ -293,6 +316,29 @@ const Auth = () => {
                     {errors.fullName && (
                       <p className="text-xs text-destructive">{errors.fullName}</p>
                     )}
+
+                    {/* Country Selector */}
+                    <div className="space-y-2 pt-2">
+                      <Label htmlFor="country">Country</Label>
+                      <Select value={country} onValueChange={setCountry}>
+                        <SelectTrigger className="w-full">
+                          <div className="flex items-center gap-2">
+                            <Globe className="h-4 w-4 text-muted-foreground" />
+                            <SelectValue placeholder="Select your country" />
+                          </div>
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[200px]">
+                          {countries.map((c) => (
+                            <SelectItem key={c.code} value={c.code}>
+                              <span className="flex items-center gap-2">
+                                <span>{c.flag}</span>
+                                <span>{c.name}</span>
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
