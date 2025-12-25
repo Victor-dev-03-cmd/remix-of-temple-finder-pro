@@ -14,6 +14,71 @@ export type Database = {
   }
   public: {
     Tables: {
+      chat_conversations: {
+        Row: {
+          admin_id: string | null
+          created_at: string
+          id: string
+          status: string
+          subject: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_id?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          subject?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_id?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          subject?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      chat_messages: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          sender_id: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          sender_id: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       favorites: {
         Row: {
           created_at: string
@@ -324,6 +389,8 @@ export type Database = {
           booking_email_instructions: string | null
           booking_email_message: string | null
           booking_email_subject: string | null
+          chat_notification_sound: boolean | null
+          chat_notifications: boolean | null
           commission_rate: number | null
           compact_mode: boolean
           created_at: string
@@ -366,6 +433,8 @@ export type Database = {
           booking_email_instructions?: string | null
           booking_email_message?: string | null
           booking_email_subject?: string | null
+          chat_notification_sound?: boolean | null
+          chat_notifications?: boolean | null
           commission_rate?: number | null
           compact_mode?: boolean
           created_at?: string
@@ -408,6 +477,8 @@ export type Database = {
           booking_email_instructions?: string | null
           booking_email_message?: string | null
           booking_email_subject?: string | null
+          chat_notification_sound?: boolean | null
+          chat_notifications?: boolean | null
           commission_rate?: number | null
           compact_mode?: boolean
           created_at?: string

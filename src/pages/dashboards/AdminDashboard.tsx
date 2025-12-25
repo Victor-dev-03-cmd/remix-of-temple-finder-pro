@@ -3,6 +3,7 @@ import { Users, FileCheck, DollarSign, Store } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import UserManagement from '@/components/admin/UserManagement';
 import VendorApprovalQueue from '@/components/admin/VendorApprovalQueue';
+import AdminChatPanel from '@/components/admin/AdminChatPanel';
 import { useAuth } from '@/contexts/AuthContext';
 
 const AdminDashboard = () => {
@@ -50,6 +51,11 @@ const AdminDashboard = () => {
               </div>
             </motion.div>
           ))}
+        </div>
+
+        {/* Support Chat */}
+        <div className="mb-8">
+          <AdminChatPanel />
         </div>
 
         {/* Vendor Approval Queue */}
