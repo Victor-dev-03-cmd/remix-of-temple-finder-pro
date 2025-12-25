@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/integrations/supabase/client';
+import { productCategories } from '@/lib/categories';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,16 +67,7 @@ const productSchema = z.object({
 
 type ProductFormValues = z.infer<typeof productSchema>;
 
-const categories = [
-  { value: 'lamps', label: 'Lamps & Diyas' },
-  { value: 'incense', label: 'Incense & Agarbatti' },
-  { value: 'pooja', label: 'Pooja Items' },
-  { value: 'idols', label: 'Idols & Statues' },
-  { value: 'jewelry', label: 'Temple Jewelry' },
-  { value: 'flowers', label: 'Flowers & Garlands' },
-  { value: 'prasad', label: 'Prasad Items' },
-  { value: 'other', label: 'Other' },
-];
+// Use shared categories from lib/categories.ts
 
 const ProductManagement = () => {
   const { user } = useAuth();
@@ -281,7 +273,7 @@ const ProductManagement = () => {
   };
 
   const getCategoryLabel = (value: string) => {
-    return categories.find((c) => c.value === value)?.label || value;
+    return productCategories.find((c) => c.value === value)?.label || value;
   };
 
   return (
@@ -446,7 +438,7 @@ const ProductManagement = () => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {categories.map((cat) => (
+                        {productCategories.map((cat) => (
                           <SelectItem key={cat.value} value={cat.value}>
                             {cat.label}
                           </SelectItem>

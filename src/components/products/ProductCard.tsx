@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useCart } from '@/contexts/CartContext';
 import { toast } from '@/hooks/use-toast';
 import { Product } from '@/hooks/useProducts';
+import { getCategoryLabel } from '@/lib/categories';
 
 interface ProductCardProps {
   product: Product;
@@ -67,7 +68,7 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
 
         {/* Content */}
         <div className="p-3">
-          <p className="mb-1 text-xs text-muted-foreground">{product.category}</p>
+          <p className="mb-1 text-xs text-muted-foreground">{getCategoryLabel(product.category)}</p>
           <h4 className="mb-1 text-sm font-medium text-foreground line-clamp-2">
             {product.name}
           </h4>

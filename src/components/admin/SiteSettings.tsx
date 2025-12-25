@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Save, Bell, Shield, Palette, Type, Loader2, Paintbrush, Upload, X, Image, Globe, Layout, Mail, ChevronDown } from 'lucide-react';
+import { Settings, Save, Bell, Shield, Palette, Type, Loader2, Paintbrush, Upload, X, Image, Globe, Layout, Mail, ChevronDown, Search } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,15 +26,15 @@ import { supabase } from '@/integrations/supabase/client';
 import CountrySelector from './CountrySelector';
 
 const settingsSections = [
-  { id: 'settings-general', label: 'General Settings', icon: Settings },
-  { id: 'settings-notifications', label: 'Notifications', icon: Bell },
-  { id: 'settings-security', label: 'Security', icon: Shield },
-  { id: 'settings-appearance', label: 'Appearance', icon: Palette },
-  { id: 'settings-colors', label: 'Color Theme', icon: Paintbrush },
-  { id: 'settings-typography', label: 'Typography', icon: Type },
-  { id: 'settings-hero', label: 'Hero Section', icon: Layout },
-  { id: 'settings-footer', label: 'Footer', icon: Globe },
-  { id: 'settings-email', label: 'Email Templates', icon: Mail },
+  { id: 'settings-general', label: 'General Settings', icon: Settings, keywords: ['site name', 'logo', 'commission', 'country', 'maintenance'] },
+  { id: 'settings-notifications', label: 'Notifications', icon: Bell, keywords: ['email', 'alerts', 'chat', 'sound', 'vendor', 'order'] },
+  { id: 'settings-security', label: 'Security', icon: Shield, keywords: ['password', 'auth', 'login', 'two-factor', '2fa'] },
+  { id: 'settings-appearance', label: 'Appearance', icon: Palette, keywords: ['dark mode', 'compact', 'theme', 'layout'] },
+  { id: 'settings-colors', label: 'Color Theme', icon: Paintbrush, keywords: ['primary', 'accent', 'color', 'preset', 'hex'] },
+  { id: 'settings-typography', label: 'Typography', icon: Type, keywords: ['font', 'display', 'text', 'heading'] },
+  { id: 'settings-hero', label: 'Hero Section', icon: Layout, keywords: ['banner', 'title', 'subtitle', 'cta', 'image', 'background'] },
+  { id: 'settings-footer', label: 'Footer', icon: Globe, keywords: ['tagline', 'social', 'facebook', 'instagram', 'twitter', 'linkedin', 'youtube'] },
+  { id: 'settings-email', label: 'Email Templates', icon: Mail, keywords: ['booking', 'vendor', 'approval', 'rejection', 'order', 'template', 'subject', 'message'] },
 ];
 
 const fontOptions = [
@@ -122,6 +122,7 @@ const SiteSettings = () => {
   const [uploadingHero, setUploadingHero] = useState(false);
   const [settingsId, setSettingsId] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState('settings-general');
+  const [searchQuery, setSearchQuery] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const heroFileInputRef = useRef<HTMLInputElement>(null);
   const [settings, setSettings] = useState({
@@ -491,32 +492,72 @@ const SiteSettings = () => {
 
   const scrollToSection = (sectionId: string) => {
     setActiveSection(sectionId);
+    setSearchQuery(''); // Clear search when navigating
     const element = document.getElementById(sectionId);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
+  // Filter sections based on search query
+  const filteredSections = searchQuery.trim()
+    ? settingsSections.filter(
+        (section) =>
+          section.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          section.keywords.some((keyword) =>
+            keyword.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+      )
+    : settingsSections;
+
   return (
     <div className="flex gap-6">
       {/* Desktop Sidebar Navigation */}
       <aside className="hidden lg:block w-64 shrink-0">
-        <div className="sticky top-6 space-y-1">
-          <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-3">Settings</h3>
-          {settingsSections.map((section) => (
-            <button
-              key={section.id}
-              onClick={() => scrollToSection(section.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg transition-colors text-left ${
-                activeSection === section.id
-                  ? 'bg-primary text-primary-foreground font-medium'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-              }`}
-            >
-              <section.icon className="h-4 w-4" />
-              {section.label}
-            </button>
-          ))}
+        <div className="sticky top-6 space-y-3">
+          {/* Search Input */}
+          <div className="relative px-3">
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search settings..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-9 text-sm"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-6 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+          
+          <h3 className="text-sm font-semibold text-muted-foreground px-3">
+            {searchQuery ? `Results (${filteredSections.length})` : 'Settings'}
+          </h3>
+          
+          <div className="space-y-1">
+            {filteredSections.length > 0 ? (
+              filteredSections.map((section) => (
+                <button
+                  key={section.id}
+                  onClick={() => scrollToSection(section.id)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg transition-colors text-left ${
+                    activeSection === section.id
+                      ? 'bg-primary text-primary-foreground font-medium'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`}
+                >
+                  <section.icon className="h-4 w-4" />
+                  {section.label}
+                </button>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground px-3 py-2">No settings found</p>
+            )}
+          </div>
         </div>
       </aside>
 
@@ -536,25 +577,44 @@ const SiteSettings = () => {
                   <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64 p-2 bg-popover">
-                <div className="px-2 py-1.5 mb-1">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Settings Sections</p>
+              <DropdownMenuContent align="end" className="w-72 p-2 bg-popover">
+                {/* Search in dropdown */}
+                <div className="px-2 pb-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search settings..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9 h-8 text-sm"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-0.5">
-                  {settingsSections.map((section) => (
-                    <DropdownMenuItem
-                      key={section.id}
-                      onClick={() => scrollToSection(section.id)}
-                      className={`cursor-pointer rounded-md px-3 py-2.5 ${
-                        activeSection === section.id
-                          ? 'bg-primary text-primary-foreground font-medium'
-                          : ''
-                      }`}
-                    >
-                      <section.icon className="mr-3 h-4 w-4" />
-                      {section.label}
-                    </DropdownMenuItem>
-                  ))}
+                <div className="px-2 py-1.5 mb-1">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    {searchQuery ? `Results (${filteredSections.length})` : 'Settings Sections'}
+                  </p>
+                </div>
+                <div className="space-y-0.5 max-h-64 overflow-y-auto">
+                  {filteredSections.length > 0 ? (
+                    filteredSections.map((section) => (
+                      <DropdownMenuItem
+                        key={section.id}
+                        onClick={() => scrollToSection(section.id)}
+                        className={`cursor-pointer rounded-md px-3 py-2.5 ${
+                          activeSection === section.id
+                            ? 'bg-primary text-primary-foreground font-medium'
+                            : ''
+                        }`}
+                      >
+                        <section.icon className="mr-3 h-4 w-4" />
+                        {section.label}
+                      </DropdownMenuItem>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground px-3 py-2">No settings found</p>
+                  )}
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>

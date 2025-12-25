@@ -26,6 +26,7 @@ import { useProductReviews, useCreateReview } from '@/hooks/useProductReviews';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { getCategoryLabel } from '@/lib/categories';
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -192,7 +193,7 @@ const ProductDetail = () => {
             className="space-y-6"
           >
             <div>
-              <p className="mb-1 text-sm font-medium text-primary">{product.category}</p>
+              <p className="mb-1 text-sm font-medium text-primary">{getCategoryLabel(product.category)}</p>
               <h1 className="mb-2 font-display text-3xl font-bold text-foreground">
                 {product.name}
               </h1>
