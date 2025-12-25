@@ -210,9 +210,16 @@ export default function TempleBookingForm({ templeId, templeName }: TempleBookin
     }, 300);
   };
 
-  // Don't show button if no tickets available
+  // Show message if no tickets available
   if (!ticketsLoading && tickets.length === 0) {
-    return null;
+    return (
+      <div className="text-center p-4 rounded-lg bg-muted/50 border border-border">
+        <Ticket className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">
+          Tickets not yet available for this temple
+        </p>
+      </div>
+    );
   }
 
   return (
