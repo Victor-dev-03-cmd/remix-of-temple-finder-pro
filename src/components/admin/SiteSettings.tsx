@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Save, Bell, Shield, Palette, Type, Loader2, Paintbrush, Upload, X, Image, Globe, Layout, Mail } from 'lucide-react';
+import { Settings, Save, Bell, Shield, Palette, Type, Loader2, Paintbrush, Upload, X, Image, Globe, Layout, Mail, ChevronDown } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,9 +15,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import CountrySelector from './CountrySelector';
+
+const settingsSections = [
+  { id: 'settings-general', label: 'General Settings', icon: Settings },
+  { id: 'settings-notifications', label: 'Notifications', icon: Bell },
+  { id: 'settings-security', label: 'Security', icon: Shield },
+  { id: 'settings-appearance', label: 'Appearance', icon: Palette },
+  { id: 'settings-colors', label: 'Color Theme', icon: Paintbrush },
+  { id: 'settings-typography', label: 'Typography', icon: Type },
+  { id: 'settings-hero', label: 'Hero Section', icon: Layout },
+  { id: 'settings-footer', label: 'Footer', icon: Globe },
+  { id: 'settings-email', label: 'Email Templates', icon: Mail },
+];
 
 const fontOptions = [
   { value: 'Outfit', label: 'Outfit', preview: 'font-outfit' },
@@ -470,6 +488,13 @@ const SiteSettings = () => {
     );
   }
 
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -477,14 +502,36 @@ const SiteSettings = () => {
           <h2 className="text-2xl font-bold text-foreground">Site Settings</h2>
           <p className="text-muted-foreground">Manage your platform configuration</p>
         </div>
-        <Button onClick={handleSave} className="w-full sm:w-auto" disabled={saving}>
-          {saving ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Save className="mr-2 h-4 w-4" />
-          )}
-          {saving ? 'Saving...' : 'Save Changes'}
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="w-full sm:w-auto">
+                Jump to Section
+                <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 bg-popover">
+              {settingsSections.map((section) => (
+                <DropdownMenuItem
+                  key={section.id}
+                  onClick={() => scrollToSection(section.id)}
+                  className="cursor-pointer"
+                >
+                  <section.icon className="mr-2 h-4 w-4" />
+                  {section.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button onClick={handleSave} className="w-full sm:w-auto" disabled={saving}>
+            {saving ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            {saving ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
