@@ -210,11 +210,18 @@ export const useChat = () => {
         (payload) => {
           const newMessage = payload.new as ChatMessage;
           
-          // Play sound if message is from someone else
+          // Play sound and show toast if message is from someone else
           if (newMessage.sender_id !== user.id) {
             playNotificationSound();
             // Update unread count immediately
             setUnreadCount(prev => prev + 1);
+            // Show toast notification
+            toast({
+              title: 'New Message',
+              description: newMessage.message.length > 50 
+                ? newMessage.message.substring(0, 50) + '...' 
+                : newMessage.message,
+            });
           }
           
           // Add to messages if in active conversation
