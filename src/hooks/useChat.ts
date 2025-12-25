@@ -29,6 +29,7 @@ export const useChat = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [activeConversation, setActiveConversation] = useState<ChatConversation | null>(null);
   const [loading, setLoading] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Fetch conversations
   const fetchConversations = useCallback(async () => {
@@ -220,12 +221,38 @@ export const useChat = () => {
     }
   }, [activeConversation, fetchMessages]);
 
+  // Fetch unread message count
+  const fetchUnreadCount = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      const { count, error } = await supabase
+        .from('chat_messages')
+        .select('*', { count: 'exact', head: true })
+        .neq('sender_id', user.id)
+        .eq('is_read', false);
+
+      if (error) throw error;
+      setUnreadCount(count || 0);
+    } catch (error: any) {
+      console.error('Error fetching unread count:', error);
+    }
+  }, [user]);
+
+  // Fetch unread count on mount and when messages change
+  useEffect(() => {
+    if (user) {
+      fetchUnreadCount();
+    }
+  }, [user, fetchUnreadCount, messages]);
+
   return {
     conversations,
     messages,
     activeConversation,
     setActiveConversation,
     loading,
+    unreadCount,
     createConversation,
     sendMessage,
     closeConversation,
