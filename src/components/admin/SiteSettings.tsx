@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Save, Bell, Shield, Palette, Type, Loader2, Paintbrush, Upload, X, Image, Globe, Layout } from 'lucide-react';
+import { Settings, Save, Bell, Shield, Palette, Type, Loader2, Paintbrush, Upload, X, Image, Globe, Layout, Mail } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
@@ -130,6 +131,19 @@ const SiteSettings = () => {
     heroCtaText: 'Become a Temple Vendor',
     heroCtaLink: '/become-vendor',
     commissionRate: 10,
+    // Email template settings
+    emailFromName: 'Temple Connect',
+    emailFromAddress: 'onboarding@resend.dev',
+    bookingEmailSubject: 'Booking Confirmation - {{temple_name}}',
+    bookingEmailGreeting: 'Namaste, {{customer_name}}!',
+    bookingEmailMessage: 'Your temple visit has been confirmed. Please present this QR code at the temple entrance.',
+    bookingEmailInstructions: 'Please arrive 15 minutes before your scheduled visit|Carry a valid ID proof along with this confirmation|Dress code: Traditional or modest attire recommended|Photography rules vary by temple - please check at entrance',
+    vendorApprovalEmailSubject: 'Your Vendor Application has been Approved!',
+    vendorApprovalEmailMessage: 'Congratulations! Your application to become a vendor on Temple Connect has been approved. You can now access your vendor dashboard and start managing your temple products.',
+    vendorRejectionEmailSubject: 'Update on Your Vendor Application',
+    vendorRejectionEmailMessage: 'Thank you for your interest in becoming a vendor on Temple Connect. After careful review, we are unable to approve your application at this time. Please feel free to reapply or contact us for more information.',
+    newOrderEmailSubject: 'New Order Received - Order #{{order_id}}',
+    newOrderEmailMessage: 'You have received a new order. Please check your vendor dashboard for order details and process it promptly.',
   });
 
   // Fetch settings from database
@@ -172,6 +186,19 @@ const SiteSettings = () => {
             heroCtaText: data.hero_cta_text || 'Become a Temple Vendor',
             heroCtaLink: data.hero_cta_link || '/become-vendor',
             commissionRate: (data as any).commission_rate || 10,
+            // Email templates
+            emailFromName: (data as any).email_from_name || 'Temple Connect',
+            emailFromAddress: (data as any).email_from_address || 'onboarding@resend.dev',
+            bookingEmailSubject: (data as any).booking_email_subject || 'Booking Confirmation - {{temple_name}}',
+            bookingEmailGreeting: (data as any).booking_email_greeting || 'Namaste, {{customer_name}}!',
+            bookingEmailMessage: (data as any).booking_email_message || 'Your temple visit has been confirmed. Please present this QR code at the temple entrance.',
+            bookingEmailInstructions: (data as any).booking_email_instructions || 'Please arrive 15 minutes before your scheduled visit|Carry a valid ID proof along with this confirmation|Dress code: Traditional or modest attire recommended|Photography rules vary by temple - please check at entrance',
+            vendorApprovalEmailSubject: (data as any).vendor_approval_email_subject || 'Your Vendor Application has been Approved!',
+            vendorApprovalEmailMessage: (data as any).vendor_approval_email_message || 'Congratulations! Your application to become a vendor on Temple Connect has been approved. You can now access your vendor dashboard and start managing your temple products.',
+            vendorRejectionEmailSubject: (data as any).vendor_rejection_email_subject || 'Update on Your Vendor Application',
+            vendorRejectionEmailMessage: (data as any).vendor_rejection_email_message || 'Thank you for your interest in becoming a vendor on Temple Connect. After careful review, we are unable to approve your application at this time. Please feel free to reapply or contact us for more information.',
+            newOrderEmailSubject: (data as any).new_order_email_subject || 'New Order Received - Order #{{order_id}}',
+            newOrderEmailMessage: (data as any).new_order_email_message || 'You have received a new order. Please check your vendor dashboard for order details and process it promptly.',
           });
         }
       } catch (err) {
@@ -352,6 +379,19 @@ const SiteSettings = () => {
         hero_cta_text: settings.heroCtaText,
         hero_cta_link: settings.heroCtaLink,
         commission_rate: settings.commissionRate,
+        // Email template settings
+        email_from_name: settings.emailFromName,
+        email_from_address: settings.emailFromAddress,
+        booking_email_subject: settings.bookingEmailSubject,
+        booking_email_greeting: settings.bookingEmailGreeting,
+        booking_email_message: settings.bookingEmailMessage,
+        booking_email_instructions: settings.bookingEmailInstructions,
+        vendor_approval_email_subject: settings.vendorApprovalEmailSubject,
+        vendor_approval_email_message: settings.vendorApprovalEmailMessage,
+        vendor_rejection_email_subject: settings.vendorRejectionEmailSubject,
+        vendor_rejection_email_message: settings.vendorRejectionEmailMessage,
+        new_order_email_subject: settings.newOrderEmailSubject,
+        new_order_email_message: settings.newOrderEmailMessage,
       };
 
       if (settingsId) {
@@ -1007,6 +1047,175 @@ const SiteSettings = () => {
                     value={settings.socialYoutube}
                     onChange={(e) => setSettings({ ...settings, socialYoutube: e.target.value })}
                     placeholder="https://youtube.com/@yourchannel"
+                  />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Email Templates Settings */}
+        <Card id="settings-email-templates" className="md:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5" />
+              Email Templates
+            </CardTitle>
+            <CardDescription>Customize email notifications sent to users</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Email Sender Settings */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium text-foreground">Sender Settings</h4>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="emailFromName">From Name</Label>
+                  <Input
+                    id="emailFromName"
+                    value={settings.emailFromName}
+                    onChange={(e) => setSettings({ ...settings, emailFromName: e.target.value })}
+                    placeholder="Temple Connect"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="emailFromAddress">From Email Address</Label>
+                  <Input
+                    id="emailFromAddress"
+                    value={settings.emailFromAddress}
+                    onChange={(e) => setSettings({ ...settings, emailFromAddress: e.target.value })}
+                    placeholder="noreply@yourdomain.com"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Must be a verified domain in Resend
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <Separator />
+            
+            {/* Booking Confirmation Email */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium text-foreground">Booking Confirmation Email</h4>
+              <p className="text-xs text-muted-foreground">
+                Variables: {'{{customer_name}}'}, {'{{temple_name}}'}, {'{{visit_date}}'}, {'{{booking_code}}'}
+              </p>
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="bookingEmailSubject">Subject Line</Label>
+                  <Input
+                    id="bookingEmailSubject"
+                    value={settings.bookingEmailSubject}
+                    onChange={(e) => setSettings({ ...settings, bookingEmailSubject: e.target.value })}
+                    placeholder="Booking Confirmation - {{temple_name}}"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bookingEmailGreeting">Greeting</Label>
+                  <Input
+                    id="bookingEmailGreeting"
+                    value={settings.bookingEmailGreeting}
+                    onChange={(e) => setSettings({ ...settings, bookingEmailGreeting: e.target.value })}
+                    placeholder="Namaste, {{customer_name}}!"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bookingEmailMessage">Main Message</Label>
+                  <Input
+                    id="bookingEmailMessage"
+                    value={settings.bookingEmailMessage}
+                    onChange={(e) => setSettings({ ...settings, bookingEmailMessage: e.target.value })}
+                    placeholder="Your temple visit has been confirmed..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bookingEmailInstructions">Instructions (separate with |)</Label>
+                  <Input
+                    id="bookingEmailInstructions"
+                    value={settings.bookingEmailInstructions}
+                    onChange={(e) => setSettings({ ...settings, bookingEmailInstructions: e.target.value })}
+                    placeholder="Instruction 1|Instruction 2|Instruction 3"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Each instruction separated by | will appear as a bullet point
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Vendor Notification Emails */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium text-foreground">Vendor Approval Email</h4>
+              <p className="text-xs text-muted-foreground">
+                Variables: {'{{vendor_name}}'}, {'{{business_name}}'}
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="vendorApprovalEmailSubject">Subject Line</Label>
+                  <Input
+                    id="vendorApprovalEmailSubject"
+                    value={settings.vendorApprovalEmailSubject}
+                    onChange={(e) => setSettings({ ...settings, vendorApprovalEmailSubject: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="vendorApprovalEmailMessage">Message</Label>
+                  <Input
+                    id="vendorApprovalEmailMessage"
+                    value={settings.vendorApprovalEmailMessage}
+                    onChange={(e) => setSettings({ ...settings, vendorApprovalEmailMessage: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium text-foreground">Vendor Rejection Email</h4>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="vendorRejectionEmailSubject">Subject Line</Label>
+                  <Input
+                    id="vendorRejectionEmailSubject"
+                    value={settings.vendorRejectionEmailSubject}
+                    onChange={(e) => setSettings({ ...settings, vendorRejectionEmailSubject: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="vendorRejectionEmailMessage">Message</Label>
+                  <Input
+                    id="vendorRejectionEmailMessage"
+                    value={settings.vendorRejectionEmailMessage}
+                    onChange={(e) => setSettings({ ...settings, vendorRejectionEmailMessage: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* New Order Email */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium text-foreground">New Order Notification (to Vendor)</h4>
+              <p className="text-xs text-muted-foreground">
+                Variables: {'{{order_id}}'}, {'{{customer_name}}'}, {'{{total_amount}}'}
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="newOrderEmailSubject">Subject Line</Label>
+                  <Input
+                    id="newOrderEmailSubject"
+                    value={settings.newOrderEmailSubject}
+                    onChange={(e) => setSettings({ ...settings, newOrderEmailSubject: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="newOrderEmailMessage">Message</Label>
+                  <Input
+                    id="newOrderEmailMessage"
+                    value={settings.newOrderEmailMessage}
+                    onChange={(e) => setSettings({ ...settings, newOrderEmailMessage: e.target.value })}
                   />
                 </div>
               </div>
