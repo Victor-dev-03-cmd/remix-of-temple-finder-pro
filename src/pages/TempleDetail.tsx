@@ -13,14 +13,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useTemple } from '@/hooks/useTemples';
-import { useProducts } from '@/hooks/useProducts';
+import { useTempleProducts } from '@/hooks/useTempleProducts';
 import { useTempleReviews } from '@/hooks/useTempleReviews';
 
 const TempleDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { data: temple, isLoading, error } = useTemple(id || '');
   const { data: reviews = [], isLoading: reviewsLoading } = useTempleReviews(id || '');
-  const { products, loading: productsLoading } = useProducts({ limit: 6 });
+  const { products, loading: productsLoading } = useTempleProducts(id);
 
   if (isLoading) {
     return (
@@ -180,7 +180,7 @@ const TempleDetail = () => {
             viewport={{ once: true }}
           >
             <h2 className="mb-6 font-display text-2xl font-semibold text-foreground">
-              Featured Products
+              Products from this Temple
             </h2>
             {productsLoading ? (
               <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">

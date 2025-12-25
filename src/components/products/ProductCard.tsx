@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ShoppingCart } from 'lucide-react';
+import { ShoppingCart, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/contexts/CartContext';
 import { toast } from '@/hooks/use-toast';
@@ -71,6 +71,15 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
           <h4 className="mb-1 text-sm font-medium text-foreground line-clamp-2">
             {product.name}
           </h4>
+          
+          {/* Temple Badge */}
+          {product.temple && (
+            <div className="mb-2 flex items-center gap-1 text-xs text-primary">
+              <Building className="h-3 w-3" />
+              <span className="truncate">{product.temple.name}</span>
+            </div>
+          )}
+          
           <p className="mb-3 text-lg font-semibold text-primary">
             LKR {product.price.toLocaleString()}
           </p>

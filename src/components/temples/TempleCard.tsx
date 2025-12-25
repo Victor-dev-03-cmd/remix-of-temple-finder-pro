@@ -48,7 +48,7 @@ const TempleCard = ({ temple, index = 0 }: TempleCardProps) => {
         </div>
 
         {/* Action */}
-        <Link to={`/temple/${temple.id}`}>
+        <Link to={`/temples/${temple.id}`}>
           <Button variant="outline" className="w-full">
             View Details
           </Button>
