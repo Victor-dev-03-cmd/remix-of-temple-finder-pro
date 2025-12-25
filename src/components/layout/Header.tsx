@@ -40,6 +40,7 @@ import { useCart } from '@/contexts/CartContext';
 import { toast } from '@/hooks/use-toast';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { supabase } from '@/integrations/supabase/client';
+import { formatDistanceToNow } from 'date-fns';
 
 interface SearchResult {
   id: string;
@@ -51,11 +52,12 @@ interface SearchResult {
 
 interface Notification {
   id: string;
-  type: 'info' | 'success' | 'warning';
+  type: string;
   title: string;
   message: string;
-  time: string;
   read: boolean;
+  link?: string;
+  created_at: string;
 }
 
 const Header = () => {
@@ -82,77 +84,79 @@ const Header = () => {
     { href: '/become-vendor', label: 'Become a Vendor' },
   ];
 
-  // Generate mock notifications based on user role
+  // Fetch notifications from database
   useEffect(() => {
-    if (user) {
-      const mockNotifications: Notification[] = [];
-      
-      if (isAdmin) {
-        mockNotifications.push(
-          {
-            id: '1',
-            type: 'info',
-            title: 'New Vendor Application',
-            message: 'A new vendor application is pending review.',
-            time: '5 min ago',
-            read: false,
-          },
-          {
-            id: '2',
-            type: 'success',
-            title: 'System Update',
-            message: 'All systems are running smoothly.',
-            time: '1 hour ago',
-            read: true,
-          }
-        );
-      } else if (isVendor) {
-        mockNotifications.push(
-          {
-            id: '1',
-            type: 'success',
-            title: 'New Order Received',
-            message: 'You have received a new order.',
-            time: '10 min ago',
-            read: false,
-          },
-          {
-            id: '2',
-            type: 'info',
-            title: 'Product Approved',
-            message: 'Your product has been approved.',
-            time: '2 hours ago',
-            read: true,
-          }
-        );
-      } else {
-        mockNotifications.push(
-          {
-            id: '1',
-            type: 'success',
-            title: 'Welcome!',
-            message: 'Thank you for joining Temple Connect.',
-            time: 'Just now',
-            read: false,
-          },
-          {
-            id: '2',
-            type: 'info',
-            title: 'Explore Temples',
-            message: 'Discover sacred temples near you.',
-            time: '1 day ago',
-            read: true,
-          }
-        );
-      }
-      
-      setNotifications(mockNotifications);
-      setUnreadCount(mockNotifications.filter(n => !n.read).length);
-    } else {
+    if (!user) {
       setNotifications([]);
       setUnreadCount(0);
+      return;
     }
-  }, [user, isAdmin, isVendor]);
+
+    const fetchNotifications = async () => {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (!error && data) {
+        setNotifications(data);
+        setUnreadCount(data.filter(n => !n.read).length);
+      }
+    };
+
+    fetchNotifications();
+
+    // Subscribe to real-time notifications
+    const channel = supabase
+      .channel('notifications-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const newNotification = payload.new as Notification;
+          setNotifications(prev => [newNotification, ...prev]);
+          setUnreadCount(prev => prev + 1);
+          
+          // Show toast for new notification
+          toast({
+            title: newNotification.title,
+            description: newNotification.message,
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const updatedNotification = payload.new as Notification;
+          setNotifications(prev =>
+            prev.map(n => n.id === updatedNotification.id ? updatedNotification : n)
+          );
+          // Recalculate unread count
+          setNotifications(prev => {
+            setUnreadCount(prev.filter(n => !n.read).length);
+            return prev;
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   // Search functionality
   useEffect(() => {
@@ -235,9 +239,42 @@ const Header = () => {
     }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    setUnreadCount(0);
+  const markAllAsRead = async () => {
+    if (!user) return;
+    
+    const { error } = await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('user_id', user.id)
+      .eq('read', false);
+
+    if (!error) {
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setUnreadCount(0);
+    }
+  };
+
+  const markAsRead = async (notificationId: string) => {
+    const { error } = await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('id', notificationId);
+
+    if (!error) {
+      setNotifications(prev =>
+        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    }
+  };
+
+  const handleNotificationClick = async (notification: Notification) => {
+    if (!notification.read) {
+      await markAsRead(notification.id);
+    }
+    if (notification.link) {
+      navigate(notification.link);
+    }
   };
 
   const getNotificationIcon = (type: string) => {
@@ -248,6 +285,14 @@ const Header = () => {
         return <AlertCircle className="h-4 w-4 text-yellow-500" />;
       default:
         return <Info className="h-4 w-4 text-blue-500" />;
+    }
+  };
+
+  const formatTime = (dateString: string) => {
+    try {
+      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
+    } catch {
+      return 'Just now';
     }
   };
 
@@ -343,6 +388,7 @@ const Header = () => {
                       {notifications.map((notification) => (
                         <div
                           key={notification.id}
+                          onClick={() => handleNotificationClick(notification)}
                           className={cn(
                             'flex gap-3 px-3 py-3 hover:bg-muted/50 cursor-pointer',
                             !notification.read && 'bg-muted/30'
@@ -359,7 +405,7 @@ const Header = () => {
                               {notification.message}
                             </p>
                             <p className="text-xs text-muted-foreground/70">
-                              {notification.time}
+                              {formatTime(notification.created_at)}
                             </p>
                           </div>
                           {!notification.read && (
