@@ -470,9 +470,6 @@ const Header = () => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="gap-2">
-                    {userCountry && countryFlags[userCountry] && (
-                      <span className="text-base" title={userCountry}>{countryFlags[userCountry]}</span>
-                    )}
                     <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
                       {user.email?.[0]?.toUpperCase() || 'U'}
                     </div>
