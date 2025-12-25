@@ -13,12 +13,13 @@ import {
   Shield,
   LogOut,
   Settings,
-  Globe,
   MapPin,
   Ticket,
+  Building,
 } from 'lucide-react';
 import CountrySelector from '@/components/admin/CountrySelector';
 import { useAuth } from '@/contexts/AuthContext';
+import { useVendorTemple } from '@/hooks/useVendorTemple';
 import {
   Sidebar,
   SidebarContent,
@@ -46,6 +47,7 @@ const adminMenuItems = [
 
 const vendorMenuItems = [
   { title: 'Dashboard', url: '/vendor', icon: LayoutDashboard },
+  { title: 'My Temple', url: '/vendor/temple', icon: Building },
   { title: 'Products', url: '/vendor/products', icon: Package },
   { title: 'Orders', url: '/vendor/orders', icon: ShoppingCart },
   { title: 'Analytics', url: '/vendor/analytics', icon: TrendingUp },
@@ -65,6 +67,7 @@ const commonLinks = [
 
 const DashboardSidebar = () => {
   const { isAdmin, isVendor, user, signOut } = useAuth();
+  const { temple, application } = useVendorTemple(user?.id);
   const location = useLocation();
   const { state } = useSidebar();
   const isCollapsed = state === 'collapsed';
@@ -99,6 +102,21 @@ const DashboardSidebar = () => {
             </div>
           )}
         </div>
+        
+        {/* Vendor Temple Info */}
+        {isVendor && temple && !isCollapsed && (
+          <div className="mt-3 rounded-lg bg-primary/5 p-2.5 border border-primary/10">
+            <div className="flex items-center gap-2">
+              <Building className="h-4 w-4 text-primary shrink-0" />
+              <div className="overflow-hidden">
+                <p className="text-xs font-medium text-foreground truncate">{temple.name}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {temple.district}, {temple.province}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </SidebarHeader>
 
       <SidebarContent>

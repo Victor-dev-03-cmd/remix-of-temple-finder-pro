@@ -51,7 +51,7 @@ const Temples = () => {
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
 
   const handleTempleClick = (temple: Temple) => {
-    navigate(`/temple/${temple.id}`);
+    navigate(`/temples/${temple.id}`);
   };
 
   // Get districts based on selected province
