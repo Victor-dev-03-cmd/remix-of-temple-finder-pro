@@ -60,6 +60,13 @@ interface Notification {
   created_at: string;
 }
 
+const countryFlags: Record<string, string> = {
+  'LK': '🇱🇰', 'MY': '🇲🇾', 'IN': '🇮🇳', 'TH': '🇹🇭', 'SG': '🇸🇬',
+  'ID': '🇮🇩', 'PH': '🇵🇭', 'VN': '🇻🇳', 'MM': '🇲🇲', 'NP': '🇳🇵',
+  'BD': '🇧🇩', 'PK': '🇵🇰', 'JP': '🇯🇵', 'KR': '🇰🇷', 'CN': '🇨🇳',
+  'AU': '🇦🇺', 'NZ': '🇳🇿', 'GB': '🇬🇧', 'US': '🇺🇸', 'CA': '🇨🇦',
+};
+
 const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDark, setIsDark] = useState(document.documentElement.classList.contains('dark'));
@@ -69,6 +76,7 @@ const Header = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [userCountry, setUserCountry] = useState<string | null>(null);
   
   const { data: siteSettings } = useSiteSettings();
   const location = useLocation();
@@ -83,6 +91,28 @@ const Header = () => {
     { href: '/booking', label: 'My Booking' },
     { href: '/become-vendor', label: 'Become a Vendor' },
   ];
+
+  // Fetch user's country from profile
+  useEffect(() => {
+    if (!user) {
+      setUserCountry(null);
+      return;
+    }
+
+    const fetchUserCountry = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('country')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (data?.country) {
+        setUserCountry(data.country);
+      }
+    };
+
+    fetchUserCountry();
+  }, [user]);
 
   // Fetch notifications from database
   useEffect(() => {
@@ -440,6 +470,9 @@ const Header = () => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="gap-2">
+                    {userCountry && countryFlags[userCountry] && (
+                      <span className="text-base" title={userCountry}>{countryFlags[userCountry]}</span>
+                    )}
                     <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
                       {user.email?.[0]?.toUpperCase() || 'U'}
                     </div>
