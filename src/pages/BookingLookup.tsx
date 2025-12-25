@@ -58,36 +58,42 @@ const BookingLookup = () => {
     setSearched(true);
 
     try {
-      const { data, error } = await supabase
-        .from('temple_bookings')
-        .select(`
-          *,
-          temples (
-            name,
-            district,
-            province,
-            address,
-            image_url
-          )
-        `)
-        .eq('booking_code', bookingCode.toUpperCase().trim())
+      // Use secure RPC function to lookup booking by code
+      const { data: bookingData, error: bookingError } = await supabase
+        .rpc('get_booking_by_code', { p_booking_code: bookingCode.toUpperCase().trim() })
         .maybeSingle();
 
-      if (error) throw error;
+      if (bookingError) throw bookingError;
 
-      if (data) {
-        // Parse ticket_details from JSON
-        const bookingData = {
-          ...data,
-          ticket_details: Array.isArray(data.ticket_details) 
-            ? (data.ticket_details as unknown as TicketDetail[]) 
-            : null,
-        };
-        setBooking(bookingData as BookingDetails);
-      } else {
+      if (!bookingData) {
         setBooking(null);
         toast.error('No booking found with this code');
+        setIsLoading(false);
+        return;
       }
+
+      // Fetch temple data separately
+      const { data: templeData, error: templeError } = await supabase
+        .from('temples')
+        .select('name, district, province, address, image_url')
+        .eq('id', bookingData.temple_id)
+        .maybeSingle();
+
+      if (templeError) throw templeError;
+
+      const data = {
+        ...bookingData,
+        temples: templeData || { name: 'Unknown Temple', district: '', province: '', address: null, image_url: null }
+      };
+
+      // Parse ticket_details from JSON
+      const finalBooking = {
+        ...data,
+        ticket_details: Array.isArray(data.ticket_details) 
+          ? (data.ticket_details as unknown as TicketDetail[]) 
+          : null,
+      };
+      setBooking(finalBooking as BookingDetails);
     } catch (error: any) {
       console.error('Lookup error:', error);
       toast.error('Failed to look up booking');
