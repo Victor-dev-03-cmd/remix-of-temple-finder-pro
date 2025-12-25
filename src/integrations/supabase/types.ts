@@ -616,6 +616,34 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_view_booking: {
+        Args: { booking_id: string; provided_booking_code: string }
+        Returns: boolean
+      }
+      get_booking_by_code: {
+        Args: { p_booking_code: string }
+        Returns: {
+          booking_code: string
+          created_at: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string | null
+          id: string
+          notes: string | null
+          num_tickets: number
+          status: string
+          temple_id: string
+          ticket_details: Json | null
+          updated_at: string
+          visit_date: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "temple_bookings"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
