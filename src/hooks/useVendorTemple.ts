@@ -12,6 +12,8 @@ interface VendorTemple {
   address: string | null;
   contact: string | null;
   opening_hours: string | null;
+  latitude: number;
+  longitude: number;
 }
 
 interface VendorApplication {
@@ -51,7 +53,7 @@ export const useVendorTemple = (userId: string | undefined) => {
       // Fetch temple owned by this vendor
       const { data: templeData, error: templeError } = await supabase
         .from('temples')
-        .select('id, name, district, province, image_url, deity, description, address, contact, opening_hours')
+        .select('id, name, district, province, image_url, deity, description, address, contact, opening_hours, latitude, longitude')
         .eq('owner_user_id', userId)
         .maybeSingle();
 
