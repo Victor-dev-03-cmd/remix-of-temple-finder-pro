@@ -25,9 +25,6 @@ const ChatWidget = () => {
   const [showNewChat, setShowNewChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Don't show widget for admins (they use the admin panel)
-  if (isAdmin || !user) return null;
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -54,6 +51,9 @@ const ChatWidget = () => {
       setSubject('');
     }
   };
+
+  // Don't show widget for admins (they use the admin panel) or non-logged-in users
+  if (isAdmin || !user) return null;
 
   const userConversations = conversations.filter(c => c.status === 'open');
 
