@@ -16,7 +16,8 @@ const ChatWidget = () => {
     activeConversation,
     setActiveConversation,
     createConversation,
-    sendMessage
+    sendMessage,
+    unreadCount
   } = useChat();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -71,9 +72,14 @@ const ChatWidget = () => {
             <Button
               onClick={() => setIsOpen(true)}
               size="lg"
-              className="h-14 w-14 rounded-full shadow-lg bg-primary hover:bg-primary/90"
+              className="h-14 w-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 relative"
             >
               <MessageCircle className="h-6 w-6" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </Button>
           </motion.div>
         )}
