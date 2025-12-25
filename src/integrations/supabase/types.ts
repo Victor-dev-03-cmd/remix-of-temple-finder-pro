@@ -284,12 +284,18 @@ export type Database = {
       site_settings: {
         Row: {
           accent_color: string
+          booking_email_greeting: string | null
+          booking_email_instructions: string | null
+          booking_email_message: string | null
+          booking_email_subject: string | null
           commission_rate: number | null
           compact_mode: boolean
           created_at: string
           dark_mode: boolean
           default_country: string
           display_font: string
+          email_from_address: string | null
+          email_from_name: string | null
           email_notifications: boolean
           footer_tagline: string | null
           hero_cta_link: string | null
@@ -300,6 +306,8 @@ export type Database = {
           id: string
           logo_url: string | null
           maintenance_mode: boolean
+          new_order_email_message: string | null
+          new_order_email_subject: string | null
           new_vendor_alerts: boolean
           order_alerts: boolean
           primary_color: string
@@ -311,15 +319,25 @@ export type Database = {
           social_twitter: string | null
           social_youtube: string | null
           updated_at: string
+          vendor_approval_email_message: string | null
+          vendor_approval_email_subject: string | null
+          vendor_rejection_email_message: string | null
+          vendor_rejection_email_subject: string | null
         }
         Insert: {
           accent_color?: string
+          booking_email_greeting?: string | null
+          booking_email_instructions?: string | null
+          booking_email_message?: string | null
+          booking_email_subject?: string | null
           commission_rate?: number | null
           compact_mode?: boolean
           created_at?: string
           dark_mode?: boolean
           default_country?: string
           display_font?: string
+          email_from_address?: string | null
+          email_from_name?: string | null
           email_notifications?: boolean
           footer_tagline?: string | null
           hero_cta_link?: string | null
@@ -330,6 +348,8 @@ export type Database = {
           id?: string
           logo_url?: string | null
           maintenance_mode?: boolean
+          new_order_email_message?: string | null
+          new_order_email_subject?: string | null
           new_vendor_alerts?: boolean
           order_alerts?: boolean
           primary_color?: string
@@ -341,15 +361,25 @@ export type Database = {
           social_twitter?: string | null
           social_youtube?: string | null
           updated_at?: string
+          vendor_approval_email_message?: string | null
+          vendor_approval_email_subject?: string | null
+          vendor_rejection_email_message?: string | null
+          vendor_rejection_email_subject?: string | null
         }
         Update: {
           accent_color?: string
+          booking_email_greeting?: string | null
+          booking_email_instructions?: string | null
+          booking_email_message?: string | null
+          booking_email_subject?: string | null
           commission_rate?: number | null
           compact_mode?: boolean
           created_at?: string
           dark_mode?: boolean
           default_country?: string
           display_font?: string
+          email_from_address?: string | null
+          email_from_name?: string | null
           email_notifications?: boolean
           footer_tagline?: string | null
           hero_cta_link?: string | null
@@ -360,6 +390,8 @@ export type Database = {
           id?: string
           logo_url?: string | null
           maintenance_mode?: boolean
+          new_order_email_message?: string | null
+          new_order_email_subject?: string | null
           new_vendor_alerts?: boolean
           order_alerts?: boolean
           primary_color?: string
@@ -371,6 +403,10 @@ export type Database = {
           social_twitter?: string | null
           social_youtube?: string | null
           updated_at?: string
+          vendor_approval_email_message?: string | null
+          vendor_approval_email_subject?: string | null
+          vendor_rejection_email_message?: string | null
+          vendor_rejection_email_subject?: string | null
         }
         Relationships: []
       }

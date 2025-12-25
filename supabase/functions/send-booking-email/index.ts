@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
@@ -26,6 +27,72 @@ interface BookingEmailRequest {
   totalPrice?: number;
 }
 
+interface EmailSettings {
+  email_from_name: string;
+  email_from_address: string;
+  booking_email_subject: string;
+  booking_email_greeting: string;
+  booking_email_message: string;
+  booking_email_instructions: string;
+  site_name: string;
+}
+
+const defaultSettings: EmailSettings = {
+  email_from_name: 'Temple Connect',
+  email_from_address: 'onboarding@resend.dev',
+  booking_email_subject: 'Booking Confirmation - {{temple_name}}',
+  booking_email_greeting: 'Namaste, {{customer_name}}!',
+  booking_email_message: 'Your temple visit has been confirmed. Please present this QR code at the temple entrance.',
+  booking_email_instructions: 'Please arrive 15 minutes before your scheduled visit|Carry a valid ID proof along with this confirmation|Dress code: Traditional or modest attire recommended|Photography rules vary by temple - please check at entrance',
+  site_name: 'Temple Connect',
+};
+
+async function getEmailSettings(): Promise<EmailSettings> {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY");
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.log("Missing Supabase credentials, using defaults");
+      return defaultSettings;
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    const { data, error } = await supabase
+      .from('site_settings')
+      .select('email_from_name, email_from_address, booking_email_subject, booking_email_greeting, booking_email_message, booking_email_instructions, site_name')
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) {
+      console.log("No settings found, using defaults:", error?.message);
+      return defaultSettings;
+    }
+
+    return {
+      email_from_name: data.email_from_name || defaultSettings.email_from_name,
+      email_from_address: data.email_from_address || defaultSettings.email_from_address,
+      booking_email_subject: data.booking_email_subject || defaultSettings.booking_email_subject,
+      booking_email_greeting: data.booking_email_greeting || defaultSettings.booking_email_greeting,
+      booking_email_message: data.booking_email_message || defaultSettings.booking_email_message,
+      booking_email_instructions: data.booking_email_instructions || defaultSettings.booking_email_instructions,
+      site_name: data.site_name || defaultSettings.site_name,
+    };
+  } catch (err) {
+    console.error("Error fetching email settings:", err);
+    return defaultSettings;
+  }
+}
+
+function replaceVariables(template: string, vars: Record<string, string>): string {
+  let result = template;
+  for (const [key, value] of Object.entries(vars)) {
+    result = result.replace(new RegExp(`{{${key}}}`, 'g'), value);
+  }
+  return result;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -45,6 +112,24 @@ const handler = async (req: Request): Promise<Response> => {
     }: BookingEmailRequest = await req.json();
 
     console.log("Sending booking confirmation to:", customerEmail);
+
+    // Fetch email settings from database
+    const settings = await getEmailSettings();
+    console.log("Using email settings:", { fromName: settings.email_from_name, siteName: settings.site_name });
+
+    // Variable replacements
+    const variables = {
+      customer_name: customerName,
+      temple_name: templeName,
+      visit_date: visitDate,
+      booking_code: bookingCode,
+      num_tickets: String(numTickets),
+    };
+
+    const subject = replaceVariables(settings.booking_email_subject, variables);
+    const greeting = replaceVariables(settings.booking_email_greeting, variables);
+    const message = replaceVariables(settings.booking_email_message, variables);
+    const instructions = settings.booking_email_instructions.split('|').filter(i => i.trim());
 
     // Generate QR code URL using a public QR code API
     const qrData = encodeURIComponent(`TEMPLE-BOOKING:${bookingCode}|${templeName}|${visitDate}|${numTickets}`);
@@ -66,6 +151,9 @@ const handler = async (req: Request): Promise<Response> => {
           </tr>
         `;
 
+    // Build instructions list
+    const instructionsList = instructions.map(inst => `<li>${inst}</li>`).join('');
+
     const emailHtml = `
       <!DOCTYPE html>
       <html>
@@ -79,7 +167,7 @@ const handler = async (req: Request): Promise<Response> => {
           <!-- Header -->
           <tr>
             <td style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); padding: 40px 30px; text-align: center;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700;">🕉️ Temple Connect</h1>
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700;">🕉️ ${settings.site_name}</h1>
               <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0; font-size: 16px;">Booking Confirmation</p>
             </td>
           </tr>
@@ -87,9 +175,9 @@ const handler = async (req: Request): Promise<Response> => {
           <!-- Content -->
           <tr>
             <td style="padding: 40px 30px;">
-              <h2 style="color: #1e293b; margin: 0 0 20px; font-size: 24px;">Namaste, ${customerName}!</h2>
+              <h2 style="color: #1e293b; margin: 0 0 20px; font-size: 24px;">${greeting}</h2>
               <p style="color: #64748b; font-size: 16px; line-height: 1.6; margin: 0 0 30px;">
-                Your temple visit has been confirmed. Please present this QR code at the temple entrance.
+                ${message}
               </p>
               
               <!-- QR Code -->
@@ -137,15 +225,14 @@ const handler = async (req: Request): Promise<Response> => {
               ` : ''}
               
               <!-- Instructions -->
+              ${instructions.length > 0 ? `
               <div style="background-color: #fef3c7; border-radius: 12px; padding: 20px; margin: 30px 0;">
                 <h4 style="color: #92400e; margin: 0 0 10px; font-size: 16px;">📋 Important Instructions</h4>
                 <ul style="color: #92400e; font-size: 14px; line-height: 1.8; margin: 0; padding-left: 20px;">
-                  <li>Please arrive 15 minutes before your scheduled visit</li>
-                  <li>Carry a valid ID proof along with this confirmation</li>
-                  <li>Dress code: Traditional or modest attire recommended</li>
-                  <li>Photography rules vary by temple - please check at entrance</li>
+                  ${instructionsList}
                 </ul>
               </div>
+              ` : ''}
             </td>
           </tr>
           
@@ -153,10 +240,10 @@ const handler = async (req: Request): Promise<Response> => {
           <tr>
             <td style="background-color: #1e293b; padding: 30px; text-align: center;">
               <p style="color: #94a3b8; font-size: 14px; margin: 0 0 10px;">
-                Thank you for choosing Temple Connect
+                Thank you for choosing ${settings.site_name}
               </p>
               <p style="color: #64748b; font-size: 12px; margin: 0;">
-                © 2024 Temple Connect. All rights reserved.
+                © ${new Date().getFullYear()} ${settings.site_name}. All rights reserved.
               </p>
             </td>
           </tr>
@@ -172,9 +259,9 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "Temple Connect <onboarding@resend.dev>",
+        from: `${settings.email_from_name} <${settings.email_from_address}>`,
         to: [customerEmail],
-        subject: `Booking Confirmation - ${templeName}`,
+        subject: subject,
         html: emailHtml,
       }),
     });
