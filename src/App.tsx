@@ -26,6 +26,7 @@ import VendorDashboard from "./pages/dashboards/VendorDashboard";
 import VendorProducts from "./pages/vendor/VendorProducts";
 import VendorOrders from "./pages/vendor/VendorOrders";
 import VendorTemple from "./pages/vendor/VendorTemple";
+import VendorBookingsPage from "./pages/vendor/VendorBookingsPage";
 import VendorAnalyticsPage from "./pages/vendor/VendorAnalyticsPage";
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import VendorApplications from "./pages/admin/VendorApplications";
@@ -143,6 +144,14 @@ const AppRoutes = () => {
           element={
             <ProtectedRoute allowedRoles={['vendor']}>
               <VendorAnalyticsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/vendor/bookings"
+          element={
+            <ProtectedRoute allowedRoles={['vendor']}>
+              <VendorBookingsPage />
             </ProtectedRoute>
           }
         />

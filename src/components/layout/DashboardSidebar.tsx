@@ -48,6 +48,7 @@ const adminMenuItems = [
 const vendorMenuItems = [
   { title: 'Dashboard', url: '/vendor', icon: LayoutDashboard },
   { title: 'My Temple', url: '/vendor/temple', icon: Building },
+  { title: 'Bookings', url: '/vendor/bookings', icon: Ticket },
   { title: 'Products', url: '/vendor/products', icon: Package },
   { title: 'Orders', url: '/vendor/orders', icon: ShoppingCart },
   { title: 'Analytics', url: '/vendor/analytics', icon: TrendingUp },
