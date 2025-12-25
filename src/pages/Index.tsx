@@ -16,7 +16,7 @@ const Index = () => {
   const navigate = useNavigate();
   const { data: settings } = useSiteSettings();
   const { data: temples = [], isLoading: templesLoading } = useTemples();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isVendor } = useAuth();
   
   const heroTitle = settings?.heroTitle || 'Discover Sacred Hindu Temples Across Sri Lanka';
   const heroSubtitle = settings?.heroSubtitle || 'Find your spiritual journey by exploring temples, services, and community events';
@@ -71,8 +71,8 @@ const Index = () => {
           {/* Search */}
           <TempleSearch countryCode={defaultCountry} onSearch={handleSearch} />
 
-          {/* CTA Button - Only show for non-admin users */}
-          {!isAdmin && (
+          {/* CTA Button - Only show for non-admin and non-vendor users */}
+          {!isAdmin && !isVendor && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -124,8 +124,8 @@ const Index = () => {
         </div>
       </section>
 
-      {/* CTA Section - Only show for non-admin users */}
-      {!isAdmin && (
+      {/* CTA Section - Only show for non-admin and non-vendor users */}
+      {!isAdmin && !isVendor && (
         <section className="bg-muted/50 py-16 lg:py-20">
           <div className="container">
             <motion.div
