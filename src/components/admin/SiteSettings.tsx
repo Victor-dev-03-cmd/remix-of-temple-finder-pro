@@ -488,7 +488,10 @@ const SiteSettings = () => {
     );
   }
 
+  const [activeSection, setActiveSection] = useState('settings-general');
+
   const scrollToSection = (sectionId: string) => {
+    setActiveSection(sectionId);
     const element = document.getElementById(sectionId);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -496,45 +499,69 @@ const SiteSettings = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">Site Settings</h2>
-          <p className="text-muted-foreground">Manage your platform configuration</p>
+    <div className="flex gap-6">
+      {/* Desktop Sidebar Navigation */}
+      <aside className="hidden lg:block w-64 shrink-0">
+        <div className="sticky top-6 space-y-1">
+          <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-3">Settings</h3>
+          {settingsSections.map((section) => (
+            <button
+              key={section.id}
+              onClick={() => scrollToSection(section.id)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg transition-colors text-left ${
+                activeSection === section.id
+                  ? 'bg-primary text-primary-foreground font-medium'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              <section.icon className="h-4 w-4" />
+              {section.label}
+            </button>
+          ))}
         </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="w-full sm:w-auto">
-                Jump to Section
-                <ChevronDown className="ml-2 h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 bg-popover">
-              {settingsSections.map((section) => (
-                <DropdownMenuItem
-                  key={section.id}
-                  onClick={() => scrollToSection(section.id)}
-                  className="cursor-pointer"
-                >
-                  <section.icon className="mr-2 h-4 w-4" />
-                  {section.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button onClick={handleSave} className="w-full sm:w-auto" disabled={saving}>
-            {saving ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="mr-2 h-4 w-4" />
-            )}
-            {saving ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </div>
-      </div>
+      </aside>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      {/* Main Content */}
+      <div className="flex-1 space-y-6 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-foreground">Site Settings</h2>
+            <p className="text-muted-foreground">Manage your platform configuration</p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            {/* Mobile Dropdown - Hidden on desktop */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto lg:hidden">
+                  Jump to Section
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 bg-popover">
+                {settingsSections.map((section) => (
+                  <DropdownMenuItem
+                    key={section.id}
+                    onClick={() => scrollToSection(section.id)}
+                    className="cursor-pointer"
+                  >
+                    <section.icon className="mr-2 h-4 w-4" />
+                    {section.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button onClick={handleSave} className="w-full sm:w-auto" disabled={saving}>
+              {saving ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              {saving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2">
         {/* General Settings */}
         <Card id="settings-general">
           <CardHeader>
@@ -1305,6 +1332,7 @@ const SiteSettings = () => {
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );
