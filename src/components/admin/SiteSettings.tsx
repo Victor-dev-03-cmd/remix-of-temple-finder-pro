@@ -121,6 +121,7 @@ const SiteSettings = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadingHero, setUploadingHero] = useState(false);
   const [settingsId, setSettingsId] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState('settings-general');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const heroFileInputRef = useRef<HTMLInputElement>(null);
   const [settings, setSettings] = useState({
@@ -487,8 +488,6 @@ const SiteSettings = () => {
       </div>
     );
   }
-
-  const [activeSection, setActiveSection] = useState('settings-general');
 
   const scrollToSection = (sectionId: string) => {
     setActiveSection(sectionId);
