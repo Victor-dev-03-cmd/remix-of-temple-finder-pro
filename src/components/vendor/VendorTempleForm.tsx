@@ -320,9 +320,24 @@ const VendorTempleForm = ({ onSuccess, onCancel, businessName, temple, isEditing
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Main Deity *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Lord Murugan" {...field} />
-                    </FormControl>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select deity" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Lord Murugan">Lord Murugan</SelectItem>
+                        <SelectItem value="Lord Shiva">Lord Shiva</SelectItem>
+                        <SelectItem value="Lord Vishnu">Lord Vishnu</SelectItem>
+                        <SelectItem value="Lord Ganesha">Lord Ganesha</SelectItem>
+                        <SelectItem value="Goddess Durga">Goddess Durga</SelectItem>
+                        <SelectItem value="Goddess Lakshmi">Goddess Lakshmi</SelectItem>
+                        <SelectItem value="Lord Krishna">Lord Krishna</SelectItem>
+                        <SelectItem value="Lord Hanuman">Lord Hanuman</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -442,9 +457,22 @@ const VendorTempleForm = ({ onSuccess, onCancel, businessName, temple, isEditing
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Opening Hours</FormLabel>
-                    <FormControl>
-                      <Input placeholder="6:00 AM - 8:00 PM" {...field} />
-                    </FormControl>
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select opening hours" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="5:00 AM - 12:00 PM, 4:00 PM - 9:00 PM">5:00 AM - 12:00 PM, 4:00 PM - 9:00 PM</SelectItem>
+                        <SelectItem value="6:00 AM - 12:00 PM, 5:00 PM - 8:00 PM">6:00 AM - 12:00 PM, 5:00 PM - 8:00 PM</SelectItem>
+                        <SelectItem value="6:00 AM - 8:00 PM">6:00 AM - 8:00 PM</SelectItem>
+                        <SelectItem value="5:00 AM - 9:00 PM">5:00 AM - 9:00 PM</SelectItem>
+                        <SelectItem value="24 Hours">24 Hours</SelectItem>
+                        <SelectItem value="6:00 AM - 6:00 PM">6:00 AM - 6:00 PM</SelectItem>
+                        <SelectItem value="7:00 AM - 7:00 PM">7:00 AM - 7:00 PM</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

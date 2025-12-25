@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Filter, MapPin, Sparkles, Building2, LayoutGrid, Map, Loader2 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import TempleCard from '@/components/temples/TempleCard';
@@ -42,13 +42,21 @@ const templeServices = [
 
 const Temples = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { data: temples = [], isLoading, error } = useTemples();
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedProvince, setSelectedProvince] = useState('all');
-  const [selectedDistrict, setSelectedDistrict] = useState('all');
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const [selectedProvince, setSelectedProvince] = useState(searchParams.get('province') || 'all');
+  const [selectedDistrict, setSelectedDistrict] = useState(searchParams.get('district') || 'all');
   const [selectedType, setSelectedType] = useState('all');
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
+
+  // Update state when URL params change
+  useEffect(() => {
+    setSearchQuery(searchParams.get('q') || '');
+    setSelectedProvince(searchParams.get('province') || 'all');
+    setSelectedDistrict(searchParams.get('district') || 'all');
+  }, [searchParams]);
 
   const handleTempleClick = (temple: Temple) => {
     navigate(`/temples/${temple.id}`);

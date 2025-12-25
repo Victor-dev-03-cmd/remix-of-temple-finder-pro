@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -9,11 +9,14 @@ import BentoGallery from '@/components/home/BentoGallery';
 import { Button } from '@/components/ui/button';
 import { useTemples } from '@/hooks/useTemples';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
+import { useAuth } from '@/contexts/AuthContext';
 import heroImage from '@/assets/hero-temple.jpg';
 
 const Index = () => {
+  const navigate = useNavigate();
   const { data: settings } = useSiteSettings();
   const { data: temples = [], isLoading: templesLoading } = useTemples();
+  const { isAdmin } = useAuth();
   
   const heroTitle = settings?.heroTitle || 'Discover Sacred Hindu Temples Across Sri Lanka';
   const heroSubtitle = settings?.heroSubtitle || 'Find your spiritual journey by exploring temples, services, and community events';
@@ -21,6 +24,14 @@ const Index = () => {
   const heroCtaLink = settings?.heroCtaLink || '/become-vendor';
   const heroImageUrl = settings?.heroImageUrl || heroImage;
   const defaultCountry = settings?.defaultCountry || 'LK';
+
+  const handleSearch = (filters: { query: string; province: string; district: string }) => {
+    const params = new URLSearchParams();
+    if (filters.query) params.set('q', filters.query);
+    if (filters.province) params.set('province', filters.province);
+    if (filters.district) params.set('district', filters.district);
+    navigate(`/temples?${params.toString()}`);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -58,22 +69,24 @@ const Index = () => {
           </motion.p>
 
           {/* Search */}
-          <TempleSearch countryCode={defaultCountry} />
+          <TempleSearch countryCode={defaultCountry} onSearch={handleSearch} />
 
-          {/* CTA Button */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="mt-6"
-          >
-            <Link to={heroCtaLink}>
-              <Button size="lg" className="gap-2">
-                {heroCtaText}
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-          </motion.div>
+          {/* CTA Button - Only show for non-admin users */}
+          {!isAdmin && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="mt-6"
+            >
+              <Link to={heroCtaLink}>
+                <Button size="lg" className="gap-2">
+                  {heroCtaText}
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            </motion.div>
+          )}
         </div>
       </section>
 
@@ -111,31 +124,33 @@ const Index = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="bg-muted/50 py-16 lg:py-20">
-        <div className="container">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            className="mx-auto max-w-3xl rounded-2xl bg-card p-8 text-center shadow-lg lg:p-12"
-          >
-            <h2 className="mb-4 font-display text-2xl font-bold text-foreground sm:text-3xl">
-              Own a Temple? Become a Temple Connect Vendor!
-            </h2>
-            <p className="mb-8 text-muted-foreground">
-              Showcase your temple to a wider audience, manage services, and connect with devotees.
-              Join our growing community.
-            </p>
-            <Link to="/become-vendor">
-              <Button size="lg" className="gap-2">
-                Register Your Temple Today
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-          </motion.div>
-        </div>
-      </section>
+      {/* CTA Section - Only show for non-admin users */}
+      {!isAdmin && (
+        <section className="bg-muted/50 py-16 lg:py-20">
+          <div className="container">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              className="mx-auto max-w-3xl rounded-2xl bg-card p-8 text-center shadow-lg lg:p-12"
+            >
+              <h2 className="mb-4 font-display text-2xl font-bold text-foreground sm:text-3xl">
+                Own a Temple? Become a Temple Connect Vendor!
+              </h2>
+              <p className="mb-8 text-muted-foreground">
+                Showcase your temple to a wider audience, manage services, and connect with devotees.
+                Join our growing community.
+              </p>
+              <Link to="/become-vendor">
+                <Button size="lg" className="gap-2">
+                  Register Your Temple Today
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            </motion.div>
+          </div>
+        </section>
+      )}
 
       <Footer />
     </div>
