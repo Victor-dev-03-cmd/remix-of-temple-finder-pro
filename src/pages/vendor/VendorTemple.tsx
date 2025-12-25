@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import VendorTempleForm from '@/components/vendor/VendorTempleForm';
+import TicketManagement from '@/components/vendor/TicketManagement';
 
 const VendorTemple = () => {
   const { user } = useAuth();
@@ -171,12 +172,21 @@ const VendorTemple = () => {
           </Card>
         </motion.div>
 
+        {/* Ticket Management */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <TicketManagement templeId={temple.id} />
+        </motion.div>
+
         {/* Quick Stats */}
         <div className="grid gap-4 sm:grid-cols-3">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
+            transition={{ delay: 0.15 }}
           >
             <Card>
               <CardContent className="pt-6">
@@ -196,7 +206,7 @@ const VendorTemple = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
+            transition={{ delay: 0.2 }}
           >
             <Card>
               <CardContent className="pt-6">
@@ -216,7 +226,7 @@ const VendorTemple = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
+            transition={{ delay: 0.25 }}
           >
             <Card>
               <CardContent className="pt-6">
