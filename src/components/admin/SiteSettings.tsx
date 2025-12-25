@@ -528,7 +528,7 @@ const SiteSettings = () => {
             <p className="text-muted-foreground">Manage your platform configuration</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
-            {/* Mobile Dropdown - Hidden on desktop */}
+            {/* Mobile Dropdown with Sidebar Navigation */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="w-full sm:w-auto lg:hidden">
@@ -536,17 +536,26 @@ const SiteSettings = () => {
                   <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 bg-popover">
-                {settingsSections.map((section) => (
-                  <DropdownMenuItem
-                    key={section.id}
-                    onClick={() => scrollToSection(section.id)}
-                    className="cursor-pointer"
-                  >
-                    <section.icon className="mr-2 h-4 w-4" />
-                    {section.label}
-                  </DropdownMenuItem>
-                ))}
+              <DropdownMenuContent align="end" className="w-64 p-2 bg-popover">
+                <div className="px-2 py-1.5 mb-1">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Settings Sections</p>
+                </div>
+                <div className="space-y-0.5">
+                  {settingsSections.map((section) => (
+                    <DropdownMenuItem
+                      key={section.id}
+                      onClick={() => scrollToSection(section.id)}
+                      className={`cursor-pointer rounded-md px-3 py-2.5 ${
+                        activeSection === section.id
+                          ? 'bg-primary text-primary-foreground font-medium'
+                          : ''
+                      }`}
+                    >
+                      <section.icon className="mr-3 h-4 w-4" />
+                      {section.label}
+                    </DropdownMenuItem>
+                  ))}
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
             <Button onClick={handleSave} className="w-full sm:w-auto" disabled={saving}>

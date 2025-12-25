@@ -84,12 +84,12 @@ const Header = () => {
   const { user, userRole, signOut, isAdmin, isVendor } = useAuth();
   const { totalItems, setIsCartOpen } = useCart();
 
-  // Filter nav links based on user role - hide "Become a Vendor" for admins and vendors
+  // Filter nav links based on user role - hide "Become a Vendor" and "My Booking" for admins and vendors
   const navLinks = [
     { href: '/', label: 'Home' },
     { href: '/temples', label: 'Temples' },
     { href: '/products', label: 'Products' },
-    { href: '/booking', label: 'My Booking' },
+    ...(!isAdmin && !isVendor ? [{ href: '/booking', label: 'My Booking' }] : []),
     ...(!isAdmin && !isVendor ? [{ href: '/become-vendor', label: 'Become a Vendor' }] : []),
   ];
 
