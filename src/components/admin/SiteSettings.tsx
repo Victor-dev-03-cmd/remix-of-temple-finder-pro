@@ -364,6 +364,8 @@ const SiteSettings = () => {
         email_notifications: settings.emailNotifications,
         new_vendor_alerts: settings.newVendorAlerts,
         order_alerts: settings.orderAlerts,
+        chat_notifications: settings.chatNotifications,
+        chat_notification_sound: settings.chatNotificationSound,
         primary_font: settings.primaryFont,
         display_font: settings.displayFont,
         dark_mode: settings.darkMode,
