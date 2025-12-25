@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { CartProvider } from "./contexts/CartContext";
+import { SiteSettingsProvider } from "./contexts/SiteSettingsContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import CartSheet from "./components/cart/CartSheet";
 import Index from "./pages/Index";
@@ -206,11 +207,13 @@ const App = () => (
       <TooltipProvider>
         <BrowserRouter>
           <AuthProvider>
-            <CartProvider>
-              <Toaster />
-              <Sonner />
-              <AppRoutes />
-            </CartProvider>
+            <SiteSettingsProvider>
+              <CartProvider>
+                <Toaster />
+                <Sonner />
+                <AppRoutes />
+              </CartProvider>
+            </SiteSettingsProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
