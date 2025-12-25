@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { CalendarIcon, Loader2, Ticket, CheckCircle2, Plus, Minus, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
+import { usePublicTempleTickets } from '@/hooks/useTempleTickets';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -31,18 +32,10 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-// Ticket categories with pricing
-const TICKET_CATEGORIES = [
-  { id: 'adult', label: 'Adult', description: 'Ages 18-59', price: 200 },
-  { id: 'child', label: 'Child', description: 'Ages 5-17', price: 100 },
-  { id: 'senior', label: 'Senior', description: 'Ages 60+', price: 150 },
-  { id: 'foreign', label: 'Foreign Tourist', description: 'Non-residents', price: 500 },
-  { id: 'student', label: 'Student', description: 'With valid ID', price: 75 },
-];
-
 interface TicketSelection {
-  category: string;
-  label: string;
+  id: string;
+  name: string;
+  description: string | null;
   quantity: number;
   price: number;
 }
@@ -76,14 +69,38 @@ export default function TempleBookingForm({ templeId, templeName }: TempleBookin
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingCode, setBookingCode] = useState('');
-  const [ticketSelections, setTicketSelections] = useState<TicketSelection[]>(
-    TICKET_CATEGORIES.map((cat) => ({
-      category: cat.id,
-      label: cat.label,
-      quantity: 0,
-      price: cat.price,
-    }))
-  );
+  const [ticketSelections, setTicketSelections] = useState<TicketSelection[]>([]);
+
+  const { tickets, loading: ticketsLoading } = usePublicTempleTickets(templeId);
+
+  // Initialize ticket selections when tickets load
+  const initializeSelections = () => {
+    if (tickets.length > 0 && ticketSelections.length === 0) {
+      setTicketSelections(
+        tickets.map((ticket) => ({
+          id: ticket.id,
+          name: ticket.name,
+          description: ticket.description,
+          quantity: 0,
+          price: ticket.price,
+        }))
+      );
+    }
+  };
+
+  // Call this when dialog opens
+  const handleOpenDialog = () => {
+    setTicketSelections(
+      tickets.map((ticket) => ({
+        id: ticket.id,
+        name: ticket.name,
+        description: ticket.description,
+        quantity: 0,
+        price: ticket.price,
+      }))
+    );
+    setIsOpen(true);
+  };
 
   const form = useForm<BookingFormData>({
     resolver: zodResolver(bookingSchema),
@@ -95,10 +112,10 @@ export default function TempleBookingForm({ templeId, templeName }: TempleBookin
     },
   });
 
-  const updateTicketQuantity = (categoryId: string, delta: number) => {
+  const updateTicketQuantity = (ticketId: string, delta: number) => {
     setTicketSelections((prev) =>
       prev.map((t) =>
-        t.category === categoryId
+        t.id === ticketId
           ? { ...t, quantity: Math.max(0, Math.min(20, t.quantity + delta)) }
           : t
       )
@@ -123,8 +140,8 @@ export default function TempleBookingForm({ templeId, templeName }: TempleBookin
 
       // Prepare ticket details
       const ticketDetails = selectedTickets.map((t) => ({
-        category: t.category,
-        label: t.label,
+        id: t.id,
+        name: t.name,
         quantity: t.quantity,
         price: t.price,
         subtotal: t.quantity * t.price,
@@ -149,7 +166,7 @@ export default function TempleBookingForm({ templeId, templeName }: TempleBookin
 
       // Format ticket details for email
       const ticketSummary = selectedTickets
-        .map((t) => `${t.label}: ${t.quantity} × LKR ${t.price}`)
+        .map((t) => `${t.name}: ${t.quantity} × LKR ${t.price}`)
         .join(', ');
 
       // Send confirmation email with QR code
@@ -189,22 +206,24 @@ export default function TempleBookingForm({ templeId, templeName }: TempleBookin
       setBookingSuccess(false);
       setBookingCode('');
       form.reset();
-      setTicketSelections(
-        TICKET_CATEGORIES.map((cat) => ({
-          category: cat.id,
-          label: cat.label,
-          quantity: 0,
-          price: cat.price,
-        }))
-      );
+      setTicketSelections([]);
     }, 300);
   };
 
+  // Don't show button if no tickets available
+  if (!ticketsLoading && tickets.length === 0) {
+    return null;
+  }
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => (open ? setIsOpen(true) : handleClose())}>
+    <Dialog open={isOpen} onOpenChange={(open) => (open ? handleOpenDialog() : handleClose())}>
       <DialogTrigger asChild>
-        <Button size="lg" className="gap-2">
-          <Ticket className="h-4 w-4" />
+        <Button size="lg" className="gap-2" disabled={ticketsLoading}>
+          {ticketsLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Ticket className="h-4 w-4" />
+          )}
           Book Tickets
         </Button>
       </DialogTrigger>
@@ -257,56 +276,54 @@ export default function TempleBookingForm({ templeId, templeName }: TempleBookin
                       Select Tickets *
                     </FormLabel>
                     <div className="space-y-2">
-                      {TICKET_CATEGORIES.map((category) => {
-                        const selection = ticketSelections.find((t) => t.category === category.id);
-                        const quantity = selection?.quantity || 0;
-                        return (
-                          <Card
-                            key={category.id}
-                            className={cn(
-                              'transition-colors',
-                              quantity > 0 && 'border-primary bg-primary/5'
-                            )}
-                          >
-                            <CardContent className="flex items-center justify-between p-3">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium text-foreground">
-                                    {category.label}
-                                  </span>
-                                  <Badge variant="secondary" className="text-xs">
-                                    LKR {category.price}
-                                  </Badge>
-                                </div>
-                                <p className="text-xs text-muted-foreground">{category.description}</p>
-                              </div>
+                      {ticketSelections.map((ticket) => (
+                        <Card
+                          key={ticket.id}
+                          className={cn(
+                            'transition-colors',
+                            ticket.quantity > 0 && 'border-primary bg-primary/5'
+                          )}
+                        >
+                          <CardContent className="flex items-center justify-between p-3">
+                            <div className="flex-1">
                               <div className="flex items-center gap-2">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => updateTicketQuantity(category.id, -1)}
-                                  disabled={quantity === 0}
-                                >
-                                  <Minus className="h-4 w-4" />
-                                </Button>
-                                <span className="w-8 text-center font-semibold">{quantity}</span>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => updateTicketQuantity(category.id, 1)}
-                                  disabled={totalTickets >= 20}
-                                >
-                                  <Plus className="h-4 w-4" />
-                                </Button>
+                                <span className="font-medium text-foreground">
+                                  {ticket.name}
+                                </span>
+                                <Badge variant="secondary" className="text-xs">
+                                  LKR {ticket.price.toLocaleString()}
+                                </Badge>
                               </div>
-                            </CardContent>
-                          </Card>
-                        );
-                      })}
+                              {ticket.description && (
+                                <p className="text-xs text-muted-foreground">{ticket.description}</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => updateTicketQuantity(ticket.id, -1)}
+                                disabled={ticket.quantity === 0}
+                              >
+                                <Minus className="h-4 w-4" />
+                              </Button>
+                              <span className="w-8 text-center font-semibold">{ticket.quantity}</span>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => updateTicketQuantity(ticket.id, 1)}
+                                disabled={totalTickets >= 20}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
                     </div>
 
                     {/* Summary */}
