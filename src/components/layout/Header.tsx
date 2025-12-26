@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   Search, 
   Bell, 
@@ -94,6 +95,7 @@ const languages = [
 ];
 
 const Header = () => {
+  const { t, i18n } = useTranslation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDark, setIsDark] = useState(document.documentElement.classList.contains('dark'));
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -116,13 +118,16 @@ const Header = () => {
   // Get default country from site settings
   const defaultCountry = siteSettings?.defaultCountry || 'LK';
 
+  // Check if current view is admin (to hide quick actions and language selector)
+  const isAdminView = activeViewRole === 'admin';
+
   // Filter nav links based on user role - hide "Become a Vendor" and "My Booking" for admins and vendors
   const navLinks = [
-    { href: '/', label: 'Home' },
-    { href: '/temples', label: 'Temples' },
-    { href: '/products', label: 'Products' },
-    ...(!isAdmin && !isVendor ? [{ href: '/booking', label: 'My Booking' }] : []),
-    ...(!isAdmin && !isVendor ? [{ href: '/become-vendor', label: 'Become a Vendor' }] : []),
+    { href: '/', label: t('nav.home') },
+    { href: '/temples', label: t('nav.temples') },
+    { href: '/products', label: t('nav.products') },
+    ...(!isAdmin && !isVendor ? [{ href: '/booking', label: t('nav.myBooking') }] : []),
+    ...(!isAdmin && !isVendor ? [{ href: '/become-vendor', label: t('nav.becomeVendor') }] : []),
   ];
 
   // Get relevant languages based on user country or default country
@@ -139,38 +144,55 @@ const Header = () => {
     });
   };
 
-  const handleLanguageChange = (langCode: string) => {
+  const handleLanguageChange = async (langCode: string) => {
     setSelectedLanguage(langCode);
     localStorage.setItem('preferredLanguage', langCode);
+    i18n.changeLanguage(langCode);
+    
+    // Save to user profile if logged in
+    if (user) {
+      await supabase
+        .from('profiles')
+        .update({ preferred_language: langCode })
+        .eq('user_id', user.id);
+    }
+    
     toast({
-      title: 'Language Changed',
-      description: `Language set to ${languages.find(l => l.code === langCode)?.name || langCode}`,
+      title: t('language.languageChanged'),
+      description: `${t('language.languageSetTo')} ${languages.find(l => l.code === langCode)?.name || langCode}`,
     });
   };
 
   const currentLanguage = languages.find(l => l.code === selectedLanguage) || languages[0];
 
-  // Fetch user's country from profile
+  // Fetch user's country and language preference from profile
   useEffect(() => {
     if (!user) {
       setUserCountry(null);
       return;
     }
 
-    const fetchUserCountry = async () => {
+    const fetchUserProfile = async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('country')
+        .select('country, preferred_language')
         .eq('user_id', user.id)
         .maybeSingle();
 
       if (data?.country) {
         setUserCountry(data.country);
       }
+      
+      // Load saved language preference
+      if (data?.preferred_language) {
+        setSelectedLanguage(data.preferred_language);
+        localStorage.setItem('preferredLanguage', data.preferred_language);
+        i18n.changeLanguage(data.preferred_language);
+      }
     };
 
-    fetchUserCountry();
-  }, [user]);
+    fetchUserProfile();
+  }, [user, i18n]);
 
   // Fetch notifications from database
   useEffect(() => {
@@ -558,62 +580,64 @@ const Header = () => {
               {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
 
-            {/* Language Selector */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-1.5 px-2">
-                  <Languages className="h-4 w-4" />
-                  <span className="hidden lg:inline">{currentLanguage.name}</span>
-                  <span className="lg:hidden">{currentLanguage.flag}</span>
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 max-h-[300px] overflow-y-auto">
-                <div className="px-2 py-1.5">
-                  <p className="text-xs font-medium text-muted-foreground">Select Language</p>
-                </div>
-                <DropdownMenuSeparator />
-                {getRelevantLanguages().map((lang) => (
-                  <DropdownMenuItem
-                    key={lang.code}
-                    onClick={() => handleLanguageChange(lang.code)}
-                    className={cn(
-                      "flex cursor-pointer items-center gap-2",
-                      selectedLanguage === lang.code && "bg-primary/10 text-primary"
-                    )}
-                  >
-                    <span>{lang.flag}</span>
-                    <span>{lang.name}</span>
-                    {selectedLanguage === lang.code && (
-                      <CheckCircle2 className="ml-auto h-4 w-4" />
-                    )}
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <div className="px-2 py-1.5">
-                  <p className="text-xs text-muted-foreground">All Languages</p>
-                </div>
-                {languages.filter(lang => !getRelevantLanguages().includes(lang)).map((lang) => (
-                  <DropdownMenuItem
-                    key={lang.code}
-                    onClick={() => handleLanguageChange(lang.code)}
-                    className={cn(
-                      "flex cursor-pointer items-center gap-2",
-                      selectedLanguage === lang.code && "bg-primary/10 text-primary"
-                    )}
-                  >
-                    <span>{lang.flag}</span>
-                    <span>{lang.name}</span>
-                    {selectedLanguage === lang.code && (
-                      <CheckCircle2 className="ml-auto h-4 w-4" />
-                    )}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Language Selector - Hide for admin view */}
+            {!isAdminView && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-1.5 px-2">
+                    <Languages className="h-4 w-4" />
+                    <span className="hidden lg:inline">{currentLanguage.name}</span>
+                    <span className="lg:hidden">{currentLanguage.flag}</span>
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48 max-h-[300px] overflow-y-auto">
+                  <div className="px-2 py-1.5">
+                    <p className="text-xs font-medium text-muted-foreground">{t('language.selectLanguage')}</p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  {getRelevantLanguages().map((lang) => (
+                    <DropdownMenuItem
+                      key={lang.code}
+                      onClick={() => handleLanguageChange(lang.code)}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-2",
+                        selectedLanguage === lang.code && "bg-primary/10 text-primary"
+                      )}
+                    >
+                      <span>{lang.flag}</span>
+                      <span>{lang.name}</span>
+                      {selectedLanguage === lang.code && (
+                        <CheckCircle2 className="ml-auto h-4 w-4" />
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1.5">
+                    <p className="text-xs text-muted-foreground">{t('language.allLanguages')}</p>
+                  </div>
+                  {languages.filter(lang => !getRelevantLanguages().includes(lang)).map((lang) => (
+                    <DropdownMenuItem
+                      key={lang.code}
+                      onClick={() => handleLanguageChange(lang.code)}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-2",
+                        selectedLanguage === lang.code && "bg-primary/10 text-primary"
+                      )}
+                    >
+                      <span>{lang.flag}</span>
+                      <span>{lang.name}</span>
+                      {selectedLanguage === lang.code && (
+                        <CheckCircle2 className="ml-auto h-4 w-4" />
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
-            {/* Quick Actions Menu - Based on current role view */}
-            {user && <QuickActionsMenu />}
+            {/* Quick Actions Menu - Hide for admin view */}
+            {user && !isAdminView && <QuickActionsMenu />}
 
             {/* Role Switcher - Only show if user has multiple roles */}
             {user && hasMultipleRoles && (
@@ -769,8 +793,8 @@ const Header = () => {
                   </Link>
                 )}
 
-                {/* Mobile Quick Actions */}
-                {user && (
+                {/* Mobile Quick Actions - Hide for admin view */}
+                {user && !isAdminView && (
                   <>
                     <div className="my-2 border-t border-border" />
                     <div className="px-3">
@@ -810,27 +834,31 @@ const Header = () => {
                   </>
                 )}
 
-                {/* Mobile Language Selector */}
-                <div className="my-2 border-t border-border" />
-                <div className="px-3">
-                  <p className="mb-2 text-xs font-medium text-muted-foreground">Language</p>
-                  <div className="flex flex-wrap gap-1">
-                    {getRelevantLanguages().map((lang) => (
-                      <Button
-                        key={lang.code}
-                        variant={selectedLanguage === lang.code ? "default" : "outline"}
-                        size="sm"
-                        className="gap-1"
-                        onClick={() => {
-                          handleLanguageChange(lang.code);
-                        }}
-                      >
-                        <span>{lang.flag}</span>
-                        <span className="text-xs">{lang.name}</span>
-                      </Button>
-                    ))}
-                  </div>
-                </div>
+                {/* Mobile Language Selector - Hide for admin view */}
+                {!isAdminView && (
+                  <>
+                    <div className="my-2 border-t border-border" />
+                    <div className="px-3">
+                      <p className="mb-2 text-xs font-medium text-muted-foreground">{t('language.selectLanguage')}</p>
+                      <div className="flex flex-wrap gap-1">
+                        {getRelevantLanguages().map((lang) => (
+                          <Button
+                            key={lang.code}
+                            variant={selectedLanguage === lang.code ? "default" : "outline"}
+                            size="sm"
+                            className="gap-1"
+                            onClick={() => {
+                              handleLanguageChange(lang.code);
+                            }}
+                          >
+                            <span>{lang.flag}</span>
+                            <span className="text-xs">{lang.name}</span>
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 <div className="my-2 border-t border-border" />
 

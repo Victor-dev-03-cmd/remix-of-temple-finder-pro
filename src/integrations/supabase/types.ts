@@ -355,6 +355,7 @@ export type Database = {
           full_name: string | null
           id: string
           phone: string | null
+          preferred_language: string | null
           updated_at: string
           user_id: string
         }
@@ -366,6 +367,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           phone?: string | null
+          preferred_language?: string | null
           updated_at?: string
           user_id: string
         }
@@ -377,6 +379,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           phone?: string | null
+          preferred_language?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -662,6 +665,7 @@ export type Database = {
         Row: {
           address: string | null
           contact: string | null
+          country: string
           created_at: string
           deity: string
           description: string | null
@@ -683,6 +687,7 @@ export type Database = {
         Insert: {
           address?: string | null
           contact?: string | null
+          country?: string
           created_at?: string
           deity: string
           description?: string | null
@@ -704,6 +709,7 @@ export type Database = {
         Update: {
           address?: string | null
           contact?: string | null
+          country?: string
           created_at?: string
           deity?: string
           description?: string | null

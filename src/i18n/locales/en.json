@@ -1,0 +1,83 @@
+{
+  "nav": {
+    "home": "Home",
+    "temples": "Temples",
+    "products": "Products",
+    "myBooking": "My Booking",
+    "becomeVendor": "Become a Vendor",
+    "dashboard": "Dashboard",
+    "login": "Login",
+    "signUp": "Sign Up",
+    "signOut": "Sign Out",
+    "profileSettings": "Profile Settings"
+  },
+  "hero": {
+    "title": "Discover Sacred Hindu Temples",
+    "subtitle": "Find your spiritual journey by exploring temples, services, and community events",
+    "searchPlaceholder": "Search by temple name...",
+    "searchButton": "Search Temples",
+    "province": "Province/State",
+    "district": "District"
+  },
+  "common": {
+    "search": "Search",
+    "loading": "Loading...",
+    "noResults": "No results found",
+    "viewAll": "View All",
+    "learnMore": "Learn More",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit"
+  },
+  "temples": {
+    "featured": "Featured Temples",
+    "featuredDescription": "Explore some of the most revered and beautiful temples in our network.",
+    "rating": "Rating",
+    "reviews": "reviews",
+    "visitTemple": "Visit Temple",
+    "bookNow": "Book Now"
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot Password?",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all as read",
+    "noNotifications": "No notifications yet",
+    "signInToSee": "Sign in to see your notifications"
+  },
+  "language": {
+    "selectLanguage": "Select Language",
+    "allLanguages": "All Languages",
+    "languageChanged": "Language Changed",
+    "languageSetTo": "Language set to"
+  },
+  "vendor": {
+    "registerTemple": "Register Your Temple Today",
+    "becomeVendorCta": "Own a Temple? Become a Temple Connect Vendor!",
+    "becomeVendorDesc": "Showcase your temple to a wider audience, manage services, and connect with devotees."
+  },
+  "cart": {
+    "cart": "Cart",
+    "empty": "Your cart is empty",
+    "total": "Total",
+    "checkout": "Checkout"
+  },
+  "footer": {
+    "aboutUs": "About Us",
+    "contact": "Contact",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service"
+  }
+}

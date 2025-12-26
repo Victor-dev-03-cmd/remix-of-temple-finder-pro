@@ -8,6 +8,7 @@ export interface Temple {
   deity: string;
   province: string;
   district: string;
+  country: string;
   address: string | null;
   image_url: string | null;
   latitude: number;
@@ -26,12 +27,22 @@ export interface Temple {
   coordinates: { lat: number; lng: number };
 }
 
-const fetchTemples = async (): Promise<Temple[]> => {
-  const { data, error } = await supabase
+interface UseTemplesOptions {
+  countryCode?: string;
+}
+
+const fetchTemples = async (countryCode?: string): Promise<Temple[]> => {
+  let query = supabase
     .from('temples')
     .select('*')
-    .eq('is_active', true)
-    .order('name');
+    .eq('is_active', true);
+  
+  // Filter by country if provided
+  if (countryCode) {
+    query = query.eq('country', countryCode);
+  }
+  
+  const { data, error } = await query.order('name');
 
   if (error) {
     console.error('Error fetching temples:', error);
@@ -41,6 +52,7 @@ const fetchTemples = async (): Promise<Temple[]> => {
   // Transform data for compatibility with existing components
   return (data || []).map((temple) => ({
     ...temple,
+    country: temple.country || 'LK',
     image: temple.image_url || '/placeholder.svg',
     reviewCount: temple.review_count || 0,
     coordinates: {
@@ -50,10 +62,12 @@ const fetchTemples = async (): Promise<Temple[]> => {
   }));
 };
 
-export const useTemples = () => {
+export const useTemples = (options?: UseTemplesOptions) => {
+  const { countryCode } = options || {};
+  
   return useQuery({
-    queryKey: ['temples'],
-    queryFn: fetchTemples,
+    queryKey: ['temples', countryCode],
+    queryFn: () => fetchTemples(countryCode),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
@@ -79,6 +93,7 @@ export const useTemple = (id: string) => {
 
       return {
         ...data,
+        country: data.country || 'LK',
         image: data.image_url || '/placeholder.svg',
         reviewCount: data.review_count || 0,
         coordinates: {

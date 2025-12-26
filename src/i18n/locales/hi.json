@@ -1,0 +1,83 @@
+{
+  "nav": {
+    "home": "होम",
+    "temples": "मंदिर",
+    "products": "उत्पाद",
+    "myBooking": "मेरी बुकिंग",
+    "becomeVendor": "विक्रेता बनें",
+    "dashboard": "डैशबोर्ड",
+    "login": "लॉगिन",
+    "signUp": "साइन अप",
+    "signOut": "साइन आउट",
+    "profileSettings": "प्रोफ़ाइल सेटिंग्स"
+  },
+  "hero": {
+    "title": "पवित्र हिंदू मंदिरों की खोज करें",
+    "subtitle": "मंदिरों, सेवाओं और सामुदायिक कार्यक्रमों की खोज करके अपनी आध्यात्मिक यात्रा खोजें",
+    "searchPlaceholder": "मंदिर के नाम से खोजें...",
+    "searchButton": "मंदिर खोजें",
+    "province": "प्रांत/राज्य",
+    "district": "जिला"
+  },
+  "common": {
+    "search": "खोजें",
+    "loading": "लोड हो रहा है...",
+    "noResults": "कोई परिणाम नहीं मिला",
+    "viewAll": "सभी देखें",
+    "learnMore": "और जानें",
+    "cancel": "रद्द करें",
+    "save": "सहेजें",
+    "delete": "हटाएं",
+    "edit": "संपादित करें",
+    "add": "जोड़ें",
+    "back": "वापस",
+    "next": "अगला",
+    "submit": "सबमिट करें"
+  },
+  "temples": {
+    "featured": "विशेष मंदिर",
+    "featuredDescription": "हमारे नेटवर्क में सबसे पूजनीय और सुंदर मंदिरों का अन्वेषण करें।",
+    "rating": "रेटिंग",
+    "reviews": "समीक्षाएं",
+    "visitTemple": "मंदिर देखें",
+    "bookNow": "अभी बुक करें"
+  },
+  "auth": {
+    "signIn": "साइन इन",
+    "signUp": "साइन अप",
+    "email": "ईमेल",
+    "password": "पासवर्ड",
+    "forgotPassword": "पासवर्ड भूल गए?",
+    "noAccount": "खाता नहीं है?",
+    "hasAccount": "पहले से खाता है?"
+  },
+  "notifications": {
+    "title": "सूचनाएं",
+    "markAllRead": "सभी को पढ़ा हुआ चिह्नित करें",
+    "noNotifications": "अभी तक कोई सूचना नहीं",
+    "signInToSee": "अपनी सूचनाएं देखने के लिए साइन इन करें"
+  },
+  "language": {
+    "selectLanguage": "भाषा चुनें",
+    "allLanguages": "सभी भाषाएं",
+    "languageChanged": "भाषा बदल गई",
+    "languageSetTo": "भाषा सेट की गई"
+  },
+  "vendor": {
+    "registerTemple": "आज ही अपना मंदिर पंजीकृत करें",
+    "becomeVendorCta": "मंदिर है? Temple Connect विक्रेता बनें!",
+    "becomeVendorDesc": "अपने मंदिर को व्यापक दर्शकों को दिखाएं, सेवाओं का प्रबंधन करें और भक्तों से जुड़ें।"
+  },
+  "cart": {
+    "cart": "कार्ट",
+    "empty": "आपका कार्ट खाली है",
+    "total": "कुल",
+    "checkout": "चेकआउट"
+  },
+  "footer": {
+    "aboutUs": "हमारे बारे में",
+    "contact": "संपर्क",
+    "privacy": "गोपनीयता नीति",
+    "terms": "सेवा की शर्तें"
+  }
+}
