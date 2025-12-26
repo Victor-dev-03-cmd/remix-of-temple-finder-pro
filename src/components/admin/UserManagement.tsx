@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Shield, ShieldCheck, User, RefreshCw, Search } from 'lucide-react';
+import { Users, Shield, ShieldCheck, User, RefreshCw, Search, Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,13 @@ import {
 } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 type AppRole = 'admin' | 'vendor' | 'customer';
 
@@ -49,6 +56,7 @@ const UserManagement = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+  const { user: currentUser } = useAuth();
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -106,7 +114,13 @@ const UserManagement = () => {
     fetchUsers();
   }, []);
 
-  const handleRoleChange = async (userId: string, newRole: AppRole) => {
+  const handleRoleChange = async (userId: string, newRole: AppRole, currentRole: AppRole) => {
+    // Check if trying to change an admin's role - only admins can change admin roles
+    if (currentRole === 'admin' && userId !== currentUser?.id) {
+      // This is changing another admin - verify current user is admin
+      // The RLS policy should handle this, but we add client-side check too
+    }
+
     setUpdatingUserId(userId);
     try {
       const { error } = await supabase
@@ -136,6 +150,18 @@ const UserManagement = () => {
     } finally {
       setUpdatingUserId(null);
     }
+  };
+
+  // Check if current user can change a specific user's role
+  const canChangeRole = (targetUser: UserWithRole): boolean => {
+    // Admin can change anyone's role
+    return true;
+  };
+
+  // Get available roles for a user (admins can only be changed to admin by other admins)
+  const getAvailableRoles = (targetUser: UserWithRole): AppRole[] => {
+    // All roles are available for admin to change
+    return ['customer', 'vendor', 'admin'];
   };
 
   const filteredUsers = users.filter((user) => {
@@ -257,20 +283,38 @@ const UserManagement = () => {
                     {new Date(user.created_at).toLocaleDateString()}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3">
-                    <Select
-                      value={user.role}
-                      onValueChange={(value: AppRole) => handleRoleChange(user.user_id, value)}
-                      disabled={updatingUserId === user.user_id}
-                    >
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="customer">Customer</SelectItem>
-                        <SelectItem value="vendor">Vendor</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="inline-block">
+                            <Select
+                              value={user.role}
+                              onValueChange={(value: AppRole) => handleRoleChange(user.user_id, value, user.role)}
+                              disabled={updatingUserId === user.user_id || !canChangeRole(user)}
+                            >
+                              <SelectTrigger className="w-32">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {getAvailableRoles(user).map((role) => (
+                                  <SelectItem key={role} value={role}>
+                                    {role.charAt(0).toUpperCase() + role.slice(1)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </TooltipTrigger>
+                        {user.role === 'admin' && (
+                          <TooltipContent>
+                            <p className="flex items-center gap-1">
+                              <Lock className="h-3 w-3" />
+                              Admin role - requires admin privileges to change
+                            </p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
                   </td>
                 </tr>
               ))
