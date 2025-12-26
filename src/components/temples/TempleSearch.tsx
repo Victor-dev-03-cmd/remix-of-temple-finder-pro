@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -41,16 +41,18 @@ interface TempleSearchProps {
 }
 
 const TempleSearch = ({ onSearch, countryCode = 'LK' }: TempleSearchProps) => {
+  const isInitialMount = useRef(true);
   const [query, setQuery] = useState('');
   const [selectedCountry, setSelectedCountry] = useState(countryCode);
   const [province, setProvince] = useState('');
   const [district, setDistrict] = useState('');
 
-  // Update selected country when prop changes
+  // Only set initial country on first mount, not on subsequent prop changes
   useEffect(() => {
-    setSelectedCountry(countryCode);
-    setProvince('');
-    setDistrict('');
+    if (isInitialMount.current) {
+      setSelectedCountry(countryCode);
+      isInitialMount.current = false;
+    }
   }, [countryCode]);
 
   // Get locations based on the selected country
