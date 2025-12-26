@@ -59,6 +59,7 @@ interface Temple {
   id: string;
   name: string;
   deity: string;
+  country?: string;
   province: string;
   district: string;
   address: string | null;
@@ -430,36 +431,6 @@ const VendorTempleForm = ({ onSuccess, onCancel, businessName, temple, isEditing
                   </FormItem>
                 )}
               />
-
-              <FormField
-                control={form.control}
-                name="district"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>District *</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      value={field.value}
-                      disabled={!selectedProvince}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select district" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {districts.map((district) => (
-                          <SelectItem key={district.id} value={district.id}>
-                            {district.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
 
               <FormField
                 control={form.control}
