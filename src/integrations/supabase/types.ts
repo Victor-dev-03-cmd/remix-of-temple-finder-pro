@@ -757,8 +757,11 @@ export type Database = {
           business_name: string
           created_at: string
           description: string | null
+          email_verified: boolean
           id: string
           phone: string | null
+          phone_country_code: string | null
+          phone_verified: boolean
           reviewed_at: string | null
           reviewed_by: string | null
           status: string
@@ -772,8 +775,11 @@ export type Database = {
           business_name: string
           created_at?: string
           description?: string | null
+          email_verified?: boolean
           id?: string
           phone?: string | null
+          phone_country_code?: string | null
+          phone_verified?: boolean
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
@@ -787,8 +793,11 @@ export type Database = {
           business_name?: string
           created_at?: string
           description?: string | null
+          email_verified?: boolean
           id?: string
           phone?: string | null
+          phone_country_code?: string | null
+          phone_verified?: boolean
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
@@ -803,6 +812,65 @@ export type Database = {
             columns: ["temple_id"]
             isOneToOne: false
             referencedRelation: "temples"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_verifications: {
+        Row: {
+          application_id: string | null
+          country_code: string | null
+          created_at: string
+          email_otp: string | null
+          email_otp_expires_at: string | null
+          email_verified: boolean
+          id: string
+          phone_number: string | null
+          phone_otp: string | null
+          phone_otp_expires_at: string | null
+          phone_verified: boolean
+          updated_at: string
+          user_id: string
+          verification_stage: string
+        }
+        Insert: {
+          application_id?: string | null
+          country_code?: string | null
+          created_at?: string
+          email_otp?: string | null
+          email_otp_expires_at?: string | null
+          email_verified?: boolean
+          id?: string
+          phone_number?: string | null
+          phone_otp?: string | null
+          phone_otp_expires_at?: string | null
+          phone_verified?: boolean
+          updated_at?: string
+          user_id: string
+          verification_stage?: string
+        }
+        Update: {
+          application_id?: string | null
+          country_code?: string | null
+          created_at?: string
+          email_otp?: string | null
+          email_otp_expires_at?: string | null
+          email_verified?: boolean
+          id?: string
+          phone_number?: string | null
+          phone_otp?: string | null
+          phone_otp_expires_at?: string | null
+          phone_verified?: boolean
+          updated_at?: string
+          user_id?: string
+          verification_stage?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_verifications_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_applications"
             referencedColumns: ["id"]
           },
         ]

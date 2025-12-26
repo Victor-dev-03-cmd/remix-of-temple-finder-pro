@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Store, Send, CheckCircle } from 'lucide-react';
+import { Store, Send, CheckCircle, Shield } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
+import VendorOTPVerification from './VendorOTPVerification';
 
 interface Temple {
   id: string;
@@ -46,6 +47,9 @@ const VendorApplicationForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [temples, setTemples] = useState<Temple[]>([]);
+  const [showVerification, setShowVerification] = useState(true);
+  const [isVerified, setIsVerified] = useState(false);
+  const [applicationId, setApplicationId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchTemples = async () => {
@@ -63,6 +67,27 @@ const VendorApplicationForm = () => {
     fetchTemples();
   }, []);
 
+  // Check if user has already completed pre-submission verification
+  useEffect(() => {
+    const checkVerificationStatus = async () => {
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('vendor_verifications')
+        .select('email_verified, phone_verified')
+        .eq('user_id', user.id)
+        .eq('verification_stage', 'pre_submission')
+        .maybeSingle();
+
+      if (data?.email_verified && data?.phone_verified) {
+        setIsVerified(true);
+        setShowVerification(false);
+      }
+    };
+
+    checkVerificationStatus();
+  }, [user]);
+
   const form = useForm<ApplicationFormValues>({
     resolver: zodResolver(applicationSchema),
     defaultValues: {
@@ -74,6 +99,15 @@ const VendorApplicationForm = () => {
     },
   });
 
+  const handleVerificationComplete = () => {
+    setIsVerified(true);
+    setShowVerification(false);
+    toast({
+      title: 'Verification Complete',
+      description: 'You can now submit your vendor application.',
+    });
+  };
+
   const onSubmit = async (values: ApplicationFormValues) => {
     if (!user) {
       toast({
@@ -84,16 +118,27 @@ const VendorApplicationForm = () => {
       return;
     }
 
+    if (!isVerified) {
+      toast({
+        title: 'Verification Required',
+        description: 'Please complete email and phone verification first.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from('vendor_applications').insert({
+      const { data: appData, error } = await supabase.from('vendor_applications').insert({
         user_id: user.id,
         business_name: values.businessName,
         temple_name: values.templeName,
         temple_id: values.templeId || null,
         phone: values.phone,
         description: values.description,
-      });
+        email_verified: true,
+        phone_verified: true,
+      }).select('id').single();
 
       if (error) {
         if (error.code === '23505') {
@@ -102,6 +147,16 @@ const VendorApplicationForm = () => {
         throw error;
       }
 
+      // Link verification to application
+      if (appData) {
+        await supabase
+          .from('vendor_verifications')
+          .update({ application_id: appData.id })
+          .eq('user_id', user.id)
+          .eq('verification_stage', 'pre_submission');
+      }
+
+      setApplicationId(appData?.id || null);
       setIsSubmitted(true);
       toast({
         title: 'Application Submitted',
@@ -138,6 +193,36 @@ const VendorApplicationForm = () => {
     );
   }
 
+  // Show verification step first
+  if (showVerification && !isVerified) {
+    return (
+      <div className="space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-lg border border-border bg-card p-6"
+        >
+          <div className="mb-6 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              <Shield className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-foreground">Identity Verification Required</h2>
+              <p className="text-sm text-muted-foreground">
+                Please verify your email and phone number before submitting your application
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        <VendorOTPVerification
+          stage="pre_submission"
+          onVerificationComplete={handleVerificationComplete}
+        />
+      </div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -153,6 +238,13 @@ const VendorApplicationForm = () => {
           <p className="text-sm text-muted-foreground">Fill out the form to apply as a temple vendor</p>
         </div>
       </div>
+
+      {isVerified && (
+        <div className="mb-6 flex items-center gap-2 rounded-lg bg-success/10 p-3 text-sm text-success">
+          <CheckCircle className="h-4 w-4" />
+          Email and phone verified successfully
+        </div>
+      )}
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
