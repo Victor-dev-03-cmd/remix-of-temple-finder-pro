@@ -16,7 +16,11 @@ import {
   Package,
   CheckCircle2,
   Info,
-  AlertCircle
+  AlertCircle,
+  Shield,
+  Store,
+  UserCircle,
+  ChevronDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -81,7 +85,7 @@ const Header = () => {
   const { data: siteSettings } = useSiteSettings();
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, userRole, signOut, isAdmin, isVendor } = useAuth();
+  const { user, signOut, isAdmin, isVendor, activeViewRole, userRoles, switchRole, hasMultipleRoles } = useAuth();
   const { totalItems, setIsCartOpen } = useCart();
 
   // Filter nav links based on user role - hide "Become a Vendor" and "My Booking" for admins and vendors
@@ -255,9 +259,43 @@ const Header = () => {
   };
 
   const getRoleBadge = () => {
-    if (isAdmin) return 'Admin';
-    if (isVendor) return 'Vendor';
+    if (activeViewRole === 'admin') return 'Admin';
+    if (activeViewRole === 'vendor') return 'Vendor';
     return 'Customer';
+  };
+
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return <Shield className="h-4 w-4" />;
+      case 'vendor':
+        return <Store className="h-4 w-4" />;
+      default:
+        return <UserCircle className="h-4 w-4" />;
+    }
+  };
+
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return 'Admin View';
+      case 'vendor':
+        return 'Vendor View';
+      default:
+        return 'Customer View';
+    }
+  };
+
+  const handleRoleSwitch = (role: 'admin' | 'vendor' | 'customer') => {
+    switchRole(role);
+    // Navigate to the appropriate dashboard
+    if (role === 'admin') {
+      navigate('/admin');
+    } else if (role === 'vendor') {
+      navigate('/vendor');
+    } else {
+      navigate('/dashboard');
+    }
   };
 
   const handleSearchResultClick = (result: SearchResult) => {
@@ -467,6 +505,41 @@ const Header = () => {
               {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
 
+            {/* Role Switcher - Only show if user has multiple roles */}
+            {user && hasMultipleRoles && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    {getRoleIcon(activeViewRole || 'customer')}
+                    <span className="hidden lg:inline">{getRoleLabel(activeViewRole || 'customer')}</span>
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <div className="px-2 py-1.5">
+                    <p className="text-xs font-medium text-muted-foreground">Switch View</p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  {userRoles.map((role) => (
+                    <DropdownMenuItem
+                      key={role}
+                      onClick={() => handleRoleSwitch(role)}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-2",
+                        activeViewRole === role && "bg-primary/10 text-primary"
+                      )}
+                    >
+                      {getRoleIcon(role)}
+                      {getRoleLabel(role)}
+                      {activeViewRole === role && (
+                        <CheckCircle2 className="ml-auto h-4 w-4" />
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -584,6 +657,36 @@ const Header = () => {
                   >
                     Dashboard
                   </Link>
+                )}
+
+                {/* Mobile Role Switcher */}
+                {user && hasMultipleRoles && (
+                  <>
+                    <div className="my-2 border-t border-border" />
+                    <div className="px-3">
+                      <p className="mb-2 text-xs font-medium text-muted-foreground">Switch View</p>
+                      <div className="flex flex-col gap-1">
+                        {userRoles.map((role) => (
+                          <Button
+                            key={role}
+                            variant={activeViewRole === role ? "default" : "outline"}
+                            size="sm"
+                            className="w-full justify-start gap-2"
+                            onClick={() => {
+                              handleRoleSwitch(role);
+                              setIsMobileMenuOpen(false);
+                            }}
+                          >
+                            {getRoleIcon(role)}
+                            {getRoleLabel(role)}
+                            {activeViewRole === role && (
+                              <CheckCircle2 className="ml-auto h-4 w-4" />
+                            )}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
                 )}
 
                 <div className="my-2 border-t border-border" />
