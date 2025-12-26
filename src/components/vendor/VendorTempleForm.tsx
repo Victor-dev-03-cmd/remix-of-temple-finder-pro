@@ -32,6 +32,7 @@ import { useTempleImageUpload } from '@/hooks/useTempleImageUpload';
 const templeFormSchema = z.object({
   name: z.string().min(2, 'Temple name must be at least 2 characters'),
   deity: z.string().min(2, 'Deity name is required'),
+  country: z.string().min(1, 'Country is required'),
   province: z.string().min(1, 'Province is required'),
   district: z.string().min(1, 'District is required'),
   address: z.string().optional(),
@@ -41,6 +42,18 @@ const templeFormSchema = z.object({
 });
 
 type TempleFormValues = z.infer<typeof templeFormSchema>;
+
+const countries = [
+  { code: 'LK', name: 'Sri Lanka', flag: '🇱🇰' },
+  { code: 'MY', name: 'Malaysia', flag: '🇲🇾' },
+  { code: 'IN', name: 'India', flag: '🇮🇳' },
+  { code: 'TH', name: 'Thailand', flag: '🇹🇭' },
+  { code: 'SG', name: 'Singapore', flag: '🇸🇬' },
+  { code: 'ID', name: 'Indonesia', flag: '🇮🇩' },
+  { code: 'NP', name: 'Nepal', flag: '🇳🇵' },
+  { code: 'BD', name: 'Bangladesh', flag: '🇧🇩' },
+  { code: 'MM', name: 'Myanmar', flag: '🇲🇲' },
+];
 
 interface Temple {
   id: string;
@@ -72,31 +85,37 @@ const VendorTempleForm = ({ onSuccess, onCancel, businessName, temple, isEditing
   const [imageUrl, setImageUrl] = useState<string | null>(temple?.image_url || null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  const country = settings?.defaultCountry || 'LK';
-  const locationData = locationsByCountry[country] || locationsByCountry['LK'];
+  const defaultCountry = settings?.defaultCountry || 'LK';
+  const [selectedCountry, setSelectedCountry] = useState(temple?.country || defaultCountry);
+  
+  const locationData = locationsByCountry[selectedCountry] || locationsByCountry['LK'];
 
   // Find province id from name for edit mode
-  const findProvinceId = (provinceName: string) => {
-    const province = locationData.provinces.find(p => p.name === provinceName);
+  const findProvinceId = (provinceName: string, countryCode: string) => {
+    const locData = locationsByCountry[countryCode] || locationsByCountry['LK'];
+    const province = locData.provinces.find(p => p.name === provinceName);
     return province?.id || '';
   };
 
   // Find district id from name for edit mode
-  const findDistrictId = (districtName: string, provinceId: string) => {
-    const districts = locationData.districts[provinceId] || [];
+  const findDistrictId = (districtName: string, provinceId: string, countryCode: string) => {
+    const locData = locationsByCountry[countryCode] || locationsByCountry['LK'];
+    const districts = locData.districts[provinceId] || [];
     const district = districts.find(d => d.name === districtName);
     return district?.id || '';
   };
 
-  const initialProvinceId = temple ? findProvinceId(temple.province) : '';
+  const templeCountry = temple?.country || defaultCountry;
+  const initialProvinceId = temple ? findProvinceId(temple.province, templeCountry) : '';
 
   const form = useForm<TempleFormValues>({
     resolver: zodResolver(templeFormSchema),
     defaultValues: {
       name: temple?.name || '',
       deity: temple?.deity || '',
+      country: templeCountry,
       province: initialProvinceId,
-      district: temple ? findDistrictId(temple.district, initialProvinceId) : '',
+      district: temple ? findDistrictId(temple.district, initialProvinceId, templeCountry) : '',
       address: temple?.address || '',
       description: temple?.description || '',
       contact: temple?.contact || '',
@@ -105,7 +124,18 @@ const VendorTempleForm = ({ onSuccess, onCancel, businessName, temple, isEditing
   });
 
   const selectedProvince = form.watch('province');
-  const districts = selectedProvince ? locationData.districts[selectedProvince] || [] : [];
+  const watchedCountry = form.watch('country');
+  const currentLocationData = locationsByCountry[watchedCountry] || locationsByCountry['LK'];
+  const districts = selectedProvince ? currentLocationData.districts[selectedProvince] || [] : [];
+
+  // Reset province and district when country changes
+  useEffect(() => {
+    if (watchedCountry !== selectedCountry) {
+      setSelectedCountry(watchedCountry);
+      form.setValue('province', '');
+      form.setValue('district', '');
+    }
+  }, [watchedCountry, selectedCountry, form]);
 
   // Reset district when province changes (only if not initial load)
   useEffect(() => {
@@ -151,12 +181,15 @@ const VendorTempleForm = ({ onSuccess, onCancel, businessName, temple, isEditing
       if (!user) throw new Error('User not authenticated');
 
       // Get province and district names
-      const provinceData = locationData.provinces.find(p => p.id === values.province);
-      const districtData = districts.find(d => d.id === values.district);
+      const locData = locationsByCountry[values.country] || locationsByCountry['LK'];
+      const provinceData = locData.provinces.find(p => p.id === values.province);
+      const districtsList = locData.districts[values.province] || [];
+      const districtData = districtsList.find(d => d.id === values.district);
 
       const templeData = {
         name: values.name,
         deity: values.deity,
+        country: values.country,
         province: provinceData?.name || values.province,
         district: districtData?.name || values.district,
         address: values.address || null,
@@ -344,7 +377,35 @@ const VendorTempleForm = ({ onSuccess, onCancel, businessName, temple, isEditing
               />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
+              <FormField
+                control={form.control}
+                name="country"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Country *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select country" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {countries.map((country) => (
+                          <SelectItem key={country.code} value={country.code}>
+                            <span className="flex items-center gap-2">
+                              <span>{country.flag}</span>
+                              <span>{country.name}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="province"
@@ -358,7 +419,7 @@ const VendorTempleForm = ({ onSuccess, onCancel, businessName, temple, isEditing
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {locationData.provinces.map((province) => (
+                        {currentLocationData.provinces.map((province) => (
                           <SelectItem key={province.id} value={province.id}>
                             {province.name}
                           </SelectItem>
@@ -369,6 +430,36 @@ const VendorTempleForm = ({ onSuccess, onCancel, businessName, temple, isEditing
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="district"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>District *</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value}
+                      disabled={!selectedProvince}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select district" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {districts.map((district) => (
+                          <SelectItem key={district.id} value={district.id}>
+                            {district.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
               <FormField
                 control={form.control}
