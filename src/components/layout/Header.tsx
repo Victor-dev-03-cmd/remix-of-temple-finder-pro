@@ -22,6 +22,7 @@ import {
   UserCircle,
   ChevronDown
 } from 'lucide-react';
+import QuickActionsMenu from './QuickActionsMenu';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -505,6 +506,9 @@ const Header = () => {
               {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
 
+            {/* Quick Actions Menu - Based on current role view */}
+            {user && <QuickActionsMenu />}
+
             {/* Role Switcher - Only show if user has multiple roles */}
             {user && hasMultipleRoles && (
               <DropdownMenu>
@@ -657,6 +661,17 @@ const Header = () => {
                   >
                     Dashboard
                   </Link>
+                )}
+
+                {/* Mobile Quick Actions */}
+                {user && (
+                  <>
+                    <div className="my-2 border-t border-border" />
+                    <div className="px-3">
+                      <p className="mb-2 text-xs font-medium text-muted-foreground">Quick Actions</p>
+                      <QuickActionsMenu />
+                    </div>
+                  </>
                 )}
 
                 {/* Mobile Role Switcher */}
