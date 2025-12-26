@@ -8,13 +8,17 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   userRole: AppRole | null;
+  userRoles: AppRole[];
+  activeViewRole: AppRole | null;
   loading: boolean;
   signUp: (email: string, password: string, fullName: string, country?: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  switchRole: (role: AppRole) => void;
   isAdmin: boolean;
   isVendor: boolean;
   isCustomer: boolean;
+  hasMultipleRoles: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,9 +27,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<AppRole | null>(null);
+  const [userRoles, setUserRoles] = useState<AppRole[]>([]);
+  const [activeViewRole, setActiveViewRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUserRole = (userId: string) => {
+  const fetchUserRoles = (userId: string) => {
     // Use setTimeout to avoid deadlock with onAuthStateChange
     setTimeout(async () => {
       try {
@@ -33,20 +39,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .from('user_roles')
           .select('role')
           .eq('user_id', userId)
-          .order('created_at', { ascending: true })
-          .limit(1)
-          .maybeSingle();
+          .order('created_at', { ascending: true });
 
         if (error) {
-          console.error('Error fetching user role:', error);
+          console.error('Error fetching user roles:', error);
           setUserRole('customer');
+          setUserRoles(['customer']);
+          setActiveViewRole('customer');
           return;
         }
 
-        setUserRole((data?.role as AppRole) || 'customer');
+        const roles = (data?.map(r => r.role as AppRole) || ['customer']);
+        setUserRoles(roles);
+        
+        // Set primary role (admin > vendor > customer)
+        const primaryRole = roles.includes('admin') ? 'admin' : 
+                           roles.includes('vendor') ? 'vendor' : 'customer';
+        setUserRole(primaryRole);
+        
+        // Check if there's a stored active role preference
+        const storedRole = localStorage.getItem(`activeViewRole_${userId}`);
+        if (storedRole && roles.includes(storedRole as AppRole)) {
+          setActiveViewRole(storedRole as AppRole);
+        } else {
+          setActiveViewRole(primaryRole);
+        }
       } catch (err) {
-        console.error('Error in fetchUserRole:', err);
+        console.error('Error in fetchUserRoles:', err);
         setUserRole('customer');
+        setUserRoles(['customer']);
+        setActiveViewRole('customer');
       }
     }, 0);
   };
@@ -59,9 +81,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          fetchUserRole(session.user.id);
+          fetchUserRoles(session.user.id);
         } else {
           setUserRole(null);
+          setUserRoles([]);
+          setActiveViewRole(null);
         }
 
         if (event === 'SIGNED_OUT') {
@@ -76,7 +100,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        fetchUserRole(session.user.id);
+        fetchUserRoles(session.user.id);
       }
       
       setLoading(false);
@@ -115,19 +139,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async () => {
     await supabase.auth.signOut();
     setUserRole(null);
+    setUserRoles([]);
+    setActiveViewRole(null);
+  };
+
+  const switchRole = (role: AppRole) => {
+    if (userRoles.includes(role)) {
+      setActiveViewRole(role);
+      if (user) {
+        localStorage.setItem(`activeViewRole_${user.id}`, role);
+      }
+    }
   };
 
   const value = {
     user,
     session,
     userRole,
+    userRoles,
+    activeViewRole,
     loading,
     signUp,
     signIn,
     signOut,
-    isAdmin: userRole === 'admin',
-    isVendor: userRole === 'vendor',
-    isCustomer: userRole === 'customer',
+    switchRole,
+    isAdmin: activeViewRole === 'admin',
+    isVendor: activeViewRole === 'vendor',
+    isCustomer: activeViewRole === 'customer',
+    hasMultipleRoles: userRoles.length > 1,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
