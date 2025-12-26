@@ -25,11 +25,12 @@ const Index = () => {
   const heroImageUrl = settings?.heroImageUrl || heroImage;
   const defaultCountry = settings?.defaultCountry || 'LK';
 
-  const handleSearch = (filters: { query: string; province: string; district: string }) => {
+  const handleSearch = (filters: { query: string; province: string; district: string; country: string }) => {
     const params = new URLSearchParams();
     if (filters.query) params.set('q', filters.query);
     if (filters.province) params.set('province', filters.province);
     if (filters.district) params.set('district', filters.district);
+    if (filters.country) params.set('country', filters.country);
     navigate(`/temples?${params.toString()}`);
   };
 

@@ -20,7 +20,8 @@ import {
   Shield,
   Store,
   UserCircle,
-  ChevronDown
+  ChevronDown,
+  Languages
 } from 'lucide-react';
 import QuickActionsMenu from './QuickActionsMenu';
 import { Button } from '@/components/ui/button';
@@ -72,6 +73,26 @@ const countryFlags: Record<string, string> = {
   'AU': '🇦🇺', 'NZ': '🇳🇿', 'GB': '🇬🇧', 'US': '🇺🇸', 'CA': '🇨🇦',
 };
 
+// Language options with country associations
+const languages = [
+  { code: 'en', name: 'English', flag: '🇬🇧', countries: ['GB', 'US', 'CA', 'AU', 'NZ', 'SG'] },
+  { code: 'si', name: 'සිංහල', flag: '🇱🇰', countries: ['LK'] },
+  { code: 'ta', name: 'தமிழ்', flag: '🇮🇳', countries: ['LK', 'IN', 'MY', 'SG'] },
+  { code: 'hi', name: 'हिन्दी', flag: '🇮🇳', countries: ['IN', 'NP'] },
+  { code: 'ms', name: 'Bahasa Melayu', flag: '🇲🇾', countries: ['MY', 'SG', 'ID'] },
+  { code: 'th', name: 'ไทย', flag: '🇹🇭', countries: ['TH'] },
+  { code: 'id', name: 'Bahasa Indonesia', flag: '🇮🇩', countries: ['ID'] },
+  { code: 'vi', name: 'Tiếng Việt', flag: '🇻🇳', countries: ['VN'] },
+  { code: 'my', name: 'မြန်မာ', flag: '🇲🇲', countries: ['MM'] },
+  { code: 'ne', name: 'नेपाली', flag: '🇳🇵', countries: ['NP'] },
+  { code: 'bn', name: 'বাংলা', flag: '🇧🇩', countries: ['BD', 'IN'] },
+  { code: 'ur', name: 'اردو', flag: '🇵🇰', countries: ['PK'] },
+  { code: 'tl', name: 'Filipino', flag: '🇵🇭', countries: ['PH'] },
+  { code: 'ja', name: '日本語', flag: '🇯🇵', countries: ['JP'] },
+  { code: 'ko', name: '한국어', flag: '🇰🇷', countries: ['KR'] },
+  { code: 'zh', name: '中文', flag: '🇨🇳', countries: ['CN', 'SG', 'MY'] },
+];
+
 const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDark, setIsDark] = useState(document.documentElement.classList.contains('dark'));
@@ -82,12 +103,18 @@ const Header = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [userCountry, setUserCountry] = useState<string | null>(null);
+  const [selectedLanguage, setSelectedLanguage] = useState(() => {
+    return localStorage.getItem('preferredLanguage') || 'en';
+  });
   
   const { data: siteSettings } = useSiteSettings();
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut, isAdmin, isVendor, activeViewRole, userRoles, switchRole, hasMultipleRoles } = useAuth();
   const { totalItems, setIsCartOpen } = useCart();
+
+  // Get default country from site settings
+  const defaultCountry = siteSettings?.defaultCountry || 'LK';
 
   // Filter nav links based on user role - hide "Become a Vendor" and "My Booking" for admins and vendors
   const navLinks = [
@@ -97,6 +124,31 @@ const Header = () => {
     ...(!isAdmin && !isVendor ? [{ href: '/booking', label: 'My Booking' }] : []),
     ...(!isAdmin && !isVendor ? [{ href: '/become-vendor', label: 'Become a Vendor' }] : []),
   ];
+
+  // Get relevant languages based on user country or default country
+  const getRelevantLanguages = () => {
+    const countryToUse = userCountry || defaultCountry;
+    const relevantLangs = languages.filter(lang => 
+      lang.countries.includes(countryToUse) || lang.code === 'en'
+    );
+    // Ensure English is always first
+    return relevantLangs.sort((a, b) => {
+      if (a.code === 'en') return -1;
+      if (b.code === 'en') return 1;
+      return 0;
+    });
+  };
+
+  const handleLanguageChange = (langCode: string) => {
+    setSelectedLanguage(langCode);
+    localStorage.setItem('preferredLanguage', langCode);
+    toast({
+      title: 'Language Changed',
+      description: `Language set to ${languages.find(l => l.code === langCode)?.name || langCode}`,
+    });
+  };
+
+  const currentLanguage = languages.find(l => l.code === selectedLanguage) || languages[0];
 
   // Fetch user's country from profile
   useEffect(() => {
@@ -506,6 +558,60 @@ const Header = () => {
               {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
 
+            {/* Language Selector */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-1.5 px-2">
+                  <Languages className="h-4 w-4" />
+                  <span className="hidden lg:inline">{currentLanguage.name}</span>
+                  <span className="lg:hidden">{currentLanguage.flag}</span>
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 max-h-[300px] overflow-y-auto">
+                <div className="px-2 py-1.5">
+                  <p className="text-xs font-medium text-muted-foreground">Select Language</p>
+                </div>
+                <DropdownMenuSeparator />
+                {getRelevantLanguages().map((lang) => (
+                  <DropdownMenuItem
+                    key={lang.code}
+                    onClick={() => handleLanguageChange(lang.code)}
+                    className={cn(
+                      "flex cursor-pointer items-center gap-2",
+                      selectedLanguage === lang.code && "bg-primary/10 text-primary"
+                    )}
+                  >
+                    <span>{lang.flag}</span>
+                    <span>{lang.name}</span>
+                    {selectedLanguage === lang.code && (
+                      <CheckCircle2 className="ml-auto h-4 w-4" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <div className="px-2 py-1.5">
+                  <p className="text-xs text-muted-foreground">All Languages</p>
+                </div>
+                {languages.filter(lang => !getRelevantLanguages().includes(lang)).map((lang) => (
+                  <DropdownMenuItem
+                    key={lang.code}
+                    onClick={() => handleLanguageChange(lang.code)}
+                    className={cn(
+                      "flex cursor-pointer items-center gap-2",
+                      selectedLanguage === lang.code && "bg-primary/10 text-primary"
+                    )}
+                  >
+                    <span>{lang.flag}</span>
+                    <span>{lang.name}</span>
+                    {selectedLanguage === lang.code && (
+                      <CheckCircle2 className="ml-auto h-4 w-4" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             {/* Quick Actions Menu - Based on current role view */}
             {user && <QuickActionsMenu />}
 
@@ -703,6 +809,28 @@ const Header = () => {
                     </div>
                   </>
                 )}
+
+                {/* Mobile Language Selector */}
+                <div className="my-2 border-t border-border" />
+                <div className="px-3">
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">Language</p>
+                  <div className="flex flex-wrap gap-1">
+                    {getRelevantLanguages().map((lang) => (
+                      <Button
+                        key={lang.code}
+                        variant={selectedLanguage === lang.code ? "default" : "outline"}
+                        size="sm"
+                        className="gap-1"
+                        onClick={() => {
+                          handleLanguageChange(lang.code);
+                        }}
+                      >
+                        <span>{lang.flag}</span>
+                        <span className="text-xs">{lang.name}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
 
                 <div className="my-2 border-t border-border" />
 
