@@ -1,8 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.2";
-import { Resend } from "https://esm.sh/resend@2.0.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -76,30 +75,40 @@ const handler = async (req: Request): Promise<Response> => {
           });
       }
 
-      // Send email OTP
+      // Send email OTP via SendGrid
       const targetEmail = email || user.email;
-      const { error: emailError } = await resend.emails.send({
-        from: "Temple Connect <onboarding@resend.dev>",
-        to: [targetEmail!],
-        subject: "Your Verification Code - Temple Connect",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h1 style="color: #333; text-align: center;">Temple Connect</h1>
-            <h2 style="color: #666; text-align: center;">Email Verification Code</h2>
-            <div style="background: #f5f5f5; padding: 30px; border-radius: 10px; text-align: center; margin: 20px 0;">
-              <p style="font-size: 14px; color: #666; margin-bottom: 10px;">Your verification code is:</p>
-              <p style="font-size: 36px; font-weight: bold; color: #333; letter-spacing: 8px; margin: 0;">${otp}</p>
-            </div>
-            <p style="color: #888; font-size: 14px; text-align: center;">
-              This code will expire in 10 minutes.<br/>
-              If you didn't request this code, please ignore this email.
-            </p>
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h1 style="color: #333; text-align: center;">Temple Connect</h1>
+          <h2 style="color: #666; text-align: center;">Email Verification Code</h2>
+          <div style="background: #f5f5f5; padding: 30px; border-radius: 10px; text-align: center; margin: 20px 0;">
+            <p style="font-size: 14px; color: #666; margin-bottom: 10px;">Your verification code is:</p>
+            <p style="font-size: 36px; font-weight: bold; color: #333; letter-spacing: 8px; margin: 0;">${otp}</p>
           </div>
-        `,
+          <p style="color: #888; font-size: 14px; text-align: center;">
+            This code will expire in 10 minutes.<br/>
+            If you didn't request this code, please ignore this email.
+          </p>
+        </div>
+      `;
+
+      const sendGridResponse = await fetch("https://api.sendgrid.com/v3/mail/send", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${SENDGRID_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email: targetEmail }] }],
+          from: { email: "noreply@temple-info-com.vercel.app", name: "Temple Connect" },
+          subject: "Your Verification Code - Temple Connect",
+          content: [{ type: "text/html", value: emailHtml }],
+        }),
       });
 
-      if (emailError) {
-        console.error("Email send error:", emailError);
+      if (!sendGridResponse.ok) {
+        const errorData = await sendGridResponse.text();
+        console.error("SendGrid error:", errorData);
         throw new Error("Failed to send email OTP");
       }
 
