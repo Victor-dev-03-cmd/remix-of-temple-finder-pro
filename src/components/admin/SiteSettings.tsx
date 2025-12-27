@@ -740,112 +740,116 @@ const SiteSettings = () => {
         </Card>
 
 {/* Notification Settings */}
-<Card id="settings-notifications" className="relative overflow-hidden">
-          {/* Background GIF */}
-          <div className="absolute inset-0 pointer-events-none">
-            <img 
-              src="/assets/New Mail.gif" 
-              alt="" 
-              className="w-full h-full object-cover opacity-10"
-            />
-          </div>
-          
-          {/* Content with relative positioning to appear above GIF */}
-          <div className="relative z-10">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="h-5 w-5" />
-                Notifications
-              </CardTitle>
-              <CardDescription>Configure alert preferences</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Email Notifications</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Receive email alerts
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.emailNotifications}
-                  onCheckedChange={(checked) =>
-                    setSettings({ ...settings, emailNotifications: checked })
-                  }
-                />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>New Vendor Alerts</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Get notified of new applications
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.newVendorAlerts}
-                  onCheckedChange={(checked) =>
-                    setSettings({ ...settings, newVendorAlerts: checked })
-                  }
-                />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Order Alerts</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Notify on new orders
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.orderAlerts}
-                  onCheckedChange={(checked) =>
-                    setSettings({ ...settings, orderAlerts: checked })
-                  }
-                />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Chat Notifications</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Get notified of new chat messages
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.chatNotifications}
-                  onCheckedChange={(checked) =>
-                    setSettings({ ...settings, chatNotifications: checked })
-                  }
-                />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Chat Sound</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Play sound for new messages
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.chatNotificationSound}
-                  onCheckedChange={(checked) =>
-                    setSettings({ ...settings, chatNotificationSound: checked })
-                  }
-                />
-              </div>
-              
-              {/* New Mail GIF positioned under Chat Sound */}
-              <div className="flex justify-center pt-4">
-                <img 
-                  src="/assets/New Mail.gif" 
-                  alt="New Mail Animation" 
-                  className="w-32 h-32 object-contain opacity-30"
-                />
-              </div>
-            </CardContent>
-          </div>
-        </Card>
+<Card id="settings-notifications" className="relative">
+  <CardHeader>
+    <CardTitle className="flex items-center gap-2">
+      <Bell className="h-5 w-5" />
+      Notifications
+    </CardTitle>
+    <CardDescription>Configure alert preferences</CardDescription>
+  </CardHeader>
+
+  <CardContent className="space-y-4">
+    {/* Email Notifications */}
+    <div className="flex items-center justify-between">
+      <div className="space-y-0.5">
+        <Label>Email Notifications</Label>
+        <p className="text-sm text-muted-foreground">
+          Receive email alerts
+        </p>
+      </div>
+      <Switch
+        checked={settings.emailNotifications}
+        onCheckedChange={(checked) =>
+          setSettings({ ...settings, emailNotifications: checked })
+        }
+      />
+    </div>
+
+    <Separator />
+
+    {/* New Vendor Alerts */}
+    <div className="flex items-center justify-between">
+      <div className="space-y-0.5">
+        <Label>New Vendor Alerts</Label>
+        <p className="text-sm text-muted-foreground">
+          Get notified of new applications
+        </p>
+      </div>
+      <Switch
+        checked={settings.newVendorAlerts}
+        onCheckedChange={(checked) =>
+          setSettings({ ...settings, newVendorAlerts: checked })
+        }
+      />
+    </div>
+
+    <Separator />
+
+    {/* Order Alerts */}
+    <div className="flex items-center justify-between">
+      <div className="space-y-0.5">
+        <Label>Order Alerts</Label>
+        <p className="text-sm text-muted-foreground">
+          Notify on new orders
+        </p>
+      </div>
+      <Switch
+        checked={settings.orderAlerts}
+        onCheckedChange={(checked) =>
+          setSettings({ ...settings, orderAlerts: checked })
+        }
+      />
+    </div>
+
+    <Separator />
+
+    {/* Chat Notifications */}
+    <div className="flex items-center justify-between">
+      <div className="space-y-0.5">
+        <Label>Chat Notifications</Label>
+        <p className="text-sm text-muted-foreground">
+          Get notified of new chat messages
+        </p>
+      </div>
+      <Switch
+        checked={settings.chatNotifications}
+        onCheckedChange={(checked) =>
+          setSettings({ ...settings, chatNotifications: checked })
+        }
+      />
+    </div>
+
+    <Separator />
+
+    {/* Chat Sound */}
+    <div className="flex items-center justify-between">
+      <div className="space-y-0.5">
+        <Label>Chat Sound</Label>
+        <p className="text-sm text-muted-foreground">
+          Play sound for new messages
+        </p>
+      </div>
+      <Switch
+        checked={settings.chatNotificationSound}
+        onCheckedChange={(checked) =>
+          setSettings({ ...settings, chatNotificationSound: checked })
+        }
+      />
+    </div>
+
+    {/* GIF BELOW - 80% WIDTH, CENTER */}
+    <div className="pt-4">
+      <img
+        src="/New Mail.gif"
+        alt="New Mail Animation"
+        className="w-[80%] mx-auto max-h-40 object-contain"
+      />
+    </div>
+  </CardContent>
+</Card>
+
+
 
         {/* Security Settings */}
         <Card id="settings-security">
