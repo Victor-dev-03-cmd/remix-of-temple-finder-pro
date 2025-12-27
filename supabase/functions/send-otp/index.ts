@@ -97,7 +97,7 @@ const handler = async (req: Request): Promise<Response> => {
       },
       body: JSON.stringify({
         personalizations: [{ to: [{ email: targetEmail }] }],
-        from: { email: "noreply@temple-info-com.vercel.app", name: "Temple Connect" },
+        from: { email: "developerconsole03@gmail.com", name: "Temple Connect" },
         subject: "Your Verification Code - Temple Connect",
         content: [{ type: "text/html", value: emailHtml }],
       }),
