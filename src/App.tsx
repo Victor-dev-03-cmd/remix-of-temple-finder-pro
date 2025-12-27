@@ -30,6 +30,8 @@ import VendorOrders from "./pages/vendor/VendorOrders";
 import VendorTemple from "./pages/vendor/VendorTemple";
 import VendorBookingsPage from "./pages/vendor/VendorBookingsPage";
 import VendorAnalyticsPage from "./pages/vendor/VendorAnalyticsPage";
+import InventoryManagementPage from "./pages/vendor/InventoryManagement";
+import InvoiceCreationPage from "./pages/vendor/InvoiceCreation";
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import VendorApplications from "./pages/admin/VendorApplications";
 import UserManagementPage from "./pages/admin/UserManagementPage";
@@ -154,6 +156,22 @@ const AppRoutes = () => {
           element={
             <ProtectedRoute allowedRoles={['vendor']}>
               <VendorBookingsPage />
+            </ProtectedRoute>
+          }
+        />
+         <Route
+          path="/vendor/inventory"
+          element={
+            <ProtectedRoute allowedRoles={['vendor']}>
+              <InventoryManagementPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/vendor/invoices"
+          element={
+            <ProtectedRoute allowedRoles={['vendor']}>
+              <InvoiceCreationPage />
             </ProtectedRoute>
           }
         />

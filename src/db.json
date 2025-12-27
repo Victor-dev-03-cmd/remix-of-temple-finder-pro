@@ -1,0 +1,11 @@
+{
+  "products": [
+    { "id": 1, "name": "Rose Pooja Set", "sku": "PJA-RS-001", "category": "Pooja Kits", "costPrice": 150, "sellingPrice": 250, "stock": 50 },
+    { "id": 2, "name": "Agarbatti (Sandalwood)", "sku": "AGB-SND-012", "category": "Incense", "costPrice": 40, "sellingPrice": 70, "stock": 120 },
+    { "id": 3, "name": "Small Brass Diya", "sku": "DIY-BRS-SML", "category": "Decor", "costPrice": 80, "sellingPrice": 150, "stock": 8 },
+    { "id": 4, "name": "Temple Bell (Medium)", "sku": "BEL-BRS-MED", "category": "Decor", "costPrice": 300, "sellingPrice": 500, "stock": 25 },
+    { "id": 5, "name": "Ganga Jal (100ml)", "sku": "GJL-100-PLN", "category": "Holy Water", "costPrice": 20, "sellingPrice": 45, "stock": 200 },
+    { "id": 6, "name": "Rudraksha Mala", "sku": "RDK-MLA-054", "category": "Accessories", "costPrice": 250, "sellingPrice": 400, "stock": 4 }
+  ],
+  "invoices": []
+}

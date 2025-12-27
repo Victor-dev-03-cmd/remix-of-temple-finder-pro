@@ -16,6 +16,8 @@ import {
   MapPin,
   Ticket,
   Building,
+  ClipboardList, 
+  FilePlus
 } from 'lucide-react';
 import CountrySelector from '@/components/admin/CountrySelector';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,6 +54,8 @@ const vendorMenuItems = [
   { title: 'Products', url: '/vendor/products', icon: Package },
   { title: 'Orders', url: '/vendor/orders', icon: ShoppingCart },
   { title: 'Analytics', url: '/vendor/analytics', icon: TrendingUp },
+  { title: 'Inventory', url: '/vendor/inventory', icon: ClipboardList },
+  { title: 'Invoices', url: '/vendor/invoices', icon: FilePlus },
 ];
 
 const customerMenuItems = [
