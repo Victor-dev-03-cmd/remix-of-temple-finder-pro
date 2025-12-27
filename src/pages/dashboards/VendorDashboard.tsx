@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Building, ExternalLink, Package } from 'lucide-react';
@@ -6,77 +5,21 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import VendorAnalytics from '@/components/vendor/VendorAnalytics';
 import ProductManagement from '@/components/vendor/ProductManagement';
 import OrderManagement from '@/components/vendor/OrderManagement';
-import VendorOTPVerification from '@/components/vendor/VendorOTPVerification';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVendorTemple } from '@/hooks/useVendorTemple';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
 
 const VendorDashboard = () => {
   const { user } = useAuth();
   const { temple, application, loading: templeLoading } = useVendorTemple(user?.id);
-  const [needsPostApprovalVerification, setNeedsPostApprovalVerification] = useState(false);
-  const [checkingVerification, setCheckingVerification] = useState(true);
 
-  useEffect(() => {
-    const checkPostApprovalVerification = async () => {
-      if (!user || !application) {
-        setCheckingVerification(false);
-        return;
-      }
-
-      // Check if post-approval verification is complete
-      const { data } = await supabase
-        .from('vendor_verifications')
-        .select('email_verified, phone_verified')
-        .eq('user_id', user.id)
-        .eq('verification_stage', 'post_approval')
-        .maybeSingle();
-
-      if (!data || !data.email_verified || !data.phone_verified) {
-        setNeedsPostApprovalVerification(true);
-      }
-      setCheckingVerification(false);
-    };
-
-    if (!templeLoading) {
-      checkPostApprovalVerification();
-    }
-  }, [user, application, templeLoading]);
-
-  const handleVerificationComplete = () => {
-    setNeedsPostApprovalVerification(false);
-  };
-
-  if (checkingVerification || templeLoading) {
+  if (templeLoading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center py-12">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         </div>
-      </DashboardLayout>
-    );
-  }
-
-  if (needsPostApprovalVerification) {
-    return (
-      <DashboardLayout>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-lg mx-auto">
-          <div className="mb-8 text-center">
-            <h1 className="mb-2 font-display text-2xl font-bold text-foreground">
-              Final Verification Required
-            </h1>
-            <p className="text-muted-foreground">
-              Please complete the final verification to access your vendor dashboard.
-            </p>
-          </div>
-          <VendorOTPVerification
-            stage="post_approval"
-            onVerificationComplete={handleVerificationComplete}
-            applicationId={application?.id}
-          />
-        </motion.div>
       </DashboardLayout>
     );
   }
