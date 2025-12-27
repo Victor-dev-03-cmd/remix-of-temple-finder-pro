@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface VerifyRequest {
-  type: "email" | "phone";
+  type: "email";
   otp: string;
   verificationStage: "pre_submission" | "post_approval";
 }
@@ -55,76 +55,34 @@ const handler = async (req: Request): Promise<Response> => {
 
     const now = new Date();
 
-    if (type === "email") {
-      if (verification.email_otp !== otp) {
-        throw new Error("Invalid email OTP");
-      }
-      if (new Date(verification.email_otp_expires_at) < now) {
-        throw new Error("Email OTP has expired");
-      }
-
-      // Mark email as verified
-      await supabase
-        .from("vendor_verifications")
-        .update({ email_verified: true, email_otp: null })
-        .eq("id", verification.id);
-
-      console.log(`Email verified for user ${user.id}`);
-
-    } else if (type === "phone") {
-      if (verification.phone_otp !== otp) {
-        throw new Error("Invalid phone OTP");
-      }
-      if (new Date(verification.phone_otp_expires_at) < now) {
-        throw new Error("Phone OTP has expired");
-      }
-
-      // Mark phone as verified
-      await supabase
-        .from("vendor_verifications")
-        .update({ phone_verified: true, phone_otp: null })
-        .eq("id", verification.id);
-
-      console.log(`Phone verified for user ${user.id}`);
+    if (verification.email_otp !== otp) {
+      throw new Error("Invalid email OTP");
+    }
+    if (new Date(verification.email_otp_expires_at) < now) {
+      throw new Error("Email OTP has expired");
     }
 
-    // Get updated verification status
-    const { data: updatedVerification } = await supabase
+    // Mark email as verified
+    await supabase
       .from("vendor_verifications")
-      .select("email_verified, phone_verified, application_id")
-      .eq("id", verification.id)
-      .single();
+      .update({ email_verified: true, email_otp: null })
+      .eq("id", verification.id);
 
-    // If both are verified, update the vendor application
-    if (updatedVerification?.email_verified && updatedVerification?.phone_verified) {
-      if (verificationStage === "pre_submission" && updatedVerification.application_id) {
-        // Update vendor application with verified status
-        await serviceClient
-          .from("vendor_applications")
-          .update({
-            email_verified: true,
-            phone_verified: true,
-            phone_country_code: verification.country_code,
-          })
-          .eq("id", updatedVerification.application_id);
-      } else if (verificationStage === "post_approval" && updatedVerification.application_id) {
-        // Vendor can now access dashboard
-        await serviceClient
-          .from("vendor_applications")
-          .update({
-            email_verified: true,
-            phone_verified: true,
-          })
-          .eq("id", updatedVerification.application_id);
-      }
+    console.log(`Email verified for user ${user.id}`);
+
+    // Update vendor application if exists
+    if (verification.application_id) {
+      await serviceClient
+        .from("vendor_applications")
+        .update({ email_verified: true })
+        .eq("id", verification.application_id);
     }
 
     return new Response(
       JSON.stringify({
         success: true,
-        emailVerified: type === "email" ? true : verification.email_verified,
-        phoneVerified: type === "phone" ? true : verification.phone_verified,
-        fullyVerified: updatedVerification?.email_verified && updatedVerification?.phone_verified,
+        emailVerified: true,
+        fullyVerified: true,
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );

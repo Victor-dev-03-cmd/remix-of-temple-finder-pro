@@ -9,10 +9,8 @@ const corsHeaders = {
 };
 
 interface OTPRequest {
-  type: "email" | "phone";
+  type: "email";
   email?: string;
-  phone?: string;
-  countryCode?: string;
   verificationStage: "pre_submission" | "post_approval";
 }
 
@@ -42,7 +40,7 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Unauthorized");
     }
 
-    const { type, email, phone, countryCode, verificationStage }: OTPRequest = await req.json();
+    const { type, email, verificationStage }: OTPRequest = await req.json();
     const otp = generateOTP();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
@@ -54,129 +52,67 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("verification_stage", verificationStage)
       .maybeSingle();
 
-    if (type === "email") {
-      // Update or create verification with email OTP
-      if (existingVerification) {
-        await supabase
-          .from("vendor_verifications")
-          .update({
-            email_otp: otp,
-            email_otp_expires_at: expiresAt.toISOString(),
-          })
-          .eq("id", existingVerification.id);
-      } else {
-        await supabase
-          .from("vendor_verifications")
-          .insert({
-            user_id: user.id,
-            email_otp: otp,
-            email_otp_expires_at: expiresAt.toISOString(),
-            verification_stage: verificationStage,
-          });
-      }
-
-      // Send email OTP via SendGrid
-      const targetEmail = email || user.email;
-      const emailHtml = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h1 style="color: #333; text-align: center;">Temple Connect</h1>
-          <h2 style="color: #666; text-align: center;">Email Verification Code</h2>
-          <div style="background: #f5f5f5; padding: 30px; border-radius: 10px; text-align: center; margin: 20px 0;">
-            <p style="font-size: 14px; color: #666; margin-bottom: 10px;">Your verification code is:</p>
-            <p style="font-size: 36px; font-weight: bold; color: #333; letter-spacing: 8px; margin: 0;">${otp}</p>
-          </div>
-          <p style="color: #888; font-size: 14px; text-align: center;">
-            This code will expire in 10 minutes.<br/>
-            If you didn't request this code, please ignore this email.
-          </p>
-        </div>
-      `;
-
-      const sendGridResponse = await fetch("https://api.sendgrid.com/v3/mail/send", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${SENDGRID_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          personalizations: [{ to: [{ email: targetEmail }] }],
-          from: { email: "noreply@temple-info-com.vercel.app", name: "Temple Connect" },
-          subject: "Your Verification Code - Temple Connect",
-          content: [{ type: "text/html", value: emailHtml }],
-        }),
-      });
-
-      if (!sendGridResponse.ok) {
-        const errorData = await sendGridResponse.text();
-        console.error("SendGrid error:", errorData);
-        throw new Error("Failed to send email OTP");
-      }
-
-      console.log(`Email OTP sent to ${targetEmail}`);
-
-    } else if (type === "phone") {
-      // Update verification with phone OTP
-      const twilioAccountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
-      const twilioAuthToken = Deno.env.get("TWILIO_AUTH_TOKEN");
-      const twilioPhoneNumber = Deno.env.get("TWILIO_PHONE_NUMBER");
-
-      if (!twilioAccountSid || !twilioAuthToken || !twilioPhoneNumber) {
-        throw new Error("Twilio credentials not configured");
-      }
-
-      const fullPhoneNumber = `${countryCode}${phone}`;
-
-      if (existingVerification) {
-        await supabase
-          .from("vendor_verifications")
-          .update({
-            phone_otp: otp,
-            phone_otp_expires_at: expiresAt.toISOString(),
-            phone_number: phone,
-            country_code: countryCode,
-          })
-          .eq("id", existingVerification.id);
-      } else {
-        await supabase
-          .from("vendor_verifications")
-          .insert({
-            user_id: user.id,
-            phone_otp: otp,
-            phone_otp_expires_at: expiresAt.toISOString(),
-            phone_number: phone,
-            country_code: countryCode,
-            verification_stage: verificationStage,
-          });
-      }
-
-      // Send SMS via Twilio
-      const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
-      const twilioAuth = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
-
-      const smsResponse = await fetch(twilioUrl, {
-        method: "POST",
-        headers: {
-          "Authorization": `Basic ${twilioAuth}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          To: fullPhoneNumber,
-          From: twilioPhoneNumber,
-          Body: `Your Temple Connect verification code is: ${otp}. This code expires in 10 minutes.`,
-        }),
-      });
-
-      if (!smsResponse.ok) {
-        const errorData = await smsResponse.json();
-        console.error("Twilio error:", errorData);
-        throw new Error("Failed to send SMS OTP");
-      }
-
-      console.log(`Phone OTP sent to ${fullPhoneNumber}`);
+    // Update or create verification with email OTP
+    if (existingVerification) {
+      await supabase
+        .from("vendor_verifications")
+        .update({
+          email_otp: otp,
+          email_otp_expires_at: expiresAt.toISOString(),
+        })
+        .eq("id", existingVerification.id);
+    } else {
+      await supabase
+        .from("vendor_verifications")
+        .insert({
+          user_id: user.id,
+          email_otp: otp,
+          email_otp_expires_at: expiresAt.toISOString(),
+          verification_stage: verificationStage,
+        });
     }
 
+    // Send email OTP via SendGrid
+    const targetEmail = email || user.email;
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h1 style="color: #333; text-align: center;">Temple Connect</h1>
+        <h2 style="color: #666; text-align: center;">Email Verification Code</h2>
+        <div style="background: #f5f5f5; padding: 30px; border-radius: 10px; text-align: center; margin: 20px 0;">
+          <p style="font-size: 14px; color: #666; margin-bottom: 10px;">Your verification code is:</p>
+          <p style="font-size: 36px; font-weight: bold; color: #333; letter-spacing: 8px; margin: 0;">${otp}</p>
+        </div>
+        <p style="color: #888; font-size: 14px; text-align: center;">
+          This code will expire in 10 minutes.<br/>
+          If you didn't request this code, please ignore this email.
+        </p>
+      </div>
+    `;
+
+    const sendGridResponse = await fetch("https://api.sendgrid.com/v3/mail/send", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${SENDGRID_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email: targetEmail }] }],
+        from: { email: "noreply@temple-info-com.vercel.app", name: "Temple Connect" },
+        subject: "Your Verification Code - Temple Connect",
+        content: [{ type: "text/html", value: emailHtml }],
+      }),
+    });
+
+    if (!sendGridResponse.ok) {
+      const errorData = await sendGridResponse.text();
+      console.error("SendGrid error:", errorData);
+      throw new Error("Failed to send email OTP");
+    }
+
+    console.log(`Email OTP sent to ${targetEmail}`);
+
     return new Response(
-      JSON.stringify({ success: true, message: `OTP sent via ${type}` }),
+      JSON.stringify({ success: true, message: "OTP sent via email" }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
 
