@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Shield, ShieldCheck, User, RefreshCw, Search, Lock } from 'lucide-react';
+import { Shield, ShieldCheck, User, RefreshCw, Search, PlusCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,15 +11,39 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/contexts/AuthContext';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Card, CardContent } from '@/components/ui/card';
 
 type AppRole = 'admin' | 'vendor' | 'customer';
 
@@ -32,136 +56,147 @@ interface UserWithRole {
   created_at: string;
 }
 
-const roleIcons = {
+const roleIcons: Record<AppRole, React.ElementType> = {
   admin: ShieldCheck,
   vendor: Shield,
   customer: User,
 };
 
-const roleColors = {
-  admin: 'bg-destructive/10 text-destructive',
-  vendor: 'bg-primary/10 text-primary',
-  customer: 'bg-muted text-muted-foreground',
+const roleColors: Record<AppRole, string> = {
+  admin: 'bg-red-500/10 text-red-500',
+  vendor: 'bg-blue-500/10 text-blue-500',
+  customer: 'bg-gray-500/10 text-gray-500',
 };
 
 const countryFlags: Record<string, string> = {
-  'LK': '🇱🇰', 'MY': '🇲🇾', 'IN': '🇮🇳', 'TH': '🇹🇭', 'SG': '🇸🇬',
-  'ID': '🇮🇩', 'PH': '🇵🇭', 'VN': '🇻🇳', 'MM': '🇲🇲', 'NP': '🇳🇵',
-  'BD': '🇧🇩', 'PK': '🇵🇰', 'JP': '🇯🇵', 'KR': '🇰🇷', 'CN': '🇨🇳',
-  'AU': '🇦🇺', 'NZ': '🇳🇿', 'GB': '🇬🇧', 'US': '🇺🇸', 'CA': '🇨🇦',
+    'LK': '🇱🇰', 'MY': '🇲🇾', 'IN': '🇮🇳', 'TH': '🇹🇭', 'SG': '🇸🇬',
+    'ID': '🇮🇩', 'PH': '🇵🇭', 'VN': '🇻🇳', 'MM': '🇲🇲', 'NP': '🇳🇵',
+    'BD': '🇧🇩', 'PK': '🇵🇰', 'JP': '🇯🇵', 'KR': '🇰🇷', 'CN': '🇨🇳',
+    'AU': '🇦🇺', 'NZ': '🇳🇿', 'GB': '🇬🇧', 'US': '🇺🇸', 'CA': '🇨🇦',
 };
+
+const createUserSchema = z.object({
+    email: z.string().email({ message: 'Invalid email address.' }),
+    password: z.string().min(8, "Password must be at least 8 characters."),
+    full_name: z.string().min(2, "Full name must be at least 2 characters."),
+    role: z.enum(['admin', 'vendor', 'customer']),
+    country: z.string().min(2, "Country is required."),
+});
+
+const editUserSchema = z.object({
+    full_name: z.string().min(2, "Full name must be at least 2 characters."),
+    country: z.string().min(2, "Country is required."),
+});
 
 const UserManagement = () => {
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
-  const { user: currentUser } = useAuth();
+  const [isCreateUserOpen, setCreateUserOpen] = useState(false);
+  const [isEditUserOpen, setEditUserOpen] = useState(false);
+  const [isDeleteAlertOpen, setDeleteAlertOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
+
+  const createForm = useForm<z.infer<typeof createUserSchema>>({
+      resolver: zodResolver(createUserSchema),
+      defaultValues: { email: '', password: '', full_name: '', role: 'customer', country: 'LK' },
+  });
+
+  const editForm = useForm<z.infer<typeof editUserSchema>>({
+      resolver: zodResolver(editUserSchema),
+  });
+
+  useEffect(() => {
+    if (selectedUser && isEditUserOpen) {
+      editForm.reset({
+        full_name: selectedUser.full_name || '',
+        country: selectedUser.country || '',
+      });
+    }
+  }, [selectedUser, isEditUserOpen, editForm]);
+
 
   const fetchUsers = async () => {
-    setLoading(true);
-    try {
-      // Fetch profiles with their roles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('user_id, email, full_name, country, created_at');
+      setLoading(true);
+      try {
+          const { data: profiles, error: profilesError } = await supabase.from('profiles').select('user_id, email, full_name, country, created_at');
+          if (profilesError) throw profilesError;
+          const { data: roles, error: rolesError } = await supabase.from('user_roles').select('user_id, role');
+          if (rolesError) throw rolesError;
 
-      if (profilesError) {
-        console.error('Profiles fetch error:', profilesError);
-        throw profilesError;
+          const usersWithRoles: UserWithRole[] = (profiles || []).map((profile) => {
+              const userRole = roles?.find((r) => r.user_id === profile.user_id);
+              return { ...profile, role: (userRole?.role as AppRole) || 'customer' };
+          });
+          setUsers(usersWithRoles.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+      } catch (error) {
+          console.error('Error fetching users:', error);
+          toast({ title: 'Error', description: 'Failed to fetch users.', variant: 'destructive' });
+      } finally {
+          setLoading(false);
       }
-
-      console.log('Fetched profiles:', profiles);
-
-      const { data: roles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('user_id, role');
-
-      if (rolesError) {
-        console.error('Roles fetch error:', rolesError);
-        throw rolesError;
-      }
-
-      console.log('Fetched roles:', roles);
-
-      // Combine profiles with roles
-      const usersWithRoles: UserWithRole[] = (profiles || []).map((profile) => {
-        const userRole = roles?.find((r) => r.user_id === profile.user_id);
-        return {
-          user_id: profile.user_id,
-          email: profile.email,
-          full_name: profile.full_name,
-          country: profile.country,
-          role: (userRole?.role as AppRole) || 'customer',
-          created_at: profile.created_at,
-        };
-      });
-
-      setUsers(usersWithRoles);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch users. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
   };
 
   useEffect(() => {
     fetchUsers();
   }, []);
 
-  const handleRoleChange = async (userId: string, newRole: AppRole, currentRole: AppRole) => {
-    // Check if trying to change an admin's role - only admins can change admin roles
-    if (currentRole === 'admin' && userId !== currentUser?.id) {
-      // This is changing another admin - verify current user is admin
-      // The RLS policy should handle this, but we add client-side check too
-    }
-
+  const handleRoleChange = async (userId: string, newRole: AppRole) => {
     setUpdatingUserId(userId);
     try {
-      const { error } = await supabase
-        .from('user_roles')
-        .update({ role: newRole })
-        .eq('user_id', userId);
-
+      const { error } = await supabase.rpc('update_user_role', { user_id_to_update: userId, new_role: newRole });
       if (error) throw error;
-
-      setUsers((prev) =>
-        prev.map((user) =>
-          user.user_id === userId ? { ...user, role: newRole } : user
-        )
-      );
-
-      toast({
-        title: 'Role Updated',
-        description: `User role has been changed to ${newRole}.`,
-      });
+      setUsers((prev) => prev.map((user) => user.user_id === userId ? { ...user, role: newRole } : user));
+      toast({ title: 'Role Updated', description: `User role has been successfully changed to ${newRole}.` });
     } catch (error) {
       console.error('Error updating role:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update user role. Please try again.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Failed to update user role.', variant: 'destructive' });
     } finally {
       setUpdatingUserId(null);
     }
   };
 
-  // Check if current user can change a specific user's role
-  const canChangeRole = (targetUser: UserWithRole): boolean => {
-    // Admin can change anyone's role
-    return true;
+  const handleCreateUser = async (values: z.infer<typeof createUserSchema>) => {
+      try {
+          const { error } = await supabase.rpc('admin_create_user', { email: values.email, password: values.password, full_name: values.full_name, user_role: values.role, user_country: values.country });
+          if(error) throw error;
+          toast({ title: 'User Created', description: 'A new user has been successfully created.' });
+          setCreateUserOpen(false);
+          fetchUsers();
+          createForm.reset();
+      } catch (error) {
+          console.error('Error creating user:', error);
+          toast({ title: 'Error', description: (error as Error).message || 'An unexpected error occurred.', variant: 'destructive' });
+      }
+  }
+
+  const handleUpdateUser = async (values: z.infer<typeof editUserSchema>) => {
+    if (!selectedUser) return;
+    try {
+        const { error } = await supabase.from('profiles').update({ full_name: values.full_name, country: values.country }).eq('user_id', selectedUser.user_id);
+        if (error) throw error;
+        toast({ title: 'User Updated', description: 'User details have been successfully updated.' });
+        setEditUserOpen(false);
+        fetchUsers();
+    } catch (error) {
+        console.error('Error updating user:', error);
+        toast({ title: 'Error', description: (error as Error).message || 'Failed to update user.', variant: 'destructive' });
+    }
   };
 
-  // Get available roles for a user (admins can only be changed to admin by other admins)
-  const getAvailableRoles = (targetUser: UserWithRole): AppRole[] => {
-    // All roles are available for admin to change
-    return ['customer', 'vendor', 'admin'];
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+    try {
+      const { error } = await supabase.rpc('admin_delete_user', { user_id_to_delete: selectedUser.user_id });
+      if (error) throw error;
+      toast({ title: 'User Deleted', description: 'The user has been permanently deleted.' });
+      setDeleteAlertOpen(false);
+      fetchUsers();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast({ title: 'Error', description: (error as Error).message || 'Failed to delete user.', variant: 'destructive' });
+    }
   };
 
   const filteredUsers = users.filter((user) => {
@@ -173,164 +208,165 @@ const UserManagement = () => {
     );
   });
 
-  const getRoleIcon = (role: AppRole) => {
+  const RoleIcon = ({ role }: { role: AppRole }) => {
     const Icon = roleIcons[role];
     return <Icon className="h-4 w-4" />;
   };
 
+  const truncate = (str: string | null, n: number) => {
+    if (!str) return 'N/A';
+    return str.length > n ? str.substring(0, n - 1) + '...' : str;
+  }
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg border border-border bg-card"
-    >
-      <div className="flex flex-col gap-4 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="flex items-center gap-2 font-semibold text-foreground">
-            <Users className="h-5 w-5" />
-            User Management
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            View all users and manage their roles.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search users..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 w-64"
-            />
-          </div>
-          <Button variant="outline" size="icon" onClick={fetchUsers} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
-      </div>
+    <>
+        {/* Create User Dialog */}
+        <Dialog open={isCreateUserOpen} onOpenChange={setCreateUserOpen}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader><DialogTitle>Create New User</DialogTitle><DialogDescription>Fill out the form to add a new user.</DialogDescription></DialogHeader>
+                <Form {...createForm}>
+                    <form onSubmit={createForm.handleSubmit(handleCreateUser)} className="grid gap-4 py-4">
+                        <FormField control={createForm.control} name="full_name" render={({ field }) => (<FormItem><FormLabel>Full Name</FormLabel><FormControl><Input placeholder="Enter full name" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={createForm.control} name="email" render={({ field }) => (<FormItem><FormLabel>Email Address</FormLabel><FormControl><Input type="email" placeholder="Enter email" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={createForm.control} name="password" render={({ field }) => (<FormItem><FormLabel>Password</FormLabel><FormControl><Input type="password" placeholder="Create a strong password" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField control={createForm.control} name="role" render={({ field }) => (<FormItem><FormLabel>Role</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="customer">Customer</SelectItem><SelectItem value="vendor">Vendor</SelectItem><SelectItem value="admin">Admin</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
+                            <FormField control={createForm.control} name="country" render={({ field }) => (<FormItem><FormLabel>Country</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{Object.entries(countryFlags).map(([code, flag]) => <SelectItem key={code} value={code}>{flag} {code}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
+                        </div>
+                        <DialogFooter className="pt-4">
+                            <Button type="button" variant="outline" onClick={() => setCreateUserOpen(false)}>Cancel</Button>
+                            <Button type="submit" disabled={createForm.formState.isSubmitting}>{createForm.formState.isSubmitting ? 'Creating...' : 'Create User'}</Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
 
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                User
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                Email
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                Country
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                Current Role
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                Joined
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                Change Role
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                  <RefreshCw className="mx-auto h-6 w-6 animate-spin" />
-                  <p className="mt-2">Loading users...</p>
-                </td>
-              </tr>
-            ) : filteredUsers.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                  No users found.
-                </td>
-              </tr>
-            ) : (
-              filteredUsers.map((user) => (
-                <tr key={user.user_id} className="hover:bg-muted/30 transition-colors">
-                  <td className="whitespace-nowrap px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
-                        {getRoleIcon(user.role)}
-                      </div>
-                      <span className="font-medium text-foreground">
-                        {user.full_name || 'No name'}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
-                    {user.email || 'No email'}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm">
-                    {user.country && countryFlags[user.country] ? (
-                      <span className="flex items-center gap-1.5">
-                        <span className="text-base">{countryFlags[user.country]}</span>
-                        <span className="text-muted-foreground">{user.country}</span>
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3">
-                    <Badge className={roleColors[user.role]} variant="secondary">
-                      {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                    </Badge>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
-                    {new Date(user.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="inline-block">
-                            <Select
-                              value={user.role}
-                              onValueChange={(value: AppRole) => handleRoleChange(user.user_id, value, user.role)}
-                              disabled={updatingUserId === user.user_id || !canChangeRole(user)}
-                            >
-                              <SelectTrigger className="w-32">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {getAvailableRoles(user).map((role) => (
-                                  <SelectItem key={role} value={role}>
-                                    {role.charAt(0).toUpperCase() + role.slice(1)}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </TooltipTrigger>
-                        {user.role === 'admin' && (
-                          <TooltipContent>
-                            <p className="flex items-center gap-1">
-                              <Lock className="h-3 w-3" />
-                              Admin role - requires admin privileges to change
-                            </p>
-                          </TooltipContent>
-                        )}
-                      </Tooltip>
-                    </TooltipProvider>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+        {/* Edit User Dialog */}
+        <Dialog open={isEditUserOpen} onOpenChange={setEditUserOpen}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader><DialogTitle>Edit User Details</DialogTitle><DialogDescription>Update the user's information below.</DialogDescription></DialogHeader>
+                 <Form {...editForm}>
+                    <form onSubmit={editForm.handleSubmit(handleUpdateUser)} className="grid gap-4 py-4">
+                        <FormField control={editForm.control} name="full_name" render={({ field }) => (<FormItem><FormLabel>Full Name</FormLabel><FormControl><Input placeholder="Enter full name" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={editForm.control} name="country" render={({ field }) => (<FormItem><FormLabel>Country</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{Object.entries(countryFlags).map(([code, flag]) => <SelectItem key={code} value={code}>{flag} {code}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
+                        <DialogFooter className="pt-4">
+                            <Button type="button" variant="outline" onClick={() => setEditUserOpen(false)}>Cancel</Button>
+                            <Button type="submit" disabled={editForm.formState.isSubmitting}>{editForm.formState.isSubmitting ? 'Saving...' : 'Save Changes'}</Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
 
-      <div className="border-t border-border p-4">
-        <p className="text-sm text-muted-foreground">
-          Total users: {users.length} | Admins: {users.filter((u) => u.role === 'admin').length} |
-          Vendors: {users.filter((u) => u.role === 'vendor').length} |
-          Customers: {users.filter((u) => u.role === 'customer').length}
-        </p>
-      </div>
-    </motion.div>
+        {/* Delete User Alert */}
+        <AlertDialog open={isDeleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader><AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete the user account and remove their data from our servers.</AlertDialogDescription></AlertDialogHeader>
+                <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteUser} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete User</AlertDialogAction></AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-end">
+                <div className="relative w-full md:w-64">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input placeholder="Search users..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 w-full" />
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="icon" onClick={fetchUsers} disabled={loading}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></Button>
+                    <Button onClick={() => setCreateUserOpen(true)} className="w-full sm:w-auto flex items-center gap-2"><PlusCircle className="h-4 w-4"/> Create User</Button>
+                </div>
+            </div>
+
+            <Card>
+                <div className="overflow-x-auto hidden md:block">
+                    <table className="w-full text-sm">
+                        <thead className="border-b"><tr className="text-left text-muted-foreground"><th className="p-4 font-medium">User</th><th className="p-4 font-medium">Role</th><th className="p-4 font-medium">Country</th><th className="p-4 font-medium">Joined Date</th><th className="p-4 font-medium text-right">Actions</th></tr></thead>
+                        <tbody className="divide-y">
+                            {loading ? (
+                                <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">Loading users...</td></tr>
+                            ) : filteredUsers.length === 0 ? (
+                                <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No users found.</td></tr>
+                            ) : (
+                                filteredUsers.map((user) => (
+                                    <tr key={user.user_id} className="hover:bg-muted/50">
+                                        <td className="p-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${roleColors[user.role]}`}><RoleIcon role={user.role} /></div>
+                                                <div>
+                                                    <p className="font-semibold text-foreground truncate max-w-[150px]" title={user.full_name || ''}>{truncate(user.full_name, 20)}</p>
+                                                    <p className="text-muted-foreground truncate max-w-[200px]" title={user.email || ''}>{truncate(user.email, 25)}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="p-4"><Badge variant="secondary" className={roleColors[user.role]}>{user.role}</Badge></td>
+                                        <td className="p-4"><span className="flex items-center gap-2">{countryFlags[user.country || ''] || ''} {user.country}</span></td>
+                                        <td className="p-4 text-muted-foreground">{new Date(user.created_at).toLocaleDateString()}</td>
+                                        <td className="p-4 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <Select value={user.role} onValueChange={(value: AppRole) => handleRoleChange(user.user_id, value)} disabled={updatingUserId === user.user_id}><SelectTrigger className="w-32"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="customer">Customer</SelectItem><SelectItem value="vendor">Vendor</SelectItem><SelectItem value="admin">Admin</SelectItem></SelectContent></Select>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                        <DropdownMenuItem onSelect={() => { setSelectedUser(user); setEditUserOpen(true); }}><Pencil className="mr-2 h-4 w-4"/>Edit</DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem onSelect={() => { setSelectedUser(user); setDeleteAlertOpen(true); }} className="text-destructive focus:text-destructive"><Trash2 className="mr-2 h-4 w-4"/>Delete</DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 p-4 md:hidden">
+                    {loading ? <p className="p-4 text-center text-muted-foreground">Loading...</p> : filteredUsers.length === 0 ? <p className="p-4 text-center text-muted-foreground">No users found.</p> :
+                        filteredUsers.map(user => (
+                            <Card key={user.user_id} className="w-full">
+                                <CardContent className="p-4 space-y-4">
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`flex h-10 w-10 items-center justify-center rounded-full ${roleColors[user.role]}`}><RoleIcon role={user.role} /></div>
+                                            <div>
+                                                <p className="font-semibold text-foreground truncate" title={user.full_name || ''}>{truncate(user.full_name, 20)}</p>
+                                                <p className="text-sm text-muted-foreground truncate" title={user.email || ''}>{truncate(user.email, 25)}</p>
+                                            </div>
+                                        </div>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                <DropdownMenuItem onSelect={() => { setSelectedUser(user); setEditUserOpen(true); }}><Pencil className="mr-2 h-4 w-4"/>Edit</DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem onSelect={() => { setSelectedUser(user); setDeleteAlertOpen(true); }} className="text-destructive focus:text-destructive"><Trash2 className="mr-2 h-4 w-4"/>Delete</DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2 text-sm">
+                                        <div><p className="text-muted-foreground text-xs">Role</p><Badge className={`${roleColors[user.role]} mt-1`} variant="secondary">{user.role}</Badge></div>
+                                        <div><p className="text-muted-foreground text-xs">Country</p><p className="font-medium flex items-center gap-1.5 mt-1">{countryFlags[user.country || ''] || ''} {user.country}</p></div>
+                                        <div><p className="text-muted-foreground text-xs">Joined</p><p className="font-medium mt-1">{new Date(user.created_at).toLocaleDateString()}</p></div>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-muted-foreground mb-1">Change Role</p>
+                                        <Select value={user.role} onValueChange={(value: AppRole) => handleRoleChange(user.user_id, value)} disabled={updatingUserId === user.user_id}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="customer">Customer</SelectItem><SelectItem value="vendor">Vendor</SelectItem><SelectItem value="admin">Admin</SelectItem></SelectContent></Select>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))
+                    }
+                </div>
+                <div className="border-t p-4 flex justify-end">
+                    <p className="text-sm text-muted-foreground">Total users: {users.length}</p>
+                </div>
+            </Card>
+        </motion.div>
+    </>
   );
 };
 
