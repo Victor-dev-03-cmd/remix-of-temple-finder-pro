@@ -1,0 +1,1 @@
+CREATE POLICY "Admins can insert gallery images" ON public.home_gallery_images FOR INSERT WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));

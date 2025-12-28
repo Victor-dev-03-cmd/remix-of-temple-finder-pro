@@ -1,128 +1,62 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.2";
+
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import sgMail from "npm:@sendgrid/mail";
 
 const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
+const SENDER_EMAIL = "laxsan732@gmail.com"; // IMPORTANT: Replace with your verified SendGrid sender email
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-interface OTPRequest {
-  type: "email";
-  email?: string;
-  verificationStage: "pre_submission" | "post_approval";
+interface WebhookPayload {
+  type: "EMAIL_OTP";
+  email: string;
+  data: {
+    code: string;
+  };
 }
 
-function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
-const handler = async (req: Request): Promise<Response> => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+serve(async (req) => {
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
+      status: 405,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      throw new Error("No authorization header");
+    if (!SENDGRID_API_KEY) {
+      throw new Error("SENDGRID_API_KEY is not set.");
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    sgMail.setApiKey(SENDGRID_API_KEY);
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      throw new Error("Unauthorized");
-    }
+    const payload: WebhookPayload = await req.json();
+    const { email, data } = payload;
+    const { code } = data;
 
-    const { type, email, verificationStage }: OTPRequest = await req.json();
-    const otp = generateOTP();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const msg = {
+      to: email,
+      from: SENDER_EMAIL, // Use the variable defined above
+      subject: `Your Verification Code: ${code}`,
+      html: `
+        <p>Hello,</p>
+        <p>Your verification code is: <strong>${code}</strong></p>
+        <p>Please use this code to verify your email address.</p>
+        <p>Thanks,</p>
+        <p>The Temple Info Team</p>
+      `,
+    };
 
-    // Get or create verification record
-    const { data: existingVerification } = await supabase
-      .from("vendor_verifications")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("verification_stage", verificationStage)
-      .maybeSingle();
+    await sgMail.send(msg);
 
-    // Update or create verification with email OTP
-    if (existingVerification) {
-      await supabase
-        .from("vendor_verifications")
-        .update({
-          email_otp: otp,
-          email_otp_expires_at: expiresAt.toISOString(),
-        })
-        .eq("id", existingVerification.id);
-    } else {
-      await supabase
-        .from("vendor_verifications")
-        .insert({
-          user_id: user.id,
-          email_otp: otp,
-          email_otp_expires_at: expiresAt.toISOString(),
-          verification_stage: verificationStage,
-        });
-    }
-
-    // Send email OTP via SendGrid
-    const targetEmail = email || user.email;
-    const emailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h1 style="color: #333; text-align: center;">Temple Connect</h1>
-        <h2 style="color: #666; text-align: center;">Email Verification Code</h2>
-        <div style="background: #f5f5f5; padding: 30px; border-radius: 10px; text-align: center; margin: 20px 0;">
-          <p style="font-size: 14px; color: #666; margin-bottom: 10px;">Your verification code is:</p>
-          <p style="font-size: 36px; font-weight: bold; color: #333; letter-spacing: 8px; margin: 0;">${otp}</p>
-        </div>
-        <p style="color: #888; font-size: 14px; text-align: center;">
-          This code will expire in 10 minutes.<br/>
-          If you didn't request this code, please ignore this email.
-        </p>
-      </div>
-    `;
-
-    const sendGridResponse = await fetch("https://api.sendgrid.com/v3/mail/send", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${SENDGRID_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        personalizations: [{ to: [{ email: targetEmail }] }],
-        from: { email: "developerconsole03@gmail.com", name: "Temple Connect" },
-        subject: "Your Verification Code - Temple Connect",
-        content: [{ type: "text/html", value: emailHtml }],
-      }),
+    return new Response(JSON.stringify({ message: "OTP email sent successfully." }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
     });
 
-    if (!sendGridResponse.ok) {
-      const errorData = await sendGridResponse.text();
-      console.error("SendGrid error:", errorData);
-      throw new Error("Failed to send email OTP");
-    }
-
-    console.log(`Email OTP sent to ${targetEmail}`);
-
-    return new Response(
-      JSON.stringify({ success: true, message: "OTP sent via email" }),
-      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
-
-  } catch (error: any) {
-    console.error("Error in send-otp function:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
+  } catch (error) {
+    console.error("Error sending email:", error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
-};
-
-serve(handler);
+});
