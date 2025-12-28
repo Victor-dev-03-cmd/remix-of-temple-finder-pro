@@ -22,7 +22,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Textarea } from '@/components/ui/textarea';
 
-
 const invoiceSchema = z.object({
   customer_name: z.string().min(1, 'Customer name is required'),
   customer_phone: z.string().optional(),
@@ -36,6 +35,7 @@ const invoiceSchema = z.object({
     name: z.string(),
     price: z.number(),
     quantity: z.coerce.number().min(1, 'Quantity must be at least 1'),
+    stock: z.number(),
   })).min(1, 'At least one item is required'),
 });
 
@@ -93,19 +93,34 @@ const InvoiceCreation = () => {
     name: "items",
   });
 
+  const uniqueCustomers = useMemo(() => {
+    const customerMap = new Map();
+    invoices.forEach(invoice => {
+        if (invoice.customer_name && !customerMap.has(invoice.customer_name.toLowerCase())) {
+            customerMap.set(invoice.customer_name.toLowerCase(), {
+                name: invoice.customer_name,
+                phone: invoice.customer_phone,
+                email: invoice.customer_email,
+                shipping_address: invoice.customer_shipping_address,
+            });
+        }
+    });
+    return Array.from(customerMap.values());
+  }, [invoices]);
+
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const customerName = searchParams.get('customer_name');
-    const customerPhone = searchParams.get('customer_phone');
-    const customerEmail = searchParams.get('customer_email');
-    const customerShippingAddress = searchParams.get('customer_shipping_address');
     const search = searchParams.get('search');
     
     if (customerName) {
-        form.setValue('customer_name', customerName);
-        if (customerPhone) form.setValue('customer_phone', customerPhone);
-        if (customerEmail) form.setValue('customer_email', customerEmail);
-        if (customerShippingAddress) form.setValue('customer_shipping_address', customerShippingAddress);
+        const customer = uniqueCustomers.find(c => c.name === customerName);
+        if (customer) {
+            form.setValue('customer_name', customer.name);
+            form.setValue('customer_phone', customer.phone || '');
+            form.setValue('customer_email', customer.email || '');
+            form.setValue('customer_shipping_address', customer.shipping_address || '');
+        }
         setShowCreateForm(true);
     }
 
@@ -114,8 +129,7 @@ const InvoiceCreation = () => {
         if (isMobile) setShowCreateForm(false);
     }
 
-  }, [location.search, form.setValue, isMobile]);
-
+  }, [location.search, form, isMobile, uniqueCustomers]);
 
   useEffect(() => {
     if(!location.search) {
@@ -131,19 +145,38 @@ const InvoiceCreation = () => {
   const taxAmount = (subtotal * watchTaxRate) / 100;
   const total = subtotal + taxAmount - watchDiscount;
 
+  const handleCustomerSelect = (customerName: string) => {
+    const customer = uniqueCustomers.find(c => c.name === customerName);
+    if (customer) {
+        form.setValue('customer_name', customer.name);
+        form.setValue('customer_phone', customer.phone || '');
+        form.setValue('customer_email', customer.email || '');
+        form.setValue('customer_shipping_address', customer.shipping_address || '');
+    }
+  };
+
   const handleAddProduct = (productId: string) => {
     if (!productId) return;
     const product = products.find(p => p.id === productId);
     if (product) {
+        if ((product.stock || 0) <= 0) {
+            toast({ title: "Out of Stock", description: "This product is currently out of stock.", variant: "destructive" });
+            return;
+        }
+
       const existingItemIndex = fields.findIndex(item => item.product_id === productId);
       if (existingItemIndex > -1) {
         const currentItem = fields[existingItemIndex];
-        update(existingItemIndex, { ...currentItem, quantity: currentItem.quantity + 1 });
+        if (currentItem.quantity < currentItem.stock) {
+            update(existingItemIndex, { ...currentItem, quantity: currentItem.quantity + 1 });
+        } else {
+            toast({ title: "Stock Limit Reached", description: "You cannot add more than the available stock.", variant: "destructive" });
+        }
       } else {
-        append({ product_id: product.id, name: product.name, price: product.price || 0, quantity: 1 });
+        append({ product_id: product.id, name: product.name, price: product.price || 0, quantity: 1, stock: product.stock || 0 });
       }
     }
-    setProductToAdd(null); // Reset select
+    setProductToAdd(null); 
   };
 
   async function onSubmit(values: InvoiceFormValues) {
@@ -162,7 +195,7 @@ const InvoiceCreation = () => {
             tax_amount: taxAmount,
             discount: values.discount,
             total,
-            items: values.items
+            items: values.items.map(({ stock, ...item }) => item) 
         }).select();
 
       if(error) throw error;
@@ -183,7 +216,7 @@ const InvoiceCreation = () => {
 
     } catch (error) {
       console.error(error);
-      toast({ title: "Error", description: "Failed to save invoice. Please check stock levels and try again.", variant: "destructive" });
+      toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -195,7 +228,7 @@ const InvoiceCreation = () => {
   );
 
   if (productsLoading) {
-    return <Skeleton className="w-full h-96" />
+    return <Skeleton className="w-full h-96" />;
   }
 
   return (
@@ -219,7 +252,16 @@ const InvoiceCreation = () => {
                     <div className="md:col-span-2 space-y-4">
                         <div className="grid sm:grid-cols-2 gap-4">
                             <FormField name="customer_name" control={form.control} render={({ field }) => (
-                              <FormItem><Label>Customer Name</Label><FormControl><Input placeholder="Enter name" {...field} /></FormControl><FormMessage/></FormItem> )}/>
+                                <FormItem><Label>Customer Name</Label>
+                                    <FormControl>
+                                        <Input {...field} placeholder="Enter or select a customer" list="customer-list" onChange={(e) => {field.onChange(e); handleCustomerSelect(e.target.value);}} />
+                                    </FormControl>
+                                    <datalist id="customer-list">
+                                        {uniqueCustomers.map(c => <option key={c.name} value={c.name} />)}
+                                    </datalist>
+                                    <FormMessage/>
+                                </FormItem> 
+                            )}/>
                             <FormField name="customer_phone" control={form.control} render={({ field }) => (
                               <FormItem><Label>Customer Phone</Label><FormControl><Input placeholder="Optional" {...field} /></FormControl><FormMessage/></FormItem> )}/>
                              <FormField name="customer_email" control={form.control} render={({ field }) => (
@@ -236,7 +278,10 @@ const InvoiceCreation = () => {
                                 <SelectContent>
                                     {products.map(p => (
                                         <SelectItem key={p.id} value={p.id} disabled={(p.stock || 0) <= 0}>
-                                            {p.name} (Stock: {p.stock || 0})
+                                            {p.name} - 
+                                            {(p.stock || 0) > 0 ? 
+                                                <span className="text-muted-foreground"> (Stock: {p.stock})</span> : 
+                                                <span className="text-red-500"> SOLD OUT</span>}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -269,7 +314,7 @@ const InvoiceCreation = () => {
                                                             </Button>
                                                             <span className="font-medium text-center w-8">{field.value}</span>
                                                             <Button type="button" variant="outline" size="icon" className="h-8 w-8" 
-                                                                onClick={() => form.setValue(`items.${index}.quantity`, field.value + 1)}>
+                                                                onClick={() => field.value < item.stock ? form.setValue(`items.${index}.quantity`, field.value + 1) : toast({title: 'Stock limit reached', variant: 'destructive'})}>
                                                                 <Plus className="h-4 w-4" />
                                                             </Button>
                                                         </div>

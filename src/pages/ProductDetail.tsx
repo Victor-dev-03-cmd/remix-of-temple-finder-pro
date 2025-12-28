@@ -51,19 +51,14 @@ const ProductDetail = () => {
   const handleAddToCart = () => {
     if (!product) return;
     
-    for (let i = 0; i < quantity; i++) {
-      addToCart({
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        image_url: product.image_url || undefined,
-        vendor_id: product.vendor_id,
-      });
-    }
-    
-    toast({
-      title: 'Added to Cart',
-      description: `${quantity} x ${product.name} added to your cart.`,
+    addToCart({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image_url: product.image_url || undefined,
+      vendor_id: product.vendor_id,
+      stock: product.stock,
+      quantity: quantity,
     });
   };
 

@@ -25,6 +25,8 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
       price: product.price,
       image_url: product.image_url || undefined,
       vendor_id: product.vendor_id,
+      stock: product.stock,
+      quantity: 1,
     });
     toast({
       title: 'Added to Cart',

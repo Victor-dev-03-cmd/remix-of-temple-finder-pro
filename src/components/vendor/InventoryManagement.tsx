@@ -17,8 +17,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { PlusCircle, FileDown, Search, Package, TrendingDown, LayoutGrid, MoreHorizontal, Trash2, Pencil } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 
-// Zod schema for form validation - using actual database columns
 const productSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, 'Product name is required'),
@@ -66,7 +66,7 @@ const InventoryManagement = () => {
       .filter(p => categoryFilter === 'all' || p.category === categoryFilter);
   }, [products, searchTerm, categoryFilter]);
 
-  const lowStockProducts = useMemo(() => products?.filter(p => (p.stock || 0) < 10) || [], [products]);
+  const outOfStockProducts = useMemo(() => products?.filter(p => (p.stock || 0) === 0) || [], [products]);
 
   const handleAddNew = () => {
     setEditingProduct(null);
@@ -116,21 +116,13 @@ const InventoryManagement = () => {
       if (editingProduct) {
         await updateProduct({ 
           id: editingProduct.id, 
-          name: values.name,
-          description: values.description,
-          category: values.category,
-          stock: values.stock,
-          price: values.price,
+          ...values
         });
         toast({ title: 'Success', description: 'Product updated successfully.' });
       } else {
         await addProduct({
           vendor_id: user.id,
-          name: values.name,
-          description: values.description,
-          category: values.category,
-          stock: values.stock,
-          price: values.price,
+          ...values
         } as NewProduct);
         toast({ title: 'Success', description: 'Product added successfully.' });
       }
@@ -151,7 +143,6 @@ const InventoryManagement = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -165,12 +156,12 @@ const InventoryManagement = () => {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Low Stock Items</CardTitle>
+            <CardTitle className="text-sm font-medium">Out of Stock</CardTitle>
             <TrendingDown className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">{lowStockProducts.length}</div>
-            <p className="text-xs text-muted-foreground">Items with stock less than 10</p>
+            <div className="text-2xl font-bold text-destructive">{outOfStockProducts.length}</div>
+            <p className="text-xs text-muted-foreground">Items with zero stock</p>
           </CardContent>
         </Card>
         <Card>
@@ -185,7 +176,6 @@ const InventoryManagement = () => {
         </Card>
       </div>
 
-      {/* Main Table Card */}
       <Card>
         <CardHeader>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -237,23 +227,25 @@ const InventoryManagement = () => {
               </TableHeader>
               <TableBody>
                 {filteredProducts.map((product) => (
-                  <TableRow key={product.id} className={(product.stock || 0) < 10 ? 'bg-red-500/10' : ''}>
+                  <TableRow key={product.id} className={product.stock === 0 ? 'bg-muted/50 text-muted-foreground' : ''}>
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>
-                      <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-muted text-muted-foreground">
-                        {product.category}
-                      </span>
+                       <Badge variant="outline">{product.category}</Badge>
                     </TableCell>
                     <TableCell className="text-right">₹{(product.price || 0).toFixed(2)}</TableCell>
                     <TableCell className="text-center">
-                      <span className={`font-bold ${(product.stock || 0) < 10 ? 'text-destructive' : 'text-foreground'}`}>
-                        {product.stock}
-                      </span>
+                        {product.stock === 0 ? (
+                            <Badge variant="destructive">SOLD OUT</Badge>
+                        ) : (
+                            <span className={`font-bold ${product.stock < 10 ? 'text-destructive' : ''}`}>
+                                {product.stock}
+                            </span>
+                        )}
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
+                          <Button variant="ghost" className="h-8 w-8 p-0" disabled={product.stock === 0}>
                             <span className="sr-only">Open menu</span>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
@@ -262,7 +254,7 @@ const InventoryManagement = () => {
                           <DropdownMenuItem onClick={() => handleEdit(product)}>
                             <Pencil className="mr-2 h-4 w-4" /> Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDelete(product)} className="text-destructive">
+                          <DropdownMenuItem onClick={() => handleDelete(product)} className="text-destructive focus:text-destructive">
                             <Trash2 className="mr-2 h-4 w-4" /> Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -281,7 +273,6 @@ const InventoryManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Add/Edit Product Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -290,18 +281,10 @@ const InventoryManagement = () => {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4">
               <FormField name="name" control={form.control} render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Name</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
+                <FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField name="description" control={form.control} render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
+                 <FormItem><FormLabel>Description</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField name="category" control={form.control} render={({ field }) => (
                 <FormItem>
@@ -315,18 +298,10 @@ const InventoryManagement = () => {
               )} />
               <div className="grid grid-cols-2 gap-4">
                 <FormField name="stock" control={form.control} render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Stock</FormLabel>
-                    <FormControl><Input type="number" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
+                  <FormItem><FormLabel>Stock</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField name="price" control={form.control} render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Price (₹)</FormLabel>
-                    <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
+                  <FormItem><FormLabel>Price (₹)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
               </div>
               <DialogFooter>
@@ -337,7 +312,6 @@ const InventoryManagement = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!productToDelete} onOpenChange={() => setProductToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

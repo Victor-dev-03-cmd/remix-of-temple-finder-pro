@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 export interface CartItem {
   id: string;
@@ -7,11 +8,16 @@ export interface CartItem {
   quantity: number;
   image_url?: string;
   vendor_id: string;
+  stock: number;
+}
+
+interface AddToCartParams extends Omit<CartItem, 'quantity'> {
+  quantity?: number;
 }
 
 interface CartContextType {
   items: CartItem[];
-  addToCart: (item: Omit<CartItem, 'quantity'>) => void;
+  addToCart: (item: AddToCartParams) => void;
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
@@ -26,6 +32,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 const CART_STORAGE_KEY = 'temple-connect-cart';
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
+  const { toast } = useToast();
   const [items, setItems] = useState<CartItem[]>(() => {
     const stored = localStorage.getItem(CART_STORAGE_KEY);
     return stored ? JSON.parse(stored) : [];
@@ -36,15 +43,30 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
   }, [items]);
 
-  const addToCart = (item: Omit<CartItem, 'quantity'>) => {
+  const addToCart = ({ quantity = 1, ...item }: AddToCartParams) => {
     setItems((prev) => {
+      if (item.stock <= 0) {
+        toast({ title: 'Out of stock', description: `${item.name} is currently out of stock.`, variant: 'destructive' });
+        return prev;
+      }
+
       const existing = prev.find((i) => i.id === item.id);
       if (existing) {
+        const newQuantity = existing.quantity + quantity;
+        if (newQuantity > item.stock) {
+          toast({ title: 'Stock limit reached', description: `You can only add up to ${item.stock} of ${item.name}.`, variant: 'destructive' });
+          return prev;
+        }
         return prev.map((i) =>
-          i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+          i.id === item.id ? { ...i, quantity: newQuantity } : i
         );
       }
-      return [...prev, { ...item, quantity: 1 }];
+      
+      if (quantity > item.stock) {
+        toast({ title: 'Stock limit reached', description: `You can only add up to ${item.stock} of ${item.name}.`, variant: 'destructive' });
+        return prev;
+      }
+      return [...prev, { ...item, quantity }];
     });
     setIsCartOpen(true);
   };
@@ -54,6 +76,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateQuantity = (id: string, quantity: number) => {
+    const itemToUpdate = items.find(item => item.id === id);
+    if (itemToUpdate && quantity > itemToUpdate.stock) {
+        toast({ title: 'Stock limit reached', description: `You can only add up to ${itemToUpdate.stock} of ${itemToUpdate.name}.`, variant: 'destructive' });
+        setItems(prev => prev.map(item => item.id === id ? { ...item, quantity: itemToUpdate.stock } : item));
+        return;
+    }
+    
     if (quantity <= 0) {
       removeFromCart(id);
       return;
