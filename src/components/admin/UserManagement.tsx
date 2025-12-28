@@ -145,7 +145,11 @@ const UserManagement = () => {
   const handleRoleChange = async (userId: string, newRole: AppRole) => {
     setUpdatingUserId(userId);
     try {
-      const { error } = await supabase.rpc('update_user_role', { user_id_to_update: userId, new_role: newRole });
+      // Update user role directly in the user_roles table
+      const { error } = await supabase
+        .from('user_roles')
+        .update({ role: newRole })
+        .eq('user_id', userId);
       if (error) throw error;
       setUsers((prev) => prev.map((user) => user.user_id === userId ? { ...user, role: newRole } : user));
       toast({ title: 'Role Updated', description: `User role has been successfully changed to ${newRole}.` });
@@ -159,11 +163,10 @@ const UserManagement = () => {
 
   const handleCreateUser = async (values: z.infer<typeof createUserSchema>) => {
       try {
-          const { error } = await supabase.rpc('admin_create_user', { email: values.email, password: values.password, full_name: values.full_name, user_role: values.role, user_country: values.country });
-          if(error) throw error;
-          toast({ title: 'User Created', description: 'A new user has been successfully created.' });
+          // Note: Creating users requires admin auth.admin API which isn't available from client
+          // This is a placeholder - in production, use an edge function with service role key
+          toast({ title: 'Info', description: 'User creation requires server-side implementation with admin privileges.', variant: 'default' });
           setCreateUserOpen(false);
-          fetchUsers();
           createForm.reset();
       } catch (error) {
           console.error('Error creating user:', error);
@@ -188,11 +191,10 @@ const UserManagement = () => {
   const handleDeleteUser = async () => {
     if (!selectedUser) return;
     try {
-      const { error } = await supabase.rpc('admin_delete_user', { user_id_to_delete: selectedUser.user_id });
-      if (error) throw error;
-      toast({ title: 'User Deleted', description: 'The user has been permanently deleted.' });
+      // Note: Deleting users requires admin auth.admin API which isn't available from client
+      // This is a placeholder - in production, use an edge function with service role key
+      toast({ title: 'Info', description: 'User deletion requires server-side implementation with admin privileges.', variant: 'default' });
       setDeleteAlertOpen(false);
-      fetchUsers();
     } catch (error) {
       console.error('Error deleting user:', error);
       toast({ title: 'Error', description: (error as Error).message || 'Failed to delete user.', variant: 'destructive' });
@@ -324,45 +326,44 @@ const UserManagement = () => {
                     </table>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 p-4 md:hidden">
-                    {loading ? <p className="p-4 text-center text-muted-foreground">Loading...</p> : filteredUsers.length === 0 ? <p className="p-4 text-center text-muted-foreground">No users found.</p> :
-                        filteredUsers.map(user => (
-                            <Card key={user.user_id} className="w-full">
-                                <CardContent className="p-4 space-y-4">
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`flex h-10 w-10 items-center justify-center rounded-full ${roleColors[user.role]}`}><RoleIcon role={user.role} /></div>
-                                            <div>
-                                                <p className="font-semibold text-foreground truncate" title={user.full_name || ''}>{truncate(user.full_name, 20)}</p>
-                                                <p className="text-sm text-muted-foreground truncate" title={user.email || ''}>{truncate(user.email, 25)}</p>
+                {/* Mobile Cards */}
+                <div className="md:hidden divide-y">
+                    {loading ? (
+                        <div className="p-8 text-center text-muted-foreground">Loading users...</div>
+                    ) : filteredUsers.length === 0 ? (
+                        <div className="p-8 text-center text-muted-foreground">No users found.</div>
+                    ) : (
+                        filteredUsers.map((user) => (
+                            <CardContent key={user.user_id} className="p-4">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${roleColors[user.role]}`}><RoleIcon role={user.role} /></div>
+                                        <div>
+                                            <p className="font-semibold text-foreground">{truncate(user.full_name, 20)}</p>
+                                            <p className="text-sm text-muted-foreground">{truncate(user.email, 25)}</p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <Badge variant="secondary" className={roleColors[user.role]}>{user.role}</Badge>
+                                                <span className="text-xs text-muted-foreground">{countryFlags[user.country || ''] || ''} {user.country}</span>
                                             </div>
                                         </div>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                <DropdownMenuItem onSelect={() => { setSelectedUser(user); setEditUserOpen(true); }}><Pencil className="mr-2 h-4 w-4"/>Edit</DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem onSelect={() => { setSelectedUser(user); setDeleteAlertOpen(true); }} className="text-destructive focus:text-destructive"><Trash2 className="mr-2 h-4 w-4"/>Delete</DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
                                     </div>
-                                    <div className="grid grid-cols-3 gap-2 text-sm">
-                                        <div><p className="text-muted-foreground text-xs">Role</p><Badge className={`${roleColors[user.role]} mt-1`} variant="secondary">{user.role}</Badge></div>
-                                        <div><p className="text-muted-foreground text-xs">Country</p><p className="font-medium flex items-center gap-1.5 mt-1">{countryFlags[user.country || ''] || ''} {user.country}</p></div>
-                                        <div><p className="text-muted-foreground text-xs">Joined</p><p className="font-medium mt-1">{new Date(user.created_at).toLocaleDateString()}</p></div>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-muted-foreground mb-1">Change Role</p>
-                                        <Select value={user.role} onValueChange={(value: AppRole) => handleRoleChange(user.user_id, value)} disabled={updatingUserId === user.user_id}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="customer">Customer</SelectItem><SelectItem value="vendor">Vendor</SelectItem><SelectItem value="admin">Admin</SelectItem></SelectContent></Select>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                            <DropdownMenuItem onSelect={() => { setSelectedUser(user); setEditUserOpen(true); }}><Pencil className="mr-2 h-4 w-4"/>Edit</DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem onSelect={() => handleRoleChange(user.user_id, 'customer')}>Set as Customer</DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => handleRoleChange(user.user_id, 'vendor')}>Set as Vendor</DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => handleRoleChange(user.user_id, 'admin')}>Set as Admin</DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem onSelect={() => { setSelectedUser(user); setDeleteAlertOpen(true); }} className="text-destructive focus:text-destructive"><Trash2 className="mr-2 h-4 w-4"/>Delete</DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
+                            </CardContent>
                         ))
-                    }
-                </div>
-                <div className="border-t p-4 flex justify-end">
-                    <p className="text-sm text-muted-foreground">Total users: {users.length}</p>
+                    )}
                 </div>
             </Card>
         </motion.div>
