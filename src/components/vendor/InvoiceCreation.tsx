@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Printer, Download, Save, History, Loader2, Search, RefreshCw, PlusCircle, Eye } from 'lucide-react';
+import { Trash2, Printer, Download, Save, History, Loader2, Search, RefreshCw, PlusCircle, Eye, Minus, Plus } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -23,7 +23,6 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { Textarea } from '@/components/ui/textarea';
 
 
-// Zod schema for invoice form
 const invoiceSchema = z.object({
   customer_name: z.string().min(1, 'Customer name is required'),
   customer_phone: z.string().optional(),
@@ -128,12 +127,9 @@ const InvoiceCreation = () => {
   const watchDiscount = form.watch('discount');
   const watchTaxRate = form.watch('tax_rate');
 
-  const subtotal = useMemo(() => 
-    watchItems.reduce((acc, item) => acc + (item.price || 0) * (item.quantity || 0), 0),
-  [watchItems]);
-
-  const taxAmount = useMemo(() => (subtotal * watchTaxRate) / 100, [subtotal, watchTaxRate]);
-  const total = useMemo(() => subtotal + taxAmount - watchDiscount, [subtotal, taxAmount, watchDiscount]);
+  const subtotal = watchItems.reduce((acc, item) => acc + (item.price || 0) * (item.quantity || 0), 0);
+  const taxAmount = (subtotal * watchTaxRate) / 100;
+  const total = subtotal + taxAmount - watchDiscount;
 
   const handleAddProduct = (productId: string) => {
     if (!productId) return;
@@ -199,7 +195,7 @@ const InvoiceCreation = () => {
   );
 
   if (productsLoading) {
-    return <Skeleton className="w-full h-96" />;
+    return <Skeleton className="w-full h-96" />
   }
 
   return (
@@ -252,7 +248,7 @@ const InvoiceCreation = () => {
                                 <TableHeader>
                                     <TableRow>
                                     <TableHead>Product</TableHead>
-                                    <TableHead className="w-[100px]">Quantity</TableHead>
+                                    <TableHead className="w-[150px]">Quantity</TableHead>
                                     <TableHead className="text-right">Price</TableHead>
                                     <TableHead className="text-right">Total</TableHead>
                                     <TableHead className="w-[50px]"></TableHead>
@@ -263,8 +259,24 @@ const InvoiceCreation = () => {
                                     <TableRow key={item.id}>
                                         <TableCell className="font-medium">{item.name}</TableCell>
                                         <TableCell>
-                                          <FormField name={`items.${index}.quantity`} control={form.control} render={({ field }) => (
-                                              <Input type="number" {...field} className="h-8 w-full" onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)} /> )}/>
+                                            <FormField name={`items.${index}.quantity`} control={form.control} render={({ field }) => (
+                                                <FormItem>
+                                                    <FormControl>
+                                                        <div className="flex items-center justify-center space-x-2">
+                                                            <Button type="button" variant="outline" size="icon" className="h-8 w-8" 
+                                                                onClick={() => form.setValue(`items.${index}.quantity`, Math.max(1, field.value - 1))}>
+                                                                <Minus className="h-4 w-4" />
+                                                            </Button>
+                                                            <span className="font-medium text-center w-8">{field.value}</span>
+                                                            <Button type="button" variant="outline" size="icon" className="h-8 w-8" 
+                                                                onClick={() => form.setValue(`items.${index}.quantity`, field.value + 1)}>
+                                                                <Plus className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}/>
                                         </TableCell>
                                         <TableCell className="text-right">₹{(item.price || 0).toFixed(2)}</TableCell>
                                         <TableCell className="text-right">₹{((item.price || 0) * (watchItems[index]?.quantity || 0)).toFixed(2)}</TableCell>
@@ -294,13 +306,13 @@ const InvoiceCreation = () => {
                             <div className="flex justify-between items-center">
                                 <Label htmlFor="tax_rate" className="text-sm">Tax (%)</Label>
                                 <FormField name="tax_rate" control={form.control} render={({ field }) => (
-                                  <Input type="number" {...field} className="h-8 w-20 text-right" onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} /> )}/>
+                                  <Input type="number" {...field} className="h-8 w-20 text-right" /> )}/>
                             </div>
                             <div className="flex justify-between"><span>Tax Amount</span><span>₹{taxAmount.toFixed(2)}</span></div>
                             <div className="flex justify-between items-center">
                               <Label htmlFor="discount" className="text-sm">Discount (₹)</Label>
                               <FormField name="discount" control={form.control} render={({ field }) => (
-                                <Input type="number" {...field} className="h-8 w-20 text-right" onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} /> )}/>
+                                <Input type="number" {...field} className="h-8 w-20 text-right" /> )}/>
                             </div>
                             <hr className="my-2"/>
                             <div className="flex justify-between text-lg font-bold"><span>Total</span><span>₹{total.toFixed(2)}</span></div>
@@ -392,7 +404,6 @@ const InvoiceCreation = () => {
                                                         <p className="text-sm text-muted-foreground">Invoice ID: {invoice.id}</p>
                                                     </DialogHeader>
                                                     <div className="grid gap-4 py-4">
-                                                        {/* Invoice details rendering */}
                                                         <p><strong>Customer:</strong> {invoice.customer_name}</p>
                                                         <p><strong>Date:</strong> {new Date(invoice.created_at).toLocaleString()}</p>
                                                         <Table>
