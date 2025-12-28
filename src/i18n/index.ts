@@ -4,12 +4,14 @@ import en from './locales/en.json';
 import si from './locales/si.json';
 import ta from './locales/ta.json';
 import hi from './locales/hi.json';
+import fr from './locales/fr.json';
 
 const resources = {
   en: { translation: en },
   si: { translation: si },
   ta: { translation: ta },
   hi: { translation: hi },
+  fr: { translation: fr },
 };
 
 // Get stored language or default to 'en'

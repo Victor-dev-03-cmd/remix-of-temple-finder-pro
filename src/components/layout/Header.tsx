@@ -24,7 +24,6 @@ import {
   ChevronDown,
   Languages
 } from 'lucide-react';
-import QuickActionsMenu from './QuickActionsMenu';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -636,9 +635,7 @@ const Header = () => {
               </DropdownMenu>
             )}
 
-            {/* Quick Actions Menu - Hide for admin view */}
-            {user && !isAdminView && <QuickActionsMenu />}
-
+          
             {/* Role Switcher - Only show if user has multiple roles */}
             {user && hasMultipleRoles && (
               <DropdownMenu>
@@ -793,16 +790,7 @@ const Header = () => {
                   </Link>
                 )}
 
-                {/* Mobile Quick Actions - Hide for admin view */}
-                {user && !isAdminView && (
-                  <>
-                    <div className="my-2 border-t border-border" />
-                    <div className="px-3">
-                      <p className="mb-2 text-xs font-medium text-muted-foreground">Quick Actions</p>
-                      <QuickActionsMenu />
-                    </div>
-                  </>
-                )}
+                
 
                 {/* Mobile Role Switcher */}
                 {user && hasMultipleRoles && (

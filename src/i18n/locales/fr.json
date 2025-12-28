@@ -1,0 +1,65 @@
+{
+  "nav": {
+    "home": "Accueil",
+    "temples": "Temples",
+    "products": "Produits",
+    "myBooking": "Mes réservations",
+    "becomeVendor": "Devenir vendeur"
+  },
+  "hero": {
+    "title": "Votre porte d'entrée vers les temples et les traditions",
+    "subtitle": "Explorez des milliers de temples, réservez des pujas et achetez des articles de dévotion en ligne",
+    "cta": "Découvrir les temples"
+  },
+  "search": {
+    "placeholder": "Rechercher des temples, des produits...",
+    "button": "Rechercher"
+  },
+  "featuredTemples": {
+    "title": "Temples en vedette",
+    "subtitle": "Lieux de culte les plus populaires"
+  },
+  "featuredProducts": {
+    "title": "Produits en vedette",
+    "subtitle": "Articles de dévotion populaires"
+  },
+  "testimonials": {
+    "title": "Ce que disent nos utilisateurs",
+    "subtitle": "Expériences de notre communauté"
+  },
+  "language": {
+    "selectLanguage": "Sélectionner la langue",
+    "languageChanged": "Langue modifiée",
+    "languageSetTo": "La langue est maintenant",
+    "allLanguages": "Toutes les langues"
+  },
+  "auth": {
+    "login": "Connexion",
+    "signup": "S'inscrire",
+    "logout": "Déconnexion",
+    "email": "Email",
+    "password": "Mot de passe",
+    "google": "Continuer avec Google",
+    "or": "Ou",
+    "noAccount": "Vous n'avez pas de compte ?",
+    "haveAccount": "Vous avez déjà un compte ?",
+    "dashboard": {
+      "title": "Tableau de bord",
+      "welcome": "Bienvenue, {user} !",
+      "orders": "Mes commandes",
+      "profile": "Mon profil",
+      "favorites": "Mes favoris"
+    },
+    "vendor": {
+      "registerTemple": "Enregistrez votre temple dès aujourd'hui",
+      "becomeVendorCta": "Vous possédez un temple ? Devenez un vendeur Temple Connect !",
+      "becomeVendorDesc": "Présentez votre temple à un public plus large, gérez les services et connectez-vous avec les fidèles."
+    },
+    "cart": {
+      "cart": "Panier",
+      "empty": "Votre panier est vide",
+      "total": "Total",
+      "checkout": "Passer à la caisse"
+    }
+  }
+}
