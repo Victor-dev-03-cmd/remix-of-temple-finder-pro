@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -10,7 +10,8 @@ import {
   Plus,
   Package,
   Loader2,
-  Store
+  Store,
+  Check
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -36,17 +37,25 @@ const ProductDetail = () => {
     category: product?.category, 
     limit: 4 
   });
-  const { addToCart } = useCart();
+  const { addToCart, items } = useCart();
   const { user } = useAuth();
   const createReview = useCreateReview();
 
   const [quantity, setQuantity] = useState(1);
+  const [isAdded, setIsAdded] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewForm, setReviewForm] = useState({
     rating: 5,
     title: '',
     comment: '',
   });
+
+  useEffect(() => {
+    if (product) {
+      const isInCart = items.some((item) => item.id === product.id);
+      setIsAdded(isInCart);
+    }
+  }, [items, product]);
 
   const handleAddToCart = () => {
     if (!product) return;
@@ -60,6 +69,7 @@ const ProductDetail = () => {
       stock: product.stock,
       quantity: quantity,
     });
+    setIsAdded(true);
   };
 
   const handleSubmitReview = async (e: React.FormEvent) => {
@@ -281,15 +291,24 @@ const ProductDetail = () => {
               </div>
 
               <div className="flex gap-3">
-                <Button
-                  size="lg"
-                  className="flex-1 gap-2"
-                  onClick={handleAddToCart}
-                  disabled={product.stock === 0}
-                >
-                  <ShoppingCart className="h-5 w-5" />
-                  {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
-                </Button>
+                {isAdded ? (
+                  <Link to="/cart" className="flex-1">
+                    <Button size="lg" className="w-full gap-2">
+                      <Check className="h-5 w-5" />
+                      View Cart
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button
+                    size="lg"
+                    className="flex-1 gap-2"
+                    onClick={handleAddToCart}
+                    disabled={product.stock === 0}
+                  >
+                    <ShoppingCart className="h-5 w-5" />
+                    {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+                  </Button>
+                )}
                 <Button variant="outline" size="lg">
                   <Heart className="h-5 w-5" />
                 </Button>

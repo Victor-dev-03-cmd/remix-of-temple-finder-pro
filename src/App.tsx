@@ -20,6 +20,7 @@ import Temples from "./pages/Temples";
 import BecomeVendor from "./pages/BecomeVendor";
 import Auth from "./pages/Auth";
 import Checkout from "./pages/Checkout";
+import CartPage from "./pages/CartPage";
 import CustomerDashboard from "./pages/dashboards/CustomerDashboard";
 import CustomerOrders from "./pages/customer/CustomerOrders";
 import CustomerFavoritesPage from "./pages/customer/CustomerFavoritesPage";
@@ -78,6 +79,7 @@ const AppRoutes = () => {
         <Route path="/booking" element={<BookingLookup />} />
         <Route path="/auth" element={<AuthRoute />} />
         <Route path="/checkout" element={<Checkout />} />
+        <Route path="/cart" element={<CartPage />} />
 
         {/* Protected routes */}
         <Route
