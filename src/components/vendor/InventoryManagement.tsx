@@ -1,5 +1,4 @@
-
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -10,24 +9,23 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { PlusCircle, FileDown, Search, Package, TrendingDown, LayoutGrid, MoreHorizontal, Trash2, Pencil } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// Zod schema for form validation
+// Zod schema for form validation - using actual database columns
 const productSchema = z.object({
+  id: z.string().optional(),
   name: z.string().min(1, 'Product name is required'),
-  sku: z.string().optional(),
+  description: z.string().optional(),
   category: z.string().min(1, 'Category is required'),
   stock: z.coerce.number().int().min(0, 'Stock must be a positive number'),
-  cost_price: z.coerce.number().min(0, 'Cost price must be a positive number'),
-  selling_price: z.coerce.number().min(0, 'Selling price must be a positive number'),
+  price: z.coerce.number().min(0, 'Price must be a positive number'),
 });
 
 const categories = ['Pooja Kits', 'Incense', 'Decor', 'Holy Water', 'Accessories', 'Books'];
@@ -42,47 +40,55 @@ const InventoryManagement = () => {
     addProduct, 
     updateProduct, 
     deleteProduct 
-  } = useInventoryProducts(user?.id);
+  } = useInventoryProducts(user?.id || '');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   const form = useForm<z.infer<typeof productSchema>>({
     resolver: zodResolver(productSchema),
     defaultValues: {
       name: '',
-      sku: '',
+      description: '',
       category: '',
       stock: 0,
-      cost_price: 0,
-      selling_price: 0,
+      price: 0,
     },
   });
-
-  const { watch, reset, setValue } = form;
-  const currentProduct = watch();
 
   const filteredProducts = useMemo(() => {
     if (!products) return [];
     return products
-      .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.sku?.toLowerCase().includes(searchTerm.toLowerCase()))
+      .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
       .filter(p => categoryFilter === 'all' || p.category === categoryFilter);
   }, [products, searchTerm, categoryFilter]);
 
   const lowStockProducts = useMemo(() => products?.filter(p => (p.stock || 0) < 10) || [], [products]);
 
   const handleAddNew = () => {
-    reset();
+    setEditingProduct(null);
+    form.reset({
+      name: '',
+      description: '',
+      category: '',
+      stock: 0,
+      price: 0,
+    });
     setDialogOpen(true);
   };
 
   const handleEdit = (product: Product) => {
-    reset({
-      ...product,
-      cost_price: product.cost_price ?? 0,
-      selling_price: product.selling_price ?? 0,
+    setEditingProduct(product);
+    form.reset({
+      id: product.id,
+      name: product.name,
+      description: product.description || '',
+      category: product.category,
+      stock: product.stock,
+      price: product.price,
     });
     setDialogOpen(true);
   };
@@ -104,16 +110,32 @@ const InventoryManagement = () => {
   };
   
   async function onSubmit(values: z.infer<typeof productSchema>) {
+    if (!user?.id) return;
+    
     try {
-      const productData = { ...values, vendor_id: user?.id };
-      if (currentProduct.id) {
-        await updateProduct({ id: currentProduct.id, ...productData });
+      if (editingProduct) {
+        await updateProduct({ 
+          id: editingProduct.id, 
+          name: values.name,
+          description: values.description,
+          category: values.category,
+          stock: values.stock,
+          price: values.price,
+        });
         toast({ title: 'Success', description: 'Product updated successfully.' });
       } else {
-        await addProduct(productData as NewProduct);
+        await addProduct({
+          vendor_id: user.id,
+          name: values.name,
+          description: values.description,
+          category: values.category,
+          stock: values.stock,
+          price: values.price,
+        } as NewProduct);
         toast({ title: 'Success', description: 'Product added successfully.' });
       }
       setDialogOpen(false);
+      setEditingProduct(null);
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to save product.', variant: 'destructive' });
     }
@@ -186,7 +208,7 @@ const InventoryManagement = () => {
             <div className="relative w-full md:w-1/3">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name or SKU..."
+                placeholder="Search by name..."
                 className="pl-8"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
@@ -207,7 +229,6 @@ const InventoryManagement = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Product</TableHead>
-                  <TableHead className="hidden md:table-cell">SKU</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead className="text-right">Price</TableHead>
                   <TableHead className="text-center">Stock</TableHead>
@@ -218,13 +239,12 @@ const InventoryManagement = () => {
                 {filteredProducts.map((product) => (
                   <TableRow key={product.id} className={(product.stock || 0) < 10 ? 'bg-red-500/10' : ''}>
                     <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell className="hidden md:table-cell">{product.sku || 'N/A'}</TableCell>
                     <TableCell>
                       <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-muted text-muted-foreground">
                         {product.category}
                       </span>
                     </TableCell>
-                    <TableCell className="text-right">₹{(product.selling_price || 0).toFixed(2)}</TableCell>
+                    <TableCell className="text-right">₹{(product.price || 0).toFixed(2)}</TableCell>
                     <TableCell className="text-center">
                       <span className={`font-bold ${(product.stock || 0) < 10 ? 'text-destructive' : 'text-foreground'}`}>
                         {product.stock}
@@ -265,7 +285,7 @@ const InventoryManagement = () => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>{currentProduct.id ? 'Edit Product' : 'Add New Product'}</DialogTitle>
+            <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4">
@@ -276,9 +296,9 @@ const InventoryManagement = () => {
                   <FormMessage />
                 </FormItem>
               )} />
-              <FormField name="sku" control={form.control} render={({ field }) => (
+              <FormField name="description" control={form.control} render={({ field }) => (
                 <FormItem>
-                  <FormLabel>SKU</FormLabel>
+                  <FormLabel>Description</FormLabel>
                   <FormControl><Input {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -286,14 +306,14 @@ const InventoryManagement = () => {
               <FormField name="category" control={form.control} render={({ field }) => (
                 <FormItem>
                   <FormLabel>Category</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
                     <SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
               )} />
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <FormField name="stock" control={form.control} render={({ field }) => (
                   <FormItem>
                     <FormLabel>Stock</FormLabel>
@@ -301,16 +321,9 @@ const InventoryManagement = () => {
                     <FormMessage />
                   </FormItem>
                 )} />
-                <FormField name="cost_price" control={form.control} render={({ field }) => (
+                <FormField name="price" control={form.control} render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Cost Price</FormLabel>
-                    <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField name="selling_price" control={form.control} render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Selling Price</FormLabel>
+                    <FormLabel>Price (₹)</FormLabel>
                     <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -330,7 +343,7 @@ const InventoryManagement = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the product ''{productToDelete?.name}'' and remove its data.
+              This action cannot be undone. This will permanently delete the product '{productToDelete?.name}' and remove its data.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

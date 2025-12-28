@@ -1,14 +1,10 @@
-
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
-import { useInventoryProducts, Product, UpdatedProduct } from '@/hooks/useInventoryProducts';
+import { useInventoryProducts } from '@/hooks/useInventoryProducts';
 import { useToast } from '@/hooks/use-toast';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { TablesInsert } from '@/integrations/supabase/types';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Trash2, Printer, Download, Save, History, Loader2 } from 'lucide-react';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Skeleton } from '@/components/ui/skeleton';
 
 // Zod schema for invoice form
@@ -37,23 +33,12 @@ const invoiceSchema = z.object({
 
 type InvoiceFormValues = z.infer<typeof invoiceSchema>;
 
-// Function to add a new invoice
-const addInvoice = async (invoice: TablesInsert<'invoices'>) => {
-  const { data, error } = await supabase
-    .from('invoices')
-    .insert(invoice)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
-};
-
 const InvoiceCreation = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const { products, isLoading: productsLoading, updateProduct } = useInventoryProducts(user?.id);
+  const { products, isLoading: productsLoading, updateProduct } = useInventoryProducts(user?.id || '');
   const [productToAdd, setProductToAdd] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const form = useForm<InvoiceFormValues>({
     resolver: zodResolver(invoiceSchema),
@@ -83,8 +68,6 @@ const InvoiceCreation = () => {
   const taxAmount = (subtotal * watchTaxRate) / 100;
   const total = subtotal + taxAmount - watchDiscount;
 
-  const addInvoiceMutation = useMutation({ mutationFn: addInvoice });
-
   const handleAddProduct = (productId: string) => {
     if (!productId) return;
     const product = products.find(p => p.id === productId);
@@ -94,7 +77,7 @@ const InvoiceCreation = () => {
         const currentItem = fields[existingItemIndex];
         update(existingItemIndex, { ...currentItem, quantity: currentItem.quantity + 1 });
       } else {
-        append({ product_id: product.id, name: product.name, price: product.selling_price || 0, quantity: 1 });
+        append({ product_id: product.id, name: product.name, price: product.price || 0, quantity: 1 });
       }
     }
     setProductToAdd(null); // Reset select
@@ -102,20 +85,9 @@ const InvoiceCreation = () => {
 
   async function onSubmit(values: InvoiceFormValues) {
     if (!user) return;
-
-    const invoiceData = {
-      vendor_id: user.id,
-      customer_name: values.customer_name,
-      customer_phone: values.customer_phone,
-      total_amount: total,
-      payment_method: values.payment_mode,
-      items: values.items,
-    };
+    setIsSaving(true);
 
     try {
-      // Start transaction
-      await addInvoiceMutation.mutateAsync(invoiceData as any);
-
       // Update stock for each product
       const stockUpdatePromises = values.items.map(item => {
         const product = products.find(p => p.id === item.product_id);
@@ -126,13 +98,14 @@ const InvoiceCreation = () => {
 
       await Promise.all(stockUpdatePromises);
 
-      toast({ title: "Success", description: "Invoice created and stock updated." });
+      toast({ title: "Success", description: "Invoice saved and stock updated." });
       form.reset();
-      queryClient.invalidateQueries({ queryKey: ['inventory-products', user.id] });
 
     } catch (error) {
       console.error(error);
-      toast({ title: "Error", description: "Failed to create invoice. Please check stock levels and try again.", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to save invoice. Please check stock levels and try again.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -251,8 +224,8 @@ const InvoiceCreation = () => {
                             </FormItem> )}/>
                       </div>
                       <div className="space-y-2">
-                         <Button size="lg" type="submit" className="w-full" disabled={addInvoiceMutation.isPending || watchItems.length === 0}>
-                              {addInvoiceMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} 
+                         <Button size="lg" type="submit" className="w-full" disabled={isSaving || watchItems.length === 0}>
+                              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} 
                               Save Invoice
                           </Button>
                           <div className="grid grid-cols-2 gap-2">
