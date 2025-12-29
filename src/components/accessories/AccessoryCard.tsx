@@ -19,7 +19,8 @@ const AccessoryCard = ({ accessory, index = 0 }: AccessoryCardProps) => {
       name: accessory.name,
       price: accessory.price,
       image_url: accessory.image,
-      vendor_id: accessory.templeId, // Using templeId as vendor for demo
+      vendor_id: accessory.templeId,
+      stock: 99, // Default stock for demo accessories
     });
     toast({
       title: 'Added to Cart',

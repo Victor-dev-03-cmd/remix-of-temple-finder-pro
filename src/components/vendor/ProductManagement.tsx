@@ -42,10 +42,8 @@ interface Product {
   name: string;
   description: string | null;
   price: number;
-  cost_price: number | null;
   stock: number;
   category: string;
-  sku: string | null;
   status: string;
   image_url: string | null;
   temple_id: string | null;
@@ -60,11 +58,9 @@ interface Temple {
 const productSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
   description: z.string().max(1000).optional().nullable(),
-  price: z.coerce.number().min(1, 'Selling price must be at least 1'),
-  cost_price: z.coerce.number().min(0, 'Cost price cannot be negative').optional().nullable(),
+  price: z.coerce.number().min(1, 'Price must be at least 1'),
   stock: z.coerce.number().min(0, 'Stock cannot be negative'),
   category: z.string().min(1, 'Please select a category'),
-  sku: z.string().max(50, 'SKU must be less than 50 characters').optional().nullable(),
   image_url: z.string().optional().nullable(),
   temple_id: z.string().min(1, 'An associated temple is required'),
 });
@@ -86,10 +82,8 @@ const ProductManagement = () => {
       name: '',
       description: '',
       price: 0,
-      cost_price: 0,
       stock: 0,
       category: '',
-      sku: '',
       image_url: null,
       temple_id: '',
     },
@@ -115,7 +109,7 @@ const ProductManagement = () => {
       // Fetch products for the vendor
       const { data: productsData, error: productsError } = await supabase
         .from('products')
-        .select('*')
+        .select('id, name, description, price, stock, category, status, image_url, temple_id, created_at')
         .eq('vendor_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -142,8 +136,13 @@ const ProductManagement = () => {
 
     try {
       const productData = {
-        ...values,
-        temple_id: vendorTemple.id, // Ensure the temple_id is the vendor's temple
+        name: values.name,
+        description: values.description || null,
+        price: values.price,
+        stock: values.stock,
+        category: values.category,
+        image_url: values.image_url || null,
+        temple_id: vendorTemple.id,
       };
       
       if (editingProduct) {
@@ -158,7 +157,7 @@ const ProductManagement = () => {
         const { error } = await supabase.from('products').insert({
           ...productData,
           vendor_id: user.id,
-          status: 'approved', // Or 'pending' if you have an approval flow
+          status: 'approved',
         });
 
         if (error) throw error;
@@ -168,7 +167,7 @@ const ProductManagement = () => {
       setShowForm(false);
       setEditingProduct(null);
       form.reset();
-      fetchInitialData(); // Refetch all data
+      fetchInitialData();
     } catch (error) {
       console.error('Error saving product:', error);
       toast({ title: 'Error', description: `Failed to save product: ${(error as Error).message}`, variant: 'destructive' });
@@ -178,11 +177,13 @@ const ProductManagement = () => {
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
     form.reset({
-      ...product,
+      name: product.name,
       description: product.description || '',
-      sku: product.sku || '',
-      cost_price: product.cost_price,
-      temple_id: product.temple_id || vendorTemple?.id,
+      price: product.price,
+      stock: product.stock,
+      category: product.category,
+      image_url: product.image_url,
+      temple_id: product.temple_id || vendorTemple?.id || '',
     });
     setShowForm(true);
   };
@@ -193,7 +194,7 @@ const ProductManagement = () => {
       if (error) throw error;
       toast({ title: 'Product Deleted', description: 'The product has been removed.' });
       setDeletingId(null);
-      fetchInitialData(); // Refetch all data
+      fetchInitialData();
     } catch (error) {
       console.error('Error deleting product:', error);
       toast({ title: 'Error', description: 'Failed to delete product.', variant: 'destructive' });
@@ -202,8 +203,7 @@ const ProductManagement = () => {
 
   const openAddForm = () => {
     if (!vendorTemple) {
-      toast({ title: 'Cannot Add Product', description: 'You must create your temple before adding products.', variant: 'warning' });
-      // Optionally, you could redirect to the temple creation page
+      toast({ title: 'Cannot Add Product', description: 'You must create your temple before adding products.', variant: 'destructive' });
       return;
     }
     setEditingProduct(null);
@@ -212,7 +212,6 @@ const ProductManagement = () => {
     setShowForm(true);
   };
 
-  // Memoize status badge for performance
   const StatusBadge = useMemo(() => ({ status }: { status: string }) => {
     switch (status) {
       case 'approved':
@@ -281,7 +280,7 @@ const ProductManagement = () => {
                   <div>
                     <p className="font-medium text-foreground">{product.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      LKR {Number(product.price).toLocaleString()} | Stock: {product.stock} | SKU: {product.sku || 'N/A'}
+                      LKR {Number(product.price).toLocaleString()} | Stock: {product.stock}
                     </p>
                     <div className="mt-1"><StatusBadge status={product.status} /></div>
                   </div>
@@ -324,24 +323,13 @@ const ProductManagement = () => {
                 )}
               />
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="cost_price"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cost Price (LKR)</FormLabel>
-                      <FormControl><Input type="number" placeholder="0" {...field} value={field.value ?? ''} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="price"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Selling Price (LKR)</FormLabel>
+                      <FormLabel>Price (LKR)</FormLabel>
                       <FormControl><Input type="number" placeholder="0" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -360,37 +348,24 @@ const ProductManagement = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Category</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {productCategories.map((cat) => <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                <FormField
-                  control={form.control}
-                  name="sku"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>SKU (optional)</FormLabel>
-                      <FormControl><Input placeholder="e.g., SKU00123" {...field} value={field.value ?? ''} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {productCategories.map((cat) => <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}
