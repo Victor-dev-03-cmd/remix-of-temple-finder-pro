@@ -59,7 +59,7 @@ interface Temple {
 
 const productSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
-  description: z.string().max(500).optional(),
+  description: z.string().max(1000).optional().nullable(),
   price: z.coerce.number().min(1, 'Selling price must be at least 1'),
   cost_price: z.coerce.number().min(0, 'Cost price cannot be negative').optional().nullable(),
   stock: z.coerce.number().min(0, 'Stock cannot be negative'),
@@ -164,37 +164,30 @@ const ProductManagement = () => {
 
     try {
       const templeId = vendorTempleId || values.temple_id || null;
+      const productData = {
+        name: values.name,
+        description: values.description || null,
+        price: values.price,
+        cost_price: values.cost_price || null,
+        stock: values.stock,
+        category: values.category,
+        sku: values.sku || null,
+        image_url: values.image_url || null,
+        temple_id: templeId,
+      };
       
       if (editingProduct) {
         const { error } = await supabase
           .from('products')
-          .update({
-            name: values.name,
-            description: values.description || null,
-            price: values.price,
-            cost_price: values.cost_price || null,
-            stock: values.stock,
-            category: values.category,
-            sku: values.sku || null,
-            image_url: values.image_url || null,
-            temple_id: templeId,
-          })
+          .update(productData)
           .eq('id', editingProduct.id);
 
         if (error) throw error;
         toast({ title: 'Product Updated', description: 'Your product has been updated.' });
       } else {
         const { error } = await supabase.from('products').insert({
+          ...productData,
           vendor_id: user.id,
-          name: values.name,
-          description: values.description || null,
-          price: values.price,
-          cost_price: values.cost_price || null,
-          stock: values.stock,
-          category: values.category,
-          sku: values.sku || null,
-          image_url: values.image_url || null,
-          temple_id: templeId,
           status: 'approved',
         });
 
@@ -350,8 +343,7 @@ const ProductManagement = () => {
                   <div>
                     <p className="font-medium text-foreground">{product.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      Selling Price: LKR {Number(product.price).toLocaleString()} | Cost Price: LKR {Number(product.cost_price).toLocaleString()} | Stock: {product.stock} | SKU: {product.sku || 'N/A'} |{' '}
-                      {getCategoryLabel(product.category)}
+                      LKR {Number(product.price).toLocaleString()} | Stock: {product.stock} | SKU: {product.sku || 'N/A'}
                     </p>
                     <div className="mt-1">{getStatusBadge(product.status)}</div>
                   </div>
@@ -377,18 +369,18 @@ const ProductManagement = () => {
 
       {/* Add/Edit Product Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="rounded-lg sm:max-w-[600px]">
+        <DialogContent className="rounded-lg sm:max-w-[700px]">
           <DialogHeader>
             <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
             <DialogDescription>
               {editingProduct
                 ? 'Update your product details'
-                : 'Fill in the details to add a new product'}
+                : 'Fill in the product details'}
             </DialogDescription>
           </DialogHeader>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-1 pt-2">
               <FormField
                 control={form.control}
                 name="name"
@@ -403,7 +395,7 @@ const ProductManagement = () => {
                 )}
               />
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
                   name="cost_price"
@@ -431,10 +423,8 @@ const ProductManagement = () => {
                     </FormItem>
                   )}
                 />
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
+                 <FormField
                   control={form.control}
                   name="stock"
                   render={({ field }) => (
@@ -447,6 +437,9 @@ const ProductManagement = () => {
                     </FormItem>
                   )}
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                  <FormField
                     control={form.control}
                     name="category"
@@ -471,21 +464,20 @@ const ProductManagement = () => {
                       </FormItem>
                     )}
                   />
+                <FormField
+                  control={form.control}
+                  name="sku"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>SKU (optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., SKU00123" {...field} value={field.value ?? ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
-
-              <FormField
-                control={form.control}
-                name="sku"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>SKU (optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., SKU00123" {...field} value={field.value ?? ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
               <FormField
                 control={form.control}
@@ -496,8 +488,9 @@ const ProductManagement = () => {
                     <FormControl>
                       <Textarea
                         placeholder="Describe your product..."
-                        className="min-h-[80px]"
+                        className="min-h-[100px]"
                         {...field}
+                        value={field.value ?? ''}
                       />
                     </FormControl>
                     <FormMessage />
