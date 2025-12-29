@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS get_vendor_customer_details();
