@@ -27,7 +27,6 @@ interface OrderItem {
   unit_price: number;
   product: {
     name: string;
-    sku: string | null;
   } | null;
 }
 
@@ -66,9 +65,71 @@ const OrderManagement = () => {
     if (!user) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc('get_vendor_orders_with_details');
-      if (error) throw error;
-      setOrders(data || []);
+      // Fetch orders for this vendor
+      const { data: ordersData, error: ordersError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('vendor_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (ordersError) throw ordersError;
+
+      if (!ordersData || ordersData.length === 0) {
+        setOrders([]);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch customer profiles
+      const customerIds = [...new Set(ordersData.map(o => o.customer_id))];
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, email')
+        .in('user_id', customerIds);
+
+      // Fetch order items with product info
+      const orderIds = ordersData.map(o => o.id);
+      const { data: itemsData } = await supabase
+        .from('order_items')
+        .select(`
+          id,
+          order_id,
+          quantity,
+          unit_price,
+          product_id
+        `)
+        .in('order_id', orderIds);
+
+      // Fetch products for items
+      const productIds = [...new Set((itemsData || []).map(i => i.product_id))];
+      const { data: productsData } = await supabase
+        .from('products')
+        .select('id, name')
+        .in('id', productIds);
+
+      // Combine data
+      const enrichedOrders: Order[] = ordersData.map(order => {
+        const profile = profilesData?.find(p => p.user_id === order.customer_id);
+        const items = (itemsData || [])
+          .filter(i => i.order_id === order.id)
+          .map(item => ({
+            id: item.id,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            product: productsData?.find(p => p.id === item.product_id) || null,
+          }));
+
+        return {
+          ...order,
+          customer_profile: profile ? {
+            full_name: profile.full_name,
+            email: profile.email,
+          } : undefined,
+          items,
+        };
+      });
+
+      setOrders(enrichedOrders);
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast({
@@ -322,7 +383,6 @@ const OrderManagement = () => {
                           </p>
                           <p className="text-sm text-muted-foreground">
                             Qty: {item.quantity} &times; LKR {Number(item.unit_price).toLocaleString()}
-                            {item.product?.sku && ` | SKU: ${item.product.sku}`}
                           </p>
                         </div>
                         <p className="font-medium text-foreground">

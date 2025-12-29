@@ -9,6 +9,9 @@ export interface CartItem {
   image_url?: string;
   vendor_id: string;
   stock: number;
+  category?: string;
+  variant_id?: string;
+  variant_name?: string;
 }
 
 interface AddToCartParams extends Omit<CartItem, 'quantity'> {
@@ -50,16 +53,24 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         return prev;
       }
 
-      const existing = prev.find((i) => i.id === item.id);
+      // Generate unique cart item ID based on product + variant
+      const cartItemId = item.variant_id ? `${item.id}-${item.variant_id}` : item.id;
+
+      const existing = prev.find((i) => {
+        const existingCartId = i.variant_id ? `${i.id}-${i.variant_id}` : i.id;
+        return existingCartId === cartItemId;
+      });
+
       if (existing) {
         const newQuantity = existing.quantity + quantity;
         if (newQuantity > item.stock) {
           toast({ title: 'Stock limit reached', description: `You can only add up to ${item.stock} of ${item.name}.`, variant: 'destructive' });
           return prev;
         }
-        return prev.map((i) =>
-          i.id === item.id ? { ...i, quantity: newQuantity } : i
-        );
+        return prev.map((i) => {
+          const existingCartId = i.variant_id ? `${i.id}-${i.variant_id}` : i.id;
+          return existingCartId === cartItemId ? { ...i, quantity: newQuantity } : i;
+        });
       }
       
       if (quantity > item.stock) {
@@ -72,14 +83,24 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const removeFromCart = (id: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
+    setItems((prev) => prev.filter((item) => {
+      const cartItemId = item.variant_id ? `${item.id}-${item.variant_id}` : item.id;
+      return cartItemId !== id;
+    }));
   };
 
   const updateQuantity = (id: string, quantity: number) => {
-    const itemToUpdate = items.find(item => item.id === id);
+    const itemToUpdate = items.find(item => {
+      const cartItemId = item.variant_id ? `${item.id}-${item.variant_id}` : item.id;
+      return cartItemId === id;
+    });
+    
     if (itemToUpdate && quantity > itemToUpdate.stock) {
         toast({ title: 'Stock limit reached', description: `You can only add up to ${itemToUpdate.stock} of ${itemToUpdate.name}.`, variant: 'destructive' });
-        setItems(prev => prev.map(item => item.id === id ? { ...item, quantity: itemToUpdate.stock } : item));
+        setItems(prev => prev.map(item => {
+          const cartItemId = item.variant_id ? `${item.id}-${item.variant_id}` : item.id;
+          return cartItemId === id ? { ...item, quantity: itemToUpdate.stock } : item;
+        }));
         return;
     }
     
@@ -88,7 +109,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, quantity } : item))
+      prev.map((item) => {
+        const cartItemId = item.variant_id ? `${item.id}-${item.variant_id}` : item.id;
+        return cartItemId === id ? { ...item, quantity } : item;
+      })
     );
   };
 

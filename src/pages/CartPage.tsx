@@ -17,6 +17,10 @@ import { getCategoryLabel } from '@/lib/categories';
 const CartPage = () => {
   const { items, removeFromCart, updateQuantity, totalItems, totalPrice } = useCart();
 
+  const getCartItemId = (item: typeof items[0]) => {
+    return item.variant_id ? `${item.id}-${item.variant_id}` : item.id;
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -38,65 +42,73 @@ const CartPage = () => {
               </div>
             ) : (
               <div className="space-y-6">
-                {items.map((item) => (
-                  <div key={item.id} className="flex items-start gap-4">
-                    <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-muted">
-                      {item.image_url ? (
-                        <img
-                          src={item.image_url}
-                          alt={item.name}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center">
-                          <ShoppingBag className="h-10 w-10 text-muted-foreground" />
+                {items.map((item) => {
+                  const cartItemId = getCartItemId(item);
+                  return (
+                    <div key={cartItemId} className="flex items-start gap-4">
+                      <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-muted">
+                        {item.image_url ? (
+                          <img
+                            src={item.image_url}
+                            alt={item.name}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center">
+                            <ShoppingBag className="h-10 w-10 text-muted-foreground" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-medium">{item.name}</h3>
+                        {item.variant_name && (
+                          <p className="text-sm text-primary">{item.variant_name}</p>
+                        )}
+                        {item.category && (
+                          <p className="text-sm text-muted-foreground">
+                            {getCategoryLabel(item.category)}
+                          </p>
+                        )}
+                        <p className="mt-1 text-lg font-semibold text-primary">
+                          LKR {item.price.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => updateQuantity(cartItemId, item.quantity - 1)}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <span className="w-8 text-center text-sm font-medium">
+                            {item.quantity}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => updateQuantity(cartItemId, item.quantity + 1)}
+                            disabled={item.quantity >= item.stock}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
                         </div>
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-medium">{item.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {getCategoryLabel(item.category)}
-                      </p>
-                      <p className="mt-1 text-lg font-semibold text-primary">
-                        LKR {item.price.toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <div className="flex items-center gap-2">
                         <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => removeFromCart(cartItemId)}
                         >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="w-8 text-center text-sm font-medium">
-                          {item.quantity}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          disabled={item.quantity >= item.stock}
-                        >
-                          <Plus className="h-3 w-3" />
+                          <Trash2 className="mr-1 h-4 w-4" />
+                          Remove
                         </Button>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => removeFromCart(item.id)}
-                      >
-                        <Trash2 className="mr-1 h-4 w-4" />
-                        Remove
-                      </Button>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
