@@ -42,8 +42,10 @@ interface Product {
   name: string;
   description: string | null;
   price: number;
+  cost_price: number | null;
   stock: number;
   category: string;
+  sku: string | null;
   status: string;
   image_url: string | null;
   temple_id: string | null;
@@ -58,16 +60,16 @@ interface Temple {
 const productSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
   description: z.string().max(500).optional(),
-  price: z.coerce.number().min(1, 'Price must be at least 1'),
+  price: z.coerce.number().min(1, 'Selling price must be at least 1'),
+  cost_price: z.coerce.number().min(0, 'Cost price cannot be negative').optional().nullable(),
   stock: z.coerce.number().min(0, 'Stock cannot be negative'),
   category: z.string().min(1, 'Please select a category'),
+  sku: z.string().max(50, 'SKU must be less than 50 characters').optional().nullable(),
   image_url: z.string().optional().nullable(),
   temple_id: z.string().optional().nullable(),
 });
 
 type ProductFormValues = z.infer<typeof productSchema>;
-
-// Use shared categories from lib/categories.ts
 
 const ProductManagement = () => {
   const { user } = useAuth();
@@ -85,8 +87,10 @@ const ProductManagement = () => {
       name: '',
       description: '',
       price: 0,
+      cost_price: 0,
       stock: 0,
       category: '',
+      sku: '',
       image_url: null,
       temple_id: null,
     },
@@ -134,7 +138,6 @@ const ProductManagement = () => {
   const fetchVendorTemple = async () => {
     if (!user) return;
     try {
-      // Get vendor's temple from their approved application
       const { data, error } = await supabase
         .from('vendor_applications')
         .select('temple_id')
@@ -160,7 +163,6 @@ const ProductManagement = () => {
     if (!user) return;
 
     try {
-      // Use vendor's temple_id if they have one assigned
       const templeId = vendorTempleId || values.temple_id || null;
       
       if (editingProduct) {
@@ -170,8 +172,10 @@ const ProductManagement = () => {
             name: values.name,
             description: values.description || null,
             price: values.price,
+            cost_price: values.cost_price || null,
             stock: values.stock,
             category: values.category,
+            sku: values.sku || null,
             image_url: values.image_url || null,
             temple_id: templeId,
           })
@@ -185,11 +189,13 @@ const ProductManagement = () => {
           name: values.name,
           description: values.description || null,
           price: values.price,
+          cost_price: values.cost_price || null,
           stock: values.stock,
           category: values.category,
+          sku: values.sku || null,
           image_url: values.image_url || null,
           temple_id: templeId,
-          status: 'approved', // Auto-approve vendor products
+          status: 'approved',
         });
 
         if (error) throw error;
@@ -219,8 +225,10 @@ const ProductManagement = () => {
       name: product.name,
       description: product.description || '',
       price: product.price,
+      cost_price: product.cost_price,
       stock: product.stock,
       category: product.category,
+      sku: product.sku || '',
       image_url: product.image_url,
       temple_id: product.temple_id,
     });
@@ -342,7 +350,7 @@ const ProductManagement = () => {
                   <div>
                     <p className="font-medium text-foreground">{product.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      LKR {Number(product.price).toLocaleString()} | Stock: {product.stock} |{' '}
+                      Selling Price: LKR {Number(product.price).toLocaleString()} | Cost Price: LKR {Number(product.cost_price).toLocaleString()} | Stock: {product.stock} | SKU: {product.sku || 'N/A'} |{' '}
                       {getCategoryLabel(product.category)}
                     </p>
                     <div className="mt-1">{getStatusBadge(product.status)}</div>
@@ -369,7 +377,7 @@ const ProductManagement = () => {
 
       {/* Add/Edit Product Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent>
+        <DialogContent className="rounded-lg sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
             <DialogDescription>
@@ -380,7 +388,7 @@ const ProductManagement = () => {
           </DialogHeader>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
               <FormField
                 control={form.control}
                 name="name"
@@ -395,13 +403,27 @@ const ProductManagement = () => {
                 )}
               />
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="cost_price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cost Price (LKR)</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="0" {...field} value={field.value ?? ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <FormField
                   control={form.control}
                   name="price"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Price (LKR)</FormLabel>
+                      <FormLabel>Selling Price (LKR)</FormLabel>
                       <FormControl>
                         <Input type="number" placeholder="0" {...field} />
                       </FormControl>
@@ -409,7 +431,9 @@ const ProductManagement = () => {
                     </FormItem>
                   )}
                 />
+              </div>
 
+              <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="stock"
@@ -423,28 +447,41 @@ const ProductManagement = () => {
                     </FormItem>
                   )}
                 />
+                 <FormField
+                    control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a category" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {productCategories.map((cat) => (
+                              <SelectItem key={cat.value} value={cat.value}>
+                                {cat.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
               </div>
 
               <FormField
                 control={form.control}
-                name="category"
+                name="sku"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a category" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {productCategories.map((cat) => (
-                          <SelectItem key={cat.value} value={cat.value}>
-                            {cat.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>SKU (optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., SKU00123" {...field} value={field.value ?? ''} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -455,7 +492,7 @@ const ProductManagement = () => {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description (optional)</FormLabel>
+                    <FormLabel>Description</FormLabel>
                     <FormControl>
                       <Textarea
                         placeholder="Describe your product..."
@@ -468,7 +505,6 @@ const ProductManagement = () => {
                 )}
               />
 
-              {/* Product Image Upload */}
               <FormField
                 control={form.control}
                 name="image_url"
@@ -488,14 +524,13 @@ const ProductManagement = () => {
                 )}
               />
 
-              {/* Temple Selection (only if vendor doesn't have a pre-assigned temple) */}
               {!vendorTempleId && temples.length > 0 && (
                 <FormField
                   control={form.control}
                   name="temple_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Associated Temple (optional)</FormLabel>
+                      <FormLabel>Associated Temple</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value || ''}>
                         <FormControl>
                           <SelectTrigger>
@@ -531,7 +566,7 @@ const ProductManagement = () => {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!deletingId} onOpenChange={() => setDeletingId(null)}>
-        <DialogContent>
+        <DialogContent className="rounded-lg">
           <DialogHeader>
             <DialogTitle>Delete Product</DialogTitle>
             <DialogDescription>
