@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ShoppingCart, Package, Truck, CheckCircle, XCircle, RefreshCw, Eye } from 'lucide-react';
+import { ShoppingCart, RefreshCw, Eye, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -27,6 +27,7 @@ interface OrderItem {
   unit_price: number;
   product: {
     name: string;
+    sku: string | null;
   } | null;
 }
 
@@ -46,11 +47,11 @@ interface Order {
 }
 
 const orderStatuses = [
-  { value: 'pending', label: 'Pending', icon: Package, color: 'bg-warning/10 text-warning' },
-  { value: 'confirmed', label: 'Confirmed', icon: CheckCircle, color: 'bg-primary/10 text-primary' },
-  { value: 'shipped', label: 'Shipped', icon: Truck, color: 'bg-info/10 text-info' },
-  { value: 'delivered', label: 'Delivered', icon: CheckCircle, color: 'bg-success/10 text-success' },
-  { value: 'cancelled', label: 'Cancelled', icon: XCircle, color: 'bg-destructive/10 text-destructive' },
+  { value: 'pending', label: 'Pending', color: 'bg-yellow-500' },
+  { value: 'confirmed', label: 'Confirmed', color: 'bg-blue-500' },
+  { value: 'shipped', label: 'Shipped', color: 'bg-cyan-500' },
+  { value: 'delivered', label: 'Delivered', color: 'bg-green-500' },
+  { value: 'cancelled', label: 'Cancelled', color: 'bg-red-500' },
 ];
 
 const OrderManagement = () => {
@@ -59,55 +60,15 @@ const OrderManagement = () => {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const fetchOrders = async () => {
     if (!user) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('vendor_id', user.id)
-        .order('created_at', { ascending: false });
-
+      const { data, error } = await supabase.rpc('get_vendor_orders_with_details');
       if (error) throw error;
-
-      // Fetch customer profiles and order items for each order
-      const ordersWithDetails = await Promise.all(
-        (data || []).map(async (order) => {
-          const [profileResult, itemsResult] = await Promise.all([
-            supabase
-              .from('profiles')
-              .select('full_name, email')
-              .eq('user_id', order.customer_id)
-              .maybeSingle(),
-            supabase
-              .from('order_items')
-              .select('id, quantity, unit_price, product_id')
-              .eq('order_id', order.id),
-          ]);
-
-          // Get product names for items
-          const itemsWithProducts = await Promise.all(
-            (itemsResult.data || []).map(async (item) => {
-              const { data: product } = await supabase
-                .from('products')
-                .select('name')
-                .eq('id', item.product_id)
-                .maybeSingle();
-              return { ...item, product };
-            })
-          );
-
-          return {
-            ...order,
-            customer_profile: profileResult.data || undefined,
-            items: itemsWithProducts,
-          };
-        })
-      );
-
-      setOrders(ordersWithDetails);
+      setOrders(data || []);
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast({
@@ -139,7 +100,6 @@ const OrderManagement = () => {
           order.id === orderId ? { ...order, status: newStatus } : order
         )
       );
-
       toast({
         title: 'Order Updated',
         description: `Order status changed to ${newStatus}.`,
@@ -155,16 +115,24 @@ const OrderManagement = () => {
       setUpdatingId(null);
     }
   };
+  
+  const filteredOrders = orders.filter((order) => {
+    const searchLower = searchQuery.toLowerCase();
+    const orderIdMatch = order.id.slice(0, 8).toLowerCase().includes(searchLower);
+    const customerNameMatch = (order.customer_profile?.full_name || '').toLowerCase().includes(searchLower);
+    const customerEmailMatch = (order.customer_profile?.email || '').toLowerCase().includes(searchLower);
+    return orderIdMatch || customerNameMatch || customerEmailMatch;
+  });
 
-  const getStatusBadge = (status: string) => {
+  const getStatusDisplay = (status: string) => {
     const statusConfig = orderStatuses.find((s) => s.value === status);
-    if (!statusConfig) return <Badge variant="secondary">{status}</Badge>;
-    const Icon = statusConfig.icon;
+    const bulletColor = statusConfig?.color || 'bg-gray-400';
+
     return (
-      <Badge className={statusConfig.color}>
-        <Icon className="mr-1 h-3 w-3" />
-        {statusConfig.label}
-      </Badge>
+      <div className="flex items-center">
+        <span className={`mr-2 h-2 w-2 rounded-full ${bulletColor}`} />
+        <span className="capitalize">{statusConfig?.label || status}</span>
+      </div>
     );
   };
 
@@ -175,7 +143,7 @@ const OrderManagement = () => {
         animate={{ opacity: 1, y: 0 }}
         className="rounded-lg border border-border bg-card"
       >
-        <div className="flex items-center justify-between border-b border-border p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-border p-4 gap-4">
           <div>
             <h2 className="flex items-center gap-2 font-semibold text-foreground">
               <ShoppingCart className="h-5 w-5" />
@@ -185,31 +153,42 @@ const OrderManagement = () => {
               View and manage customer orders
             </p>
           </div>
-          <Button variant="outline" size="icon" onClick={fetchOrders} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          </Button>
+          <div className="flex items-center gap-2">
+             <div className="relative w-full max-w-xs">
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"/>
+               <Input
+                  placeholder="Filter by ID, name, or email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+              />
+             </div>
+            <Button variant="outline" size="icon" onClick={fetchOrders} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-muted/50">
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
+              <tr className="border-b border-border bg-muted/50 text-left">
+                <th className="px-4 py-3 font-medium uppercase text-muted-foreground">
                   Order ID
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
+                <th className="px-4 py-3 font-medium uppercase text-muted-foreground">
                   Customer
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
+                <th className="px-4 py-3 font-medium uppercase text-muted-foreground">
                   Total
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
+                <th className="px-4 py-3 font-medium uppercase text-muted-foreground">
                   Date
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
+                <th className="px-4 py-3 font-medium uppercase text-muted-foreground">
                   Status
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
+                <th className="px-4 py-3 font-medium uppercase text-muted-foreground text-right">
                   Actions
                 </th>
               </tr>
@@ -219,20 +198,19 @@ const OrderManagement = () => {
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
                     <RefreshCw className="mx-auto h-6 w-6 animate-spin" />
-                    <p className="mt-2">Loading orders...</p>
                   </td>
                 </tr>
-              ) : orders.length === 0 ? (
+              ) : filteredOrders.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
                     <ShoppingCart className="mx-auto mb-4 h-12 w-12 opacity-50" />
-                    <p>No orders yet.</p>
+                    <p>{searchQuery ? 'No orders match your search.' : 'You have no orders yet.'}</p>
                   </td>
                 </tr>
               ) : (
-                orders.map((order) => (
+                filteredOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="whitespace-nowrap px-4 py-3 text-sm font-mono text-foreground">
+                    <td className="whitespace-nowrap px-4 py-3 font-mono text-foreground">
                       #{order.id.slice(0, 8)}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">
@@ -240,7 +218,7 @@ const OrderManagement = () => {
                         <p className="font-medium text-foreground">
                           {order.customer_profile?.full_name || 'Unknown'}
                         </p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-muted-foreground">
                           {order.customer_profile?.email || 'No email'}
                         </p>
                       </div>
@@ -248,14 +226,14 @@ const OrderManagement = () => {
                     <td className="whitespace-nowrap px-4 py-3 font-medium text-foreground">
                       LKR {Number(order.total_amount).toLocaleString()}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
+                    <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                       {new Date(order.created_at).toLocaleDateString()}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">
-                      {getStatusBadge(order.status)}
+                      {getStatusDisplay(order.status)}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-end gap-2">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -269,8 +247,8 @@ const OrderManagement = () => {
                           onValueChange={(value) => handleStatusChange(order.id, value)}
                           disabled={updatingId === order.id}
                         >
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
+                          <SelectTrigger className="w-36">
+                            <SelectValue placeholder="Change status..." />
                           </SelectTrigger>
                           <SelectContent>
                             {orderStatuses.map((status) => (
@@ -292,7 +270,7 @@ const OrderManagement = () => {
 
       {/* Order Detail Dialog */}
       <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>Order Details</DialogTitle>
             <DialogDescription>
@@ -301,11 +279,11 @@ const OrderManagement = () => {
           </DialogHeader>
 
           {selectedOrder && (
-            <div className="space-y-4">
+            <div className="space-y-4 pt-2">
               <div className="grid gap-4 rounded-lg border border-border p-4">
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Status</span>
-                  {getStatusBadge(selectedOrder.status)}
+                  {getStatusDisplay(selectedOrder.status)}
                 </div>
                 <div>
                   <span className="text-sm text-muted-foreground">Customer</span>
@@ -343,7 +321,8 @@ const OrderManagement = () => {
                             {item.product?.name || 'Unknown Product'}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            Qty: {item.quantity} × LKR {Number(item.unit_price).toLocaleString()}
+                            Qty: {item.quantity} &times; LKR {Number(item.unit_price).toLocaleString()}
+                            {item.product?.sku && ` | SKU: ${item.product.sku}`}
                           </p>
                         </div>
                         <p className="font-medium text-foreground">

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Package, Plus, Edit, Trash2, Check, Clock, X, RefreshCw } from 'lucide-react';
 import { z } from 'zod';
@@ -66,7 +66,7 @@ const productSchema = z.object({
   category: z.string().min(1, 'Please select a category'),
   sku: z.string().max(50, 'SKU must be less than 50 characters').optional().nullable(),
   image_url: z.string().optional().nullable(),
-  temple_id: z.string().optional().nullable(),
+  temple_id: z.string().min(1, 'An associated temple is required'),
 });
 
 type ProductFormValues = z.infer<typeof productSchema>;
@@ -74,8 +74,7 @@ type ProductFormValues = z.infer<typeof productSchema>;
 const ProductManagement = () => {
   const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
-  const [temples, setTemples] = useState<Temple[]>([]);
-  const [vendorTempleId, setVendorTempleId] = useState<string | null>(null);
+  const [vendorTemple, setVendorTemple] = useState<Temple | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -92,88 +91,59 @@ const ProductManagement = () => {
       category: '',
       sku: '',
       image_url: null,
-      temple_id: null,
+      temple_id: '',
     },
   });
 
-  const fetchProducts = async () => {
+  const fetchInitialData = async () => {
     if (!user) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // Fetch vendor's associated temple first
+      const { data: templeData, error: templeError } = await supabase
+        .from('temples')
+        .select('id, name')
+        .eq('owner_user_id', user.id)
+        .maybeSingle();
+
+      if (templeError) throw templeError;
+      if (templeData) {
+        setVendorTemple(templeData);
+        form.setValue('temple_id', templeData.id);
+      }
+
+      // Fetch products for the vendor
+      const { data: productsData, error: productsError } = await supabase
         .from('products')
         .select('*')
         .eq('vendor_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setProducts(data || []);
+      if (productsError) throw productsError;
+      setProducts(productsData || []);
+
     } catch (error) {
-      console.error('Error fetching products:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch products.',
-        variant: 'destructive',
-      });
+      console.error('Error fetching initial data:', error);
+      toast({ title: 'Error', description: 'Failed to load your data.', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchTemples = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('temples')
-        .select('id, name')
-        .eq('is_active', true)
-        .order('name');
-
-      if (error) throw error;
-      setTemples(data || []);
-    } catch (error) {
-      console.error('Error fetching temples:', error);
-    }
-  };
-
-  const fetchVendorTemple = async () => {
-    if (!user) return;
-    try {
-      const { data, error } = await supabase
-        .from('vendor_applications')
-        .select('temple_id')
-        .eq('user_id', user.id)
-        .eq('status', 'approved')
-        .maybeSingle();
-
-      if (!error && data?.temple_id) {
-        setVendorTempleId(data.temple_id);
-      }
-    } catch (error) {
-      console.error('Error fetching vendor temple:', error);
-    }
-  };
-
   useEffect(() => {
-    fetchProducts();
-    fetchTemples();
-    fetchVendorTemple();
+    fetchInitialData();
   }, [user]);
 
   const onSubmit = async (values: ProductFormValues) => {
-    if (!user) return;
+    if (!user || !vendorTemple) {
+      toast({ title: 'Error', description: 'Cannot save product without an associated temple.', variant: 'destructive' });
+      return;
+    }
 
     try {
-      const templeId = vendorTempleId || values.temple_id || null;
       const productData = {
-        name: values.name,
-        description: values.description || null,
-        price: values.price,
-        cost_price: values.cost_price || null,
-        stock: values.stock,
-        category: values.category,
-        sku: values.sku || null,
-        image_url: values.image_url || null,
-        temple_id: templeId,
+        ...values,
+        temple_id: vendorTemple.id, // Ensure the temple_id is the vendor's temple
       };
       
       if (editingProduct) {
@@ -188,42 +158,31 @@ const ProductManagement = () => {
         const { error } = await supabase.from('products').insert({
           ...productData,
           vendor_id: user.id,
-          status: 'approved',
+          status: 'approved', // Or 'pending' if you have an approval flow
         });
 
         if (error) throw error;
-        toast({
-          title: 'Product Added',
-          description: 'Your product has been added and is now live.',
-        });
+        toast({ title: 'Product Added', description: 'Your product has been added.' });
       }
 
       setShowForm(false);
       setEditingProduct(null);
       form.reset();
-      fetchProducts();
+      fetchInitialData(); // Refetch all data
     } catch (error) {
       console.error('Error saving product:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to save product.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: `Failed to save product: ${(error as Error).message}`, variant: 'destructive' });
     }
   };
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
     form.reset({
-      name: product.name,
+      ...product,
       description: product.description || '',
-      price: product.price,
-      cost_price: product.cost_price,
-      stock: product.stock,
-      category: product.category,
       sku: product.sku || '',
-      image_url: product.image_url,
-      temple_id: product.temple_id,
+      cost_price: product.cost_price,
+      temple_id: product.temple_id || vendorTemple?.id,
     });
     setShowForm(true);
   };
@@ -234,48 +193,38 @@ const ProductManagement = () => {
       if (error) throw error;
       toast({ title: 'Product Deleted', description: 'The product has been removed.' });
       setDeletingId(null);
-      fetchProducts();
+      fetchInitialData(); // Refetch all data
     } catch (error) {
       console.error('Error deleting product:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete product.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Failed to delete product.', variant: 'destructive' });
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const openAddForm = () => {
+    if (!vendorTemple) {
+      toast({ title: 'Cannot Add Product', description: 'You must create your temple before adding products.', variant: 'warning' });
+      // Optionally, you could redirect to the temple creation page
+      return;
+    }
+    setEditingProduct(null);
+    form.reset();
+    form.setValue('temple_id', vendorTemple.id);
+    setShowForm(true);
+  };
+
+  // Memoize status badge for performance
+  const StatusBadge = useMemo(() => ({ status }: { status: string }) => {
     switch (status) {
       case 'approved':
-        return (
-          <Badge className="bg-success/10 text-success">
-            <Check className="mr-1 h-3 w-3" />
-            Approved
-          </Badge>
-        );
+        return <Badge className="bg-success/10 text-success"><Check className="mr-1 h-3 w-3" />Approved</Badge>;
       case 'pending':
-        return (
-          <Badge className="bg-warning/10 text-warning">
-            <Clock className="mr-1 h-3 w-3" />
-            Pending
-          </Badge>
-        );
+        return <Badge className="bg-warning/10 text-warning"><Clock className="mr-1 h-3 w-3" />Pending</Badge>;
       case 'rejected':
-        return (
-          <Badge className="bg-destructive/10 text-destructive">
-            <X className="mr-1 h-3 w-3" />
-            Rejected
-          </Badge>
-        );
+        return <Badge className="bg-destructive/10 text-destructive"><X className="mr-1 h-3 w-3" />Rejected</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
-  };
-
-  const getCategoryLabel = (value: string) => {
-    return productCategories.find((c) => c.value === value)?.label || value;
-  };
+  }, []);
 
   return (
     <>
@@ -291,21 +240,14 @@ const ProductManagement = () => {
               Product Management
             </h2>
             <p className="text-sm text-muted-foreground">
-              Add and manage your products
+              Add and manage products for your temple: <strong>{vendorTemple?.name || 'No Temple Found'}</strong>
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={fetchProducts} disabled={loading}>
+            <Button variant="outline" size="icon" onClick={fetchInitialData} disabled={loading}>
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
-            <Button
-              onClick={() => {
-                setEditingProduct(null);
-                form.reset();
-                setShowForm(true);
-              }}
-              className="gap-2"
-            >
+            <Button onClick={openAddForm} className="gap-2">
               <Plus className="h-4 w-4" />
               Add Product
             </Button>
@@ -331,11 +273,7 @@ const ProductManagement = () => {
                 <div className="flex items-center gap-4">
                   <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg bg-primary/10">
                     {product.image_url ? (
-                      <img
-                        src={product.image_url}
-                        alt={product.name}
-                        className="h-full w-full object-cover"
-                      />
+                      <img src={product.image_url} alt={product.name} className="h-full w-full object-cover" />
                     ) : (
                       <Package className="h-6 w-6 text-primary" />
                     )}
@@ -345,19 +283,14 @@ const ProductManagement = () => {
                     <p className="text-sm text-muted-foreground">
                       LKR {Number(product.price).toLocaleString()} | Stock: {product.stock} | SKU: {product.sku || 'N/A'}
                     </p>
-                    <div className="mt-1">{getStatusBadge(product.status)}</div>
+                    <div className="mt-1"><StatusBadge status={product.status} /></div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="ghost" size="icon" onClick={() => handleEdit(product)}>
                     <Edit className="h-4 w-4" />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-destructive"
-                    onClick={() => setDeletingId(product.id)}
-                  >
+                  <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDeletingId(product.id)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -373,73 +306,61 @@ const ProductManagement = () => {
           <DialogHeader>
             <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
             <DialogDescription>
-              {editingProduct
-                ? 'Update your product details'
-                : 'Fill in the product details'}
+              {editingProduct ? 'Update product details for' : 'Add a new product for'} <strong>{vendorTemple?.name}</strong>.
             </DialogDescription>
           </DialogHeader>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-1 pt-2">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2 pt-2">
               <FormField
                 control={form.control}
                 name="name"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Product Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Brass Temple Bell" {...field} />
-                    </FormControl>
+                    <FormControl><Input placeholder="e.g., Brass Temple Bell" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
                   name="cost_price"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Cost Price (LKR)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="0" {...field} value={field.value ?? ''} />
-                      </FormControl>
+                      <FormControl><Input type="number" placeholder="0" {...field} value={field.value ?? ''} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-
                 <FormField
                   control={form.control}
                   name="price"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Selling Price (LKR)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="0" {...field} />
-                      </FormControl>
+                      <FormControl><Input type="number" placeholder="0" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-
                  <FormField
                   control={form.control}
                   name="stock"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Stock Quantity</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="0" {...field} />
-                      </FormControl>
+                      <FormControl><Input type="number" placeholder="0" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                  <FormField
                     control={form.control}
                     name="category"
@@ -448,16 +369,10 @@ const ProductManagement = () => {
                         <FormLabel>Category</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a category" />
-                            </SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {productCategories.map((cat) => (
-                              <SelectItem key={cat.value} value={cat.value}>
-                                {cat.label}
-                              </SelectItem>
-                            ))}
+                            {productCategories.map((cat) => <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>)}
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -470,9 +385,7 @@ const ProductManagement = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>SKU (optional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., SKU00123" {...field} value={field.value ?? ''} />
-                      </FormControl>
+                      <FormControl><Input placeholder="e.g., SKU00123" {...field} value={field.value ?? ''} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -486,12 +399,7 @@ const ProductManagement = () => {
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Textarea
-                        placeholder="Describe your product..."
-                        className="min-h-[100px]"
-                        {...field}
-                        value={field.value ?? ''}
-                      />
+                      <Textarea placeholder="Describe your product..." className="min-h-[100px]" {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -499,6 +407,20 @@ const ProductManagement = () => {
               />
 
               <FormField
+                control={form.control}
+                name="temple_id"
+                render={({ field }) => (
+                  <FormItem className="hidden">
+                    <FormLabel>Associated Temple</FormLabel>
+                     <FormControl>
+                       <Input {...field} readOnly />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+               <FormField
                 control={form.control}
                 name="image_url"
                 render={({ field }) => (
@@ -517,39 +439,12 @@ const ProductManagement = () => {
                 )}
               />
 
-              {!vendorTempleId && temples.length > 0 && (
-                <FormField
-                  control={form.control}
-                  name="temple_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Associated Temple</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ''}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a temple" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {temples.map((temple) => (
-                            <SelectItem key={temple.id} value={temple.id}>
-                              {temple.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              <DialogFooter>
+              <DialogFooter className="pt-4">
                 <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
                   Cancel
                 </Button>
-                <Button type="submit">
-                  {editingProduct ? 'Update Product' : 'Add Product'}
+                <Button type="submit" disabled={form.formState.isSubmitting || !vendorTemple}>
+                  {form.formState.isSubmitting ? 'Saving...' : (editingProduct ? 'Update Product' : 'Add Product')}
                 </Button>
               </DialogFooter>
             </form>
