@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Building, ExternalLink, Package } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import VendorAnalytics from '@/components/vendor/VendorAnalytics';
+import VendorEarningsCard from '@/components/vendor/VendorEarningsCard';
 import ProductManagement from '@/components/vendor/ProductManagement';
 import OrderManagement from '@/components/vendor/OrderManagement';
 import { useAuth } from '@/contexts/AuthContext';
@@ -65,7 +66,10 @@ const VendorDashboard = () => {
           </motion.div>
         )}
 
-        <div className="mb-8"><VendorAnalytics /></div>
+        <div className="grid gap-8 lg:grid-cols-3 mb-8">
+          <div className="lg:col-span-2"><VendorAnalytics /></div>
+          <div><VendorEarningsCard /></div>
+        </div>
         <div className="mb-8"><ProductManagement /></div>
         <div className="mb-8"><OrderManagement /></div>
       </motion.div>
