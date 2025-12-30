@@ -293,6 +293,47 @@ export type Database = {
           },
         ]
       }
+      product_variants: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          price: number
+          product_id: string
+          sku: string | null
+          stock: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          price?: number
+          product_id: string
+          sku?: string | null
+          stock?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          price?: number
+          product_id?: string
+          sku?: string | null
+          stock?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variants_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category: string
@@ -816,6 +857,42 @@ export type Database = {
           },
         ]
       }
+      vendor_balances: {
+        Row: {
+          available_balance: number
+          created_at: string
+          id: string
+          min_withdrawal_amount: number
+          pending_balance: number
+          total_earnings: number
+          updated_at: string
+          vendor_id: string
+          withdrawn_amount: number
+        }
+        Insert: {
+          available_balance?: number
+          created_at?: string
+          id?: string
+          min_withdrawal_amount?: number
+          pending_balance?: number
+          total_earnings?: number
+          updated_at?: string
+          vendor_id: string
+          withdrawn_amount?: number
+        }
+        Update: {
+          available_balance?: number
+          created_at?: string
+          id?: string
+          min_withdrawal_amount?: number
+          pending_balance?: number
+          total_earnings?: number
+          updated_at?: string
+          vendor_id?: string
+          withdrawn_amount?: number
+        }
+        Relationships: []
+      }
       vendor_verifications: {
         Row: {
           application_id: string | null
@@ -874,6 +951,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      withdrawal_requests: {
+        Row: {
+          admin_notes: string | null
+          amount: number
+          created_at: string
+          id: string
+          processed_at: string | null
+          processed_by: string | null
+          status: string
+          updated_at: string
+          vendor_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          amount: number
+          created_at?: string
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          status?: string
+          updated_at?: string
+          vendor_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          amount?: number
+          created_at?: string
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          status?: string
+          updated_at?: string
+          vendor_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {

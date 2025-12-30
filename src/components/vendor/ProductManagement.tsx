@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Package, Plus, Edit, Trash2, Check, Clock, X, RefreshCw, GitCommitHorizontal } from 'lucide-react';
 import { z } from 'zod';
@@ -41,8 +41,7 @@ interface ProductVariant {
   id?: string;
   name: string;
   sku?: string | null;
-  cost_price?: number | null;
-  selling_price: number;
+  price: number;
   stock: number;
 }
 
@@ -50,9 +49,8 @@ interface Product {
   id: string;
   name: string;
   description: string | null;
-  sku: string | null;
-  selling_price: number; // This can be the default/base price
-  stock: number; // This can be the total stock
+  price: number;
+  stock: number;
   category: string;
   status: string;
   image_url: string | null;
@@ -70,8 +68,7 @@ const variantSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, 'Variant name is required'),
   sku: z.string().optional().nullable(),
-  cost_price: z.coerce.number().min(0).optional().nullable(),
-  selling_price: z.coerce.number().min(0, 'Price must be non-negative'),
+  price: z.coerce.number().min(0, 'Price must be non-negative'),
   stock: z.coerce.number().min(0, 'Stock must be non-negative'),
 });
 
@@ -81,7 +78,6 @@ const productSchema = z.object({
   category: z.string().min(1, 'Please select a category'),
   image_url: z.string().optional().nullable(),
   temple_id: z.string().min(1, 'An associated temple is required'),
-  sku: z.string().max(50).optional().nullable(),
   variants: z.array(variantSchema).min(1, 'At least one product variant is required'),
 });
 
@@ -92,12 +88,10 @@ const emptyFormValues: Omit<ProductFormValues, 'temple_id'> = {
   description: '',
   category: '',
   image_url: null,
-  sku: '',
   variants: [{
     name: 'Default',
-    selling_price: 0,
+    price: 0,
     stock: 0,
-    cost_price: 0,
     sku: ''
   }],
 };
@@ -111,6 +105,7 @@ const ProductManagement = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const variantSectionRef = useRef<HTMLDivElement>(null);
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -145,7 +140,29 @@ const ProductManagement = () => {
         .order('created_at', { ascending: false });
 
       if (productsError) throw productsError;
-      setProducts(productsData || []);
+      
+      // Map the data to match our Product interface
+      const mappedProducts: Product[] = (productsData || []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        price: p.price,
+        stock: p.stock,
+        category: p.category,
+        status: p.status,
+        image_url: p.image_url,
+        temple_id: p.temple_id,
+        created_at: p.created_at,
+        variants: (p.variants || []).map((v: any) => ({
+          id: v.id,
+          name: v.name,
+          sku: v.sku,
+          price: v.price,
+          stock: v.stock,
+        })),
+      }));
+      
+      setProducts(mappedProducts);
 
     } catch (error) {
       console.error('Error fetching initial data:', error);
@@ -159,6 +176,12 @@ const ProductManagement = () => {
     fetchInitialData();
   }, [user]);
 
+  const scrollToVariants = () => {
+    setTimeout(() => {
+      variantSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  };
+
   const onSubmit = async (values: ProductFormValues) => {
     if (!user || !vendorTemple) {
       toast({ title: 'Error', description: 'Cannot save product without an associated temple.', variant: 'destructive' });
@@ -168,11 +191,13 @@ const ProductManagement = () => {
     try {
       const { variants, ...productData } = values;
       const baseProduct = {
-        ...productData,
+        name: productData.name,
+        description: productData.description,
+        category: productData.category,
+        image_url: productData.image_url,
         vendor_id: user.id,
         temple_id: vendorTemple.id,
-        // Aggregate price and stock from variants
-        selling_price: variants.length > 0 ? Math.min(...variants.map(v => v.selling_price)) : 0,
+        price: variants.length > 0 ? Math.min(...variants.map(v => v.price)) : 0,
         stock: variants.reduce((acc, v) => acc + v.stock, 0),
       };
 
@@ -186,16 +211,18 @@ const ProductManagement = () => {
         
         if (productError) throw productError;
 
-        // Sync variants
-        const existingVariantIds = editingProduct.variants.map(v => v.id);
-        const updatedVariantIds = variants.map(v => v.id).filter(Boolean);
-        const variantsToDelete = existingVariantIds.filter(id => !updatedVariantIds.includes(id));
-        if(variantsToDelete.length > 0) {
-          await supabase.from('product_variants').delete().in('id', variantsToDelete);
-        }
-
-        const { error: variantError } = await supabase.from('product_variants').upsert(
-          variants.map(v => ({ ...v, product_id: updatedProduct.id }))
+        // Sync variants - delete old ones first
+        await supabase.from('product_variants').delete().eq('product_id', editingProduct.id);
+        
+        // Insert new variants
+        const { error: variantError } = await supabase.from('product_variants').insert(
+          variants.map(v => ({ 
+            name: v.name,
+            sku: v.sku,
+            price: v.price,
+            stock: v.stock,
+            product_id: updatedProduct.id 
+          }))
         );
         if (variantError) throw variantError;
 
@@ -210,7 +237,13 @@ const ProductManagement = () => {
         if (productError) throw productError;
 
         const { error: variantError } = await supabase.from('product_variants').insert(
-          variants.map(v => ({ ...v, product_id: newProduct.id }))
+          variants.map(v => ({ 
+            name: v.name,
+            sku: v.sku,
+            price: v.price,
+            stock: v.stock,
+            product_id: newProduct.id 
+          }))
         );
         if (variantError) throw variantError;
 
@@ -230,8 +263,18 @@ const ProductManagement = () => {
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
     form.reset({
-      ...product,
-      variants: product.variants.length > 0 ? product.variants : [emptyFormValues.variants[0]],
+      name: product.name,
+      description: product.description,
+      category: product.category,
+      image_url: product.image_url,
+      temple_id: product.temple_id || vendorTemple?.id || '',
+      variants: product.variants.length > 0 ? product.variants.map(v => ({
+        id: v.id,
+        name: v.name,
+        sku: v.sku,
+        price: v.price,
+        stock: v.stock,
+      })) : [emptyFormValues.variants[0]],
     });
     setShowForm(true);
   };
@@ -327,7 +370,7 @@ const ProductManagement = () => {
                   <div>
                     <p className="font-medium text-foreground">{product.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      LKR {Number(product.selling_price).toLocaleString()} | Stock: {product.stock}
+                      LKR {Number(product.price).toLocaleString()} | Stock: {product.stock}
                        {product.variants.length > 1 && ` | ${product.variants.length} variants`}
                     </p>
                     <div className="mt-1"><StatusBadge status={product.status} /></div>
@@ -349,7 +392,7 @@ const ProductManagement = () => {
 
       {/* Add/Edit Product Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="rounded-lg sm:max-w-[900px]">
+        <DialogContent className="rounded-lg sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
             <DialogDescription>
@@ -386,49 +429,49 @@ const ProductManagement = () => {
                   )}
                 />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="category"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Category</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {productCategories.map((cat) => <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="sku"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>SKU (Optional)</FormLabel>
-                          <FormControl><Input placeholder="e.g., BELL-BR-01" {...field} value={field.value ?? ''} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                </div>
+                <FormField
+                  control={form.control}
+                  name="category"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Category</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {productCategories.map((cat) => <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 
-                <div className="space-y-4 rounded-lg border p-4">
+                <div ref={variantSectionRef} className="space-y-4 rounded-lg border p-4">
                   <div className='flex items-center justify-between'>
                      <h3 className="flex items-center font-medium">
                        <GitCommitHorizontal className="mr-2 h-4 w-4" /> Product Variants
                      </h3>
-                     <Button type="button" size='sm' variant='outline' onClick={() => append({ name: '', selling_price: 0, stock: 0, sku: '', cost_price: 0 })}>
+                     <Button 
+                       type="button" 
+                       size='sm' 
+                       variant='outline' 
+                       onClick={() => {
+                         append({ name: '', price: 0, stock: 0, sku: '' });
+                         scrollToVariants();
+                       }}
+                     >
                         <Plus className='mr-2 h-3 w-3' /> Add Variant
                      </Button>
                   </div>
                   {fields.map((field, index) => (
-                    <div key={field.id} className="space-y-3 rounded-md border p-3 relative">
+                    <motion.div 
+                      key={field.id} 
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="space-y-3 rounded-md border p-3 relative"
+                    >
                        {fields.length > 1 && (
                          <Button
                            type="button"
@@ -446,98 +489,65 @@ const ProductManagement = () => {
                          render={({ field }) => (
                            <FormItem>
                              <FormLabel>Variant Name</FormLabel>
-                             <FormControl><Input placeholder="e.g., Small, Blue" {...field} /></FormControl>
+                             <FormControl><Input placeholder="e.g., Small, Blue, 500g" {...field} /></FormControl>
                              <FormMessage />
                            </FormItem>
                          )}
                        />
-                       <div className="grid grid-cols-2 gap-4">
-                         <FormField
-                           control={form.control}
-                           name={`variants.${index}.cost_price`}
-                           render={({ field }) => (
-                             <FormItem>
-                               <FormLabel>Cost Price</FormLabel>
-                               <FormControl><Input type="number" placeholder="0" {...field} value={field.value ?? ''} /></FormControl>
-                               <FormMessage />
-                             </FormItem>
-                           )}
-                         />
-                         <FormField
-                           control={form.control}
-                           name={`variants.${index}.selling_price`}
-                           render={({ field }) => (
-                             <FormItem>
-                               <FormLabel>Selling Price</FormLabel>
-                               <FormControl><Input type="number" placeholder="0" {...field} value={field.value ?? ''} /></FormControl>
-                               <FormMessage />
-                             </FormItem>
-                           )}
-                         />
-                       </div>
-                       <div className="grid grid-cols-2 gap-4">
-                          <FormField
-                           control={form.control}
-                           name={`variants.${index}.stock`}
-                           render={({ field }) => (
-                             <FormItem>
-                               <FormLabel>Stock</FormLabel>
-                               <FormControl><Input type="number" placeholder="0" {...field} /></FormControl>
-                               <FormMessage />
-                             </FormItem>
-                           )}
-                         />
+                       <div className="grid grid-cols-3 gap-4">
                          <FormField
                            control={form.control}
                            name={`variants.${index}.sku`}
                            render={({ field }) => (
                              <FormItem>
-                               <FormLabel>SKU (Optional)</FormLabel>
-                               <FormControl><Input placeholder="e.g., VAR-SM-BL" {...field} value={field.value ?? ''} /></FormControl>
+                               <FormLabel>SKU</FormLabel>
+                               <FormControl><Input placeholder="SKU-001" {...field} value={field.value ?? ''} /></FormControl>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
+                         <FormField
+                           control={form.control}
+                           name={`variants.${index}.price`}
+                           render={({ field }) => (
+                             <FormItem>
+                               <FormLabel>Price (LKR)</FormLabel>
+                               <FormControl><Input type="number" min="0" placeholder="0" {...field} /></FormControl>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
+                         <FormField
+                           control={form.control}
+                           name={`variants.${index}.stock`}
+                           render={({ field }) => (
+                             <FormItem>
+                               <FormLabel>Stock</FormLabel>
+                               <FormControl><Input type="number" min="0" placeholder="0" {...field} /></FormControl>
                                <FormMessage />
                              </FormItem>
                            )}
                          />
                        </div>
-                    </div>
+                    </motion.div>
                   ))}
-                  <FormMessage>{form.formState.errors.variants?.message}</FormMessage>
                 </div>
               </div>
 
-              <div className="md:col-span-1 space-y-4">
-                 <FormField
-                  control={form.control}
-                  name="image_url"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Product Image</FormLabel>
-                      <FormControl>
-                        <ProductImageUpload
-                          currentImageUrl={field.value}
-                          onImageUploaded={(url) => field.onChange(url)}
-                          onImageRemoved={() => field.onChange(null)}
-                          productId={editingProduct?.id}
-                        />
-                      </FormControl>
-                       <FormMessage />
-                    </FormItem>
-                  )}
+              <div className="space-y-4">
+                <ProductImageUpload
+                  currentImageUrl={form.watch('image_url')}
+                  onImageUploaded={(url) => form.setValue('image_url', url)}
+                  onImageRemoved={() => form.setValue('image_url', null)}
                 />
               </div>
 
-              <FormField
-                  control={form.control}
-                  name="temple_id"
-                  render={({ field }) => <FormItem className="hidden"><FormControl><Input {...field} readOnly /></FormControl></FormItem>}
-              />
-
-              <DialogFooter className="pt-4 md:col-span-3">
+              <DialogFooter className="md:col-span-3">
                 <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={form.formState.isSubmitting || !vendorTemple}>
-                  {form.formState.isSubmitting ? 'Saving...' : (editingProduct ? 'Update Product' : 'Add Product')}
+                <Button type="submit">
+                  {editingProduct ? 'Update Product' : 'Add Product'}
                 </Button>
               </DialogFooter>
             </form>
@@ -547,7 +557,7 @@ const ProductManagement = () => {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!deletingId} onOpenChange={() => setDeletingId(null)}>
-        <DialogContent className="rounded-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Product</DialogTitle>
             <DialogDescription>
@@ -555,12 +565,8 @@ const ProductManagement = () => {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeletingId(null)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={() => deletingId && handleDelete(deletingId)}>
-              Delete
-            </Button>
+            <Button variant="outline" onClick={() => setDeletingId(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => deletingId && handleDelete(deletingId)}>Delete</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
