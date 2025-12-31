@@ -728,6 +728,103 @@ const Header = () => {
             )}
           </div>
 
+          {/* Mobile Actions (visible on small screens) */}
+          <div className="flex items-center gap-2 md:hidden">
+            <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(true)}>
+              <Search className="h-5 w-5" />
+            </Button>
+
+            <Button variant="ghost" size="icon" className="relative" onClick={() => setIsCartOpen(true)}>
+              <ShoppingCart className="h-5 w-5" />
+              {totalItems > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+                  {totalItems > 9 ? '9+' : totalItems}
+                </span>
+              )}
+            </Button>
+
+            {/* Mobile Notifications Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-screen max-w-xs">
+                <div className="flex items-center justify-between px-3 py-2">
+                  <h4 className="text-sm font-semibold">Notifications</h4>
+                  {unreadCount > 0 && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-auto p-0 text-xs text-primary hover:text-primary/80"
+                      onClick={markAllAsRead}
+                    >
+                      Mark all as read
+                    </Button>
+                  )}
+                </div>
+                <DropdownMenuSeparator />
+                {user ? (
+                  notifications.length > 0 ? (
+                    <ScrollArea className="h-64">
+                      {notifications.map((notification) => (
+                        <div
+                          key={notification.id}
+                          onClick={() => handleNotificationClick(notification)}
+                          className={cn(
+                            'flex gap-3 px-3 py-3 hover:bg-muted/50 cursor-pointer',
+                            !notification.read && 'bg-muted/30'
+                          )}
+                        >
+                          <div className="mt-0.5">
+                            {getNotificationIcon(notification.type)}
+                          </div>
+                          <div className="flex-1 space-y-1">
+                            <p className="text-sm font-medium leading-none">
+                              {notification.title}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {notification.message}
+                            </p>
+                            <p className="text-xs text-muted-foreground/70">
+                              {formatTime(notification.created_at)}
+                            </p>
+                          </div>
+                          {!notification.read && (
+                            <div className="h-2 w-2 rounded-full bg-primary" />
+                          )}
+                        </div>
+                      ))}
+                    </ScrollArea>
+                  ) : (
+                    <div className="py-8 text-center text-sm text-muted-foreground">
+                      No notifications yet
+                    </div>
+                  )
+                ) : (
+                  <div className="py-8 text-center">
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Sign in to see your notifications
+                    </p>
+                    <Link to="/auth">
+                      <Button size="sm" variant="outline">Sign In</Button>
+                    </Link>
+                  </div>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button variant="ghost" size="icon" onClick={toggleTheme}>
+              {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </Button>
+          </div>
+
           {/* Mobile Menu Toggle */}
           <Button
             variant="ghost"
