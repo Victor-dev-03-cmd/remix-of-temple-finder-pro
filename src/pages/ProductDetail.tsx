@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ShoppingCart, 
   Heart, 
@@ -11,7 +11,8 @@ import {
   Package,
   Loader2,
   Store,
-  Check
+  Check,
+  Tag
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -22,7 +23,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { useProduct, useProducts } from '@/hooks/useProducts';
+import { useProductVariants, ProductVariant } from '@/hooks/useProductVariants';
 import { useProductReviews, useCreateReview } from '@/hooks/useProductReviews';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,6 +35,7 @@ import { getCategoryLabel } from '@/lib/categories';
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { product, loading, error } = useProduct(id);
+  const { variants, loading: variantsLoading } = useProductVariants(id);
   const { reviews, loading: reviewsLoading, averageRating, refetch: refetchReviews } = useProductReviews(id);
   const { products: relatedProducts } = useProducts({ 
     category: product?.category, 
@@ -40,16 +44,24 @@ const ProductDetail = () => {
   const { addToCart, items } = useCart();
   const { user } = useAuth();
   const createReview = useCreateReview();
+  const variantSectionRef = useRef<HTMLDivElement>(null);
 
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
-  const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewForm, setReviewForm] = useState({
     rating: 5,
     title: '',
     comment: '',
   });
+
+  // Set default variant when variants load
+  useEffect(() => {
+    if (variants.length > 0 && !selectedVariant) {
+      setSelectedVariant(variants[0]);
+    }
+  }, [variants, selectedVariant]);
 
   useEffect(() => {
     if (product) {
@@ -58,19 +70,54 @@ const ProductDetail = () => {
     }
   }, [items, product]);
 
+  const scrollToVariants = () => {
+    variantSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  const handleVariantSelect = (variant: ProductVariant) => {
+    setSelectedVariant(variant);
+    setQuantity(1);
+  };
+
+  const getCurrentPrice = () => {
+    if (selectedVariant) return selectedVariant.price;
+    return product?.price || 0;
+  };
+
+  const getCurrentStock = () => {
+    if (selectedVariant) return selectedVariant.stock;
+    return product?.stock || 0;
+  };
+
   const handleAddToCart = () => {
     if (!product) return;
+
+    const currentStock = getCurrentStock();
+    if (currentStock === 0) {
+      toast({
+        title: 'Out of Stock',
+        description: 'This item is currently out of stock.',
+        variant: 'destructive',
+      });
+      return;
+    }
     
     addToCart({
-      id: product.id,
-      name: product.name,
-      price: product.price,
+      id: selectedVariant ? `${product.id}-${selectedVariant.id}` : product.id,
+      name: selectedVariant ? `${product.name} - ${selectedVariant.name}` : product.name,
+      price: getCurrentPrice(),
       image_url: product.image_url || undefined,
       vendor_id: product.vendor_id,
-      stock: product.stock,
+      stock: currentStock,
       quantity: quantity,
+      variant_id: selectedVariant?.id,
+      variant_name: selectedVariant?.name,
     });
     setIsAdded(true);
+    toast({
+      title: 'Added to Cart',
+      description: `${product.name}${selectedVariant ? ` - ${selectedVariant.name}` : ''} added to your cart.`,
+    });
   };
 
   const handleSubmitReview = async (e: React.FormEvent) => {
@@ -117,8 +164,8 @@ const ProductDetail = () => {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <main className="container py-8">
-          <div className="grid gap-8 lg:grid-cols-2">
+        <main className="container py-6 px-4 sm:py-8">
+          <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
             <Skeleton className="aspect-square rounded-lg" />
             <div className="space-y-4">
               <Skeleton className="h-8 w-3/4" />
@@ -137,10 +184,10 @@ const ProductDetail = () => {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <main className="container flex flex-col items-center justify-center py-16">
+        <main className="container flex flex-col items-center justify-center py-16 px-4">
           <Package className="mb-4 h-16 w-16 text-muted-foreground" />
           <h1 className="mb-2 text-2xl font-bold text-foreground">Product Not Found</h1>
-          <p className="mb-4 text-muted-foreground">
+          <p className="mb-4 text-muted-foreground text-center">
             {error || "The product you're looking for doesn't exist."}
           </p>
           <Link to="/products">
@@ -155,13 +202,16 @@ const ProductDetail = () => {
     );
   }
 
+  const currentPrice = getCurrentPrice();
+  const currentStock = getCurrentStock();
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="container py-8">
+      <main className="container py-6 px-4 sm:py-8">
         {/* Breadcrumb */}
-        <nav className="mb-6">
+        <nav className="mb-4 sm:mb-6">
           <Link
             to="/products"
             className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
@@ -172,12 +222,12 @@ const ProductDetail = () => {
         </nav>
 
         {/* Product Details */}
-        <div className="grid gap-8 lg:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-2 lg:gap-10">
           {/* Image */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="overflow-hidden rounded-lg border border-border bg-muted"
+            className="overflow-hidden rounded-xl border border-border bg-muted"
           >
             {product.image_url ? (
               <img
@@ -196,11 +246,11 @@ const ProductDetail = () => {
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="space-y-6"
+            className="space-y-5"
           >
             <div>
               <p className="mb-1 text-sm font-medium text-primary">{getCategoryLabel(product.category)}</p>
-              <h1 className="mb-2 font-display text-3xl font-bold text-foreground">
+              <h1 className="mb-2 font-display text-2xl sm:text-3xl font-bold text-foreground">
                 {product.name}
               </h1>
               
@@ -221,7 +271,7 @@ const ProductDetail = () => {
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Star
                       key={i}
-                      className={`h-5 w-5 ${
+                      className={`h-4 w-4 sm:h-5 sm:w-5 ${
                         i < Math.round(averageRating)
                           ? 'fill-yellow-400 text-yellow-400'
                           : 'text-muted-foreground'
@@ -235,31 +285,102 @@ const ProductDetail = () => {
               </div>
             </div>
 
-            <p className="text-3xl font-bold text-primary">
-              LKR {product.price.toLocaleString()}
-            </p>
+            {/* Price */}
+            <div className="flex items-baseline gap-2">
+              <p className="text-2xl sm:text-3xl font-bold text-primary">
+                LKR {currentPrice.toLocaleString()}
+              </p>
+              {selectedVariant && product.price !== selectedVariant.price && (
+                <p className="text-lg text-muted-foreground line-through">
+                  LKR {product.price.toLocaleString()}
+                </p>
+              )}
+            </div>
 
             {product.description && (
               <div>
                 <h3 className="mb-2 font-medium text-foreground">Description</h3>
-                <p className="text-muted-foreground">{product.description}</p>
+                <p className="text-muted-foreground text-sm sm:text-base">{product.description}</p>
               </div>
             )}
 
+            {/* Variant Selection */}
+            {variants.length > 0 && (
+              <div ref={variantSectionRef} className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium text-foreground flex items-center gap-2">
+                    <Tag className="h-4 w-4" />
+                    Select Variant
+                  </h3>
+                  {selectedVariant && (
+                    <Badge variant="secondary" className="text-xs">
+                      {selectedVariant.name}
+                    </Badge>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <AnimatePresence mode="popLayout">
+                    {variants.map((variant) => (
+                      <motion.button
+                        key={variant.id}
+                        layout
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        onClick={() => handleVariantSelect(variant)}
+                        className={`relative rounded-lg border-2 p-3 text-left transition-all ${
+                          selectedVariant?.id === variant.id
+                            ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                            : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                        } ${variant.stock === 0 ? 'opacity-50' : ''}`}
+                        disabled={variant.stock === 0}
+                      >
+                        <p className="font-medium text-sm text-foreground truncate">
+                          {variant.name}
+                        </p>
+                        <p className="text-sm font-semibold text-primary mt-1">
+                          LKR {variant.price.toLocaleString()}
+                        </p>
+                        <p className={`text-xs mt-1 ${
+                          variant.stock > 5 
+                            ? 'text-green-600 dark:text-green-400' 
+                            : variant.stock > 0 
+                            ? 'text-amber-600 dark:text-amber-400' 
+                            : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {variant.stock > 5 ? 'In Stock' : variant.stock > 0 ? `Only ${variant.stock} left` : 'Out of Stock'}
+                        </p>
+                        {selectedVariant?.id === variant.id && (
+                          <motion.div
+                            layoutId="variant-check"
+                            className="absolute top-2 right-2"
+                          >
+                            <Check className="h-4 w-4 text-primary" />
+                          </motion.div>
+                        )}
+                      </motion.button>
+                    ))}
+                  </AnimatePresence>
+                </div>
+              </div>
+            )}
+
+            {/* Stock Status */}
             <div className="flex items-center gap-2">
               <span
                 className={`rounded-full px-3 py-1 text-sm font-medium ${
-                  product.stock > 5
+                  currentStock > 5
                     ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                    : product.stock > 0
+                    : currentStock > 0
                     ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
                     : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                 }`}
               >
-                {product.stock > 5
+                {currentStock > 5
                   ? 'In Stock'
-                  : product.stock > 0
-                  ? `Only ${product.stock} left`
+                  : currentStock > 0
+                  ? `Only ${currentStock} left`
                   : 'Out of Stock'}
               </span>
             </div>
@@ -268,7 +389,7 @@ const ProductDetail = () => {
 
             {/* Quantity and Add to Cart */}
             <div className="space-y-4">
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                 <Label className="text-foreground">Quantity:</Label>
                 <div className="flex items-center gap-2">
                   <Button
@@ -283,16 +404,25 @@ const ProductDetail = () => {
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                    disabled={quantity >= product.stock}
+                    onClick={() => setQuantity(Math.min(currentStock, quantity + 1))}
+                    disabled={quantity >= currentStock}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
 
-              <div className="flex gap-3">
-                {isAdded ? (
+              <div className="flex flex-col sm:flex-row gap-3">
+                {variants.length > 0 && !selectedVariant ? (
+                  <Button
+                    size="lg"
+                    className="flex-1 gap-2"
+                    onClick={scrollToVariants}
+                  >
+                    <Tag className="h-5 w-5" />
+                    Select a Variant
+                  </Button>
+                ) : isAdded ? (
                   <Link to="/cart" className="flex-1">
                     <Button size="lg" className="w-full gap-2">
                       <Check className="h-5 w-5" />
@@ -304,13 +434,13 @@ const ProductDetail = () => {
                     size="lg"
                     className="flex-1 gap-2"
                     onClick={handleAddToCart}
-                    disabled={product.stock === 0}
+                    disabled={currentStock === 0}
                   >
                     <ShoppingCart className="h-5 w-5" />
-                    {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+                    {currentStock === 0 ? 'Out of Stock' : 'Add to Cart'}
                   </Button>
                 )}
-                <Button variant="outline" size="lg">
+                <Button variant="outline" size="lg" className="sm:w-auto">
                   <Heart className="h-5 w-5" />
                 </Button>
               </div>
@@ -323,14 +453,14 @@ const ProductDetail = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="mt-16"
+          className="mt-12 sm:mt-16"
         >
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="font-display text-2xl font-bold text-foreground">
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <h2 className="font-display text-xl sm:text-2xl font-bold text-foreground">
               Customer Reviews
             </h2>
             {user && !showReviewForm && (
-              <Button onClick={() => setShowReviewForm(true)}>Write a Review</Button>
+              <Button onClick={() => setShowReviewForm(true)} size="sm">Write a Review</Button>
             )}
           </div>
 
@@ -339,7 +469,7 @@ const ProductDetail = () => {
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
-              className="mb-8 rounded-lg border border-border bg-card p-6"
+              className="mb-8 rounded-lg border border-border bg-card p-4 sm:p-6"
             >
               <h3 className="mb-4 font-medium text-foreground">Write Your Review</h3>
               <form onSubmit={handleSubmitReview} className="space-y-4">
@@ -383,7 +513,7 @@ const ProductDetail = () => {
                     rows={4}
                   />
                 </div>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <Button type="submit" disabled={createReview.isPending}>
                     {createReview.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Submit Review
@@ -422,7 +552,7 @@ const ProductDetail = () => {
               )}
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               {reviews.map((review) => (
                 <div
                   key={review.id}
@@ -463,12 +593,12 @@ const ProductDetail = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="mt-16"
+            className="mt-12 sm:mt-16"
           >
-            <h2 className="mb-6 font-display text-2xl font-bold text-foreground">
+            <h2 className="mb-6 font-display text-xl sm:text-2xl font-bold text-foreground">
               Related Products
             </h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
               {filteredRelated.map((relatedProduct, index) => (
                 <ProductCard key={relatedProduct.id} product={relatedProduct} index={index} />
               ))}

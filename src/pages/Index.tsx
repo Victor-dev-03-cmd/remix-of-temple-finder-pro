@@ -39,7 +39,7 @@ const Index = () => {
       <Header />
 
       {/* Hero Section */}
-      <section className="relative h-[85vh] min-h-[600px] overflow-hidden">
+      <section className="relative h-[70vh] sm:h-[85vh] min-h-[500px] sm:min-h-[600px] overflow-hidden">
         {/* Background Image */}
         <div className="absolute inset-0">
           <img
@@ -51,12 +51,12 @@ const Index = () => {
         </div>
 
         {/* Content */}
-        <div className="container relative flex h-full flex-col items-center justify-center text-center">
+        <div className="container relative flex h-full flex-col items-center justify-center text-center px-4">
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7 }}
-            className="mb-4 max-w-4xl font-display text-4xl font-bold text-primary-foreground drop-shadow-lg sm:text-5xl lg:text-6xl"
+            className="mb-3 sm:mb-4 max-w-4xl font-display text-2xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold text-primary-foreground drop-shadow-lg"
           >
             {heroTitle}
           </motion.h1>
@@ -64,13 +64,15 @@ const Index = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.6 }}
-            className="mb-8 max-w-2xl text-lg text-primary-foreground/90 drop-shadow"
+            className="mb-6 sm:mb-8 max-w-2xl text-sm sm:text-lg text-primary-foreground/90 drop-shadow px-4"
           >
             {heroSubtitle}
           </motion.p>
 
           {/* Search */}
-          <TempleSearch countryCode={defaultCountry} onSearch={handleSearch} />
+          <div className="w-full max-w-3xl px-4">
+            <TempleSearch countryCode={defaultCountry} onSearch={handleSearch} />
+          </div>
 
           {/* CTA Button - Only show for non-admin and non-vendor users */}
           {!isAdmin && !isVendor && (
@@ -78,10 +80,10 @@ const Index = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
-              className="mt-6"
+              className="mt-4 sm:mt-6"
             >
               <Link to={heroCtaLink}>
-                <Button size="lg" className="gap-2">
+                <Button size="lg" className="gap-2 text-sm sm:text-base">
                   {heroCtaText}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -95,18 +97,18 @@ const Index = () => {
       <BentoGallery />
 
       {/* Featured Temples Section */}
-      <section className="py-16 lg:py-24">
-        <div className="container">
+      <section className="py-12 sm:py-16 lg:py-24">
+        <div className="container px-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="mb-12 text-center"
+            className="mb-8 sm:mb-12 text-center"
           >
-            <h2 className="mb-3 font-display text-3xl font-bold text-foreground sm:text-4xl">
+            <h2 className="mb-2 sm:mb-3 font-display text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground">
               Featured Temples
             </h2>
-            <p className="mx-auto max-w-2xl text-muted-foreground">
+            <p className="mx-auto max-w-2xl text-sm sm:text-base text-muted-foreground">
               Explore some of the most revered and beautiful temples in our network.
             </p>
           </motion.div>
@@ -116,7 +118,7 @@ const Index = () => {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:gap-6 grid-cols-2 lg:grid-cols-4">
               {temples.slice(0, 4).map((temple, index) => (
                 <TempleCard key={temple.id} temple={temple} index={index} />
               ))}
@@ -127,23 +129,23 @@ const Index = () => {
 
       {/* CTA Section - Only show for non-admin and non-vendor users */}
       {!isAdmin && !isVendor && (
-        <section className="bg-muted/50 py-16 lg:py-20">
-          <div className="container">
+        <section className="bg-muted/50 py-12 sm:py-16 lg:py-20">
+          <div className="container px-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              className="mx-auto max-w-3xl rounded-2xl bg-card p-8 text-center shadow-lg lg:p-12"
+              className="mx-auto max-w-3xl rounded-xl sm:rounded-2xl bg-card p-6 sm:p-8 lg:p-12 text-center shadow-lg"
             >
-              <h2 className="mb-4 font-display text-2xl font-bold text-foreground sm:text-3xl">
+              <h2 className="mb-3 sm:mb-4 font-display text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">
                 Own a Temple? Become a Temple Connect Vendor!
               </h2>
-              <p className="mb-8 text-muted-foreground">
+              <p className="mb-6 sm:mb-8 text-sm sm:text-base text-muted-foreground">
                 Showcase your temple to a wider audience, manage services, and connect with devotees.
                 Join our growing community.
               </p>
               <Link to="/become-vendor">
-                <Button size="lg" className="gap-2">
+                <Button size="lg" className="gap-2 text-sm sm:text-base">
                   Register Your Temple Today
                   <ArrowRight className="h-4 w-4" />
                 </Button>
