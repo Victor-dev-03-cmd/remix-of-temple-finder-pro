@@ -304,67 +304,55 @@ const ProductDetail = () => {
               </div>
             )}
 
-            {/* Variant Selection */}
-            {variants.length > 0 && (
-              <div ref={variantSectionRef} className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium text-foreground flex items-center gap-2">
-                    <Tag className="h-4 w-4" />
-                    Select Variant
-                  </h3>
-                  {selectedVariant && (
-                    <Badge variant="secondary" className="text-xs">
-                      {selectedVariant.name}
-                    </Badge>
-                  )}
-                </div>
-                
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  <AnimatePresence mode="popLayout">
-                    {variants.map((variant) => (
-                      <motion.button
-                        key={variant.id}
-                        layout
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        onClick={() => handleVariantSelect(variant)}
-                        className={`relative rounded-lg border-2 p-3 text-left transition-all ${
-                          selectedVariant?.id === variant.id
-                            ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
-                            : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                        } ${variant.stock === 0 ? 'opacity-50' : ''}`}
-                        disabled={variant.stock === 0}
-                      >
-                        <p className="font-medium text-sm text-foreground truncate">
-                          {variant.name}
-                        </p>
-                        <p className="text-sm font-semibold text-primary mt-1">
-                          LKR {variant.price.toLocaleString()}
-                        </p>
-                        <p className={`text-xs mt-1 ${
-                          variant.stock > 5 
-                            ? 'text-green-600 dark:text-green-400' 
-                            : variant.stock > 0 
-                            ? 'text-amber-600 dark:text-amber-400' 
-                            : 'text-red-600 dark:text-red-400'
-                        }`}>
-                          {variant.stock > 5 ? 'In Stock' : variant.stock > 0 ? `Only ${variant.stock} left` : 'Out of Stock'}
-                        </p>
-                        {selectedVariant?.id === variant.id && (
-                          <motion.div
-                            layoutId="variant-check"
-                            className="absolute top-2 right-2"
-                          >
-                            <Check className="h-4 w-4 text-primary" />
-                          </motion.div>
-                        )}
-                      </motion.button>
-                    ))}
-                  </AnimatePresence>
-                </div>
-              </div>
+       {/* Variant Selection */}
+{variants.length > 0 && (
+  <div ref={variantSectionRef} className="space-y-3">
+    <div className="flex items-center justify-between">
+      <h3 className="font-medium text-foreground flex items-center gap-2">
+        <Tag className="h-4 w-4" />
+        Select Variant
+      </h3>
+    </div>
+    
+    {/* Changed to flex-wrap with w-fit to remove empty space */}
+    <div className="flex flex-wrap gap-2"> 
+      <AnimatePresence mode="popLayout">
+        {variants.map((variant) => (
+          <motion.button
+            key={variant.id}
+            layout
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            onClick={() => handleVariantSelect(variant)}
+            // Added w-fit and pr-8 to make space for the check icon
+            className={`relative w-fit rounded-lg border-1 p-2 pr-8 text-left transition-all ${
+              selectedVariant?.id === variant.id
+                ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                : 'border-border hover:border-primary/50 hover:bg-muted/50'
+            } ${variant.stock === 0 ? 'opacity-50' : ''}`}
+            disabled={variant.stock === 0}
+          >
+            <p className="font-medium text-sm text-foreground">
+              {variant.name}
+            </p>
+            <p className="text-sm font-semibold text-primary mt-0.5">
+              LKR {variant.price.toLocaleString()}
+            </p>
+            
+            {selectedVariant?.id === variant.id && (
+              <motion.div
+                layoutId="variant-check"
+                className="absolute top-1/2 -translate-y-1/2 right-2"
+              >
+              </motion.div>
             )}
+          </motion.button>
+        ))}
+      </AnimatePresence>
+    </div>
+  </div>
+)}
 
             {/* Stock Status */}
             <div className="flex items-center gap-2">
