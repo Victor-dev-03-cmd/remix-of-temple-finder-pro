@@ -326,7 +326,7 @@ const ProductDetail = () => {
             exit={{ opacity: 0, scale: 0.9 }}
             onClick={() => handleVariantSelect(variant)}
             // Added w-fit and pr-8 to make space for the check icon
-            className={`relative w-fit rounded-lg border-1 p-2 pr-8 text-left transition-all ${
+            className={`relative w-fit rounded-lg border-2 p-2 pr-8 text-left transition-all ${
               selectedVariant?.id === variant.id
                 ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
                 : 'border-border hover:border-primary/50 hover:bg-muted/50'
