@@ -18,35 +18,35 @@ const AdminDashboard = () => {
 
   return (
     <DashboardLayout>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="mb-2 font-display text-3xl font-bold text-foreground">
-            Admin Dashboard Overview
+        <div>
+          <h1 className="mb-1 font-display text-2xl sm:text-3xl font-bold text-foreground">
+            Admin Dashboard
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm sm:text-base text-muted-foreground">
             Manage vendors, approvals, and platform settings.
           </p>
         </div>
 
-        {/* Stats */}
-        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Stats Grid */}
+        <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
           {stats.map((stat, index) => (
             <motion.div
               key={stat.label}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="rounded-lg border border-border bg-card p-5"
+              className="rounded-lg border border-border bg-card p-4 sm:p-5"
             >
               <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  <p className="mt-1 text-2xl font-bold text-foreground">{stat.value}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{stat.change}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">{stat.label}</p>
+                  <p className="mt-1 text-lg sm:text-2xl font-bold text-foreground truncate">{stat.value}</p>
+                  <p className="mt-1 text-xs text-muted-foreground hidden sm:block">{stat.change}</p>
                 </div>
-                <div className="rounded-lg bg-primary/10 p-2">
-                  <stat.icon className="h-5 w-5 text-primary" />
+                <div className="rounded-lg bg-primary/10 p-2 shrink-0 ml-2">
+                  <stat.icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                 </div>
               </div>
             </motion.div>
@@ -54,19 +54,13 @@ const AdminDashboard = () => {
         </div>
 
         {/* Support Chat */}
-        <div className="mb-8">
-          <AdminChatPanel />
-        </div>
+        <AdminChatPanel />
 
         {/* Vendor Approval Queue */}
-        <div className="mb-8">
-          <VendorApprovalQueue />
-        </div>
+        <VendorApprovalQueue />
 
         {/* User Management */}
-        <div className="mb-8">
-          <UserManagement />
-        </div>
+        <UserManagement />
       </motion.div>
     </DashboardLayout>
   );

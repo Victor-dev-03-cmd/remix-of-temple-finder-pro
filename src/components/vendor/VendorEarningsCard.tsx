@@ -5,8 +5,9 @@ import {
   TrendingUp,
   ArrowDownToLine,
   Loader2,
-  CheckCircle,
+  DollarSign,
   Clock,
+  Wallet,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -177,6 +178,7 @@ const VendorEarningsCard = () => {
             <StatCard
               title="Total Earned"
               value={balance?.total_earnings}
+              icon={<DollarSign className="h-4 w-4 text-emerald-500" />}
               bg="bg-emerald-500/10"
               border="border-emerald-500/40"
             />
@@ -184,6 +186,7 @@ const VendorEarningsCard = () => {
             <StatCard
               title="Pending"
               value={balance?.pending_balance}
+              icon={<Clock className="h-4 w-4 text-amber-500" />}
               bg="bg-amber-500/10"
               border="border-amber-500/40"
             />
@@ -191,6 +194,7 @@ const VendorEarningsCard = () => {
             <StatCard
               title="Withdrawn"
               value={balance?.withdrawn_amount}
+              icon={<Wallet className="h-4 w-4 text-blue-500" />}
               bg="bg-blue-500/10"
               border="border-blue-500/40"
             />
