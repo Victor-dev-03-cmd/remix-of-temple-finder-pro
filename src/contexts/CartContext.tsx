@@ -1,8 +1,9 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 export interface CartItem {
-  id: string;
+  id: string; // Product ID
+  cartItemId: string; // Unique ID (ID + Variant)
   name: string;
   price: number;
   quantity: number;
@@ -14,15 +15,15 @@ export interface CartItem {
   variant_name?: string;
 }
 
-interface AddToCartParams extends Omit<CartItem, 'quantity'> {
+interface AddToCartParams extends Omit<CartItem, 'quantity' | 'cartItemId'> {
   quantity?: number;
 }
 
 interface CartContextType {
   items: CartItem[];
   addToCart: (item: AddToCartParams) => void;
-  removeFromCart: (id: string) => void;
-  updateQuantity: (id: string, quantity: number) => void;
+  removeFromCart: (cartItemId: string) => void;
+  updateQuantity: (cartItemId: string, quantity: number) => void;
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
@@ -31,97 +32,110 @@ interface CartContextType {
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
-
 const CART_STORAGE_KEY = 'temple-connect-cart';
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
-  const [items, setItems] = useState<CartItem[]>(() => {
-    const stored = localStorage.getItem(CART_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
-  });
   const [isCartOpen, setIsCartOpen] = useState(false);
+  
+  const [items, setItems] = useState<CartItem[]>(() => {
+    try {
+      const stored = localStorage.getItem(CART_STORAGE_KEY);
+      if (!stored) return [];
+      const parsed = JSON.parse(stored);
+      // Migration check: ensure every item has the required cartItemId
+      return Array.isArray(parsed) && parsed.every(item => 'cartItemId' in item) ? parsed : [];
+    } catch (error) {
+      console.error("Cart hydration failed:", error);
+      return [];
+    }
+  });
 
+  // Persist to local storage whenever items change
   useEffect(() => {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
   }, [items]);
 
-  const addToCart = ({ quantity = 1, ...item }: AddToCartParams) => {
+  const addToCart = (newItem: AddToCartParams) => {
+    const quantityToAdd = newItem.quantity ?? 1;
+    const cartItemId = newItem.variant_id ? `${newItem.id}-${newItem.variant_id}` : newItem.id;
+
     setItems((prev) => {
-      if (item.stock <= 0) {
-        toast({ title: 'Out of stock', description: `${item.name} is currently out of stock.`, variant: 'destructive' });
-        return prev;
-      }
+      const existingItem = prev.find((i) => i.cartItemId === cartItemId);
 
-      // Generate unique cart item ID based on product + variant
-      const cartItemId = item.variant_id ? `${item.id}-${item.variant_id}` : item.id;
-
-      const existing = prev.find((i) => {
-        const existingCartId = i.variant_id ? `${i.id}-${i.variant_id}` : i.id;
-        return existingCartId === cartItemId;
-      });
-
-      if (existing) {
-        const newQuantity = existing.quantity + quantity;
-        if (newQuantity > item.stock) {
-          toast({ title: 'Stock limit reached', description: `You can only add up to ${item.stock} of ${item.name}.`, variant: 'destructive' });
+      if (existingItem) {
+        const potentialQuantity = existingItem.quantity + quantityToAdd;
+        
+        if (potentialQuantity > newItem.stock) {
+          toast({
+            title: 'Stock limit reached',
+            description: `Only ${newItem.stock} units available.`,
+            variant: 'destructive',
+          });
           return prev;
         }
-        return prev.map((i) => {
-          const existingCartId = i.variant_id ? `${i.id}-${i.variant_id}` : i.id;
-          return existingCartId === cartItemId ? { ...i, quantity: newQuantity } : i;
-        });
+
+        return prev.map((i) =>
+          i.cartItemId === cartItemId ? { ...i, quantity: potentialQuantity } : i
+        );
       }
-      
-      if (quantity > item.stock) {
-        toast({ title: 'Stock limit reached', description: `You can only add up to ${item.stock} of ${item.name}.`, variant: 'destructive' });
+
+      // Check stock for completely new item
+      if (quantityToAdd > newItem.stock) {
+        toast({
+          title: 'Stock limit reached',
+          description: `Only ${newItem.stock} units available.`,
+          variant: 'destructive',
+        });
         return prev;
       }
-      return [...prev, { ...item, quantity }];
+
+      toast({ 
+        title: 'Added to cart', 
+        description: `${newItem.name} has been added.` 
+      });
+
+      return [...prev, { ...newItem, quantity: quantityToAdd, cartItemId }];
     });
+
     setIsCartOpen(true);
   };
 
-  const removeFromCart = (id: string) => {
-    setItems((prev) => prev.filter((item) => {
-      const cartItemId = item.variant_id ? `${item.id}-${item.variant_id}` : item.id;
-      return cartItemId !== id;
-    }));
+  const removeFromCart = (cartItemId: string) => {
+    setItems((prev) => prev.filter((item) => item.cartItemId !== cartItemId));
   };
 
-  const updateQuantity = (id: string, quantity: number) => {
-    const itemToUpdate = items.find(item => {
-      const cartItemId = item.variant_id ? `${item.id}-${item.variant_id}` : item.id;
-      return cartItemId === id;
+  const updateQuantity = (cartItemId: string, newQuantity: number) => {
+    setItems((prev) => {
+      const item = prev.find((i) => i.cartItemId === cartItemId);
+      if (!item) return prev;
+
+      // Logic: Remove if quantity is set to 0
+      if (newQuantity <= 0) return prev.filter((i) => i.cartItemId !== cartItemId);
+
+      // Logic: Cap at maximum stock
+      if (newQuantity > item.stock) {
+        toast({
+          title: 'Stock limit reached',
+          description: `Maximum available stock is ${item.stock}.`,
+          variant: 'destructive',
+        });
+        return prev.map((i) =>
+          i.cartItemId === cartItemId ? { ...i, quantity: item.stock } : i
+        );
+      }
+
+      return prev.map((i) =>
+        i.cartItemId === cartItemId ? { ...i, quantity: newQuantity } : i
+      );
     });
-    
-    if (itemToUpdate && quantity > itemToUpdate.stock) {
-        toast({ title: 'Stock limit reached', description: `You can only add up to ${itemToUpdate.stock} of ${itemToUpdate.name}.`, variant: 'destructive' });
-        setItems(prev => prev.map(item => {
-          const cartItemId = item.variant_id ? `${item.id}-${item.variant_id}` : item.id;
-          return cartItemId === id ? { ...item, quantity: itemToUpdate.stock } : item;
-        }));
-        return;
-    }
-    
-    if (quantity <= 0) {
-      removeFromCart(id);
-      return;
-    }
-    setItems((prev) =>
-      prev.map((item) => {
-        const cartItemId = item.variant_id ? `${item.id}-${item.variant_id}` : item.id;
-        return cartItemId === id ? { ...item, quantity } : item;
-      })
-    );
   };
 
-  const clearCart = () => {
-    setItems([]);
-  };
+  const clearCart = () => setItems([]);
 
-  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  // Memoize calculations for performance
+  const totalItems = useMemo(() => items.reduce((sum, item) => sum + item.quantity, 0), [items]);
+  const totalPrice = useMemo(() => items.reduce((sum, item) => sum + item.price * item.quantity, 0), [items]);
 
   return (
     <CartContext.Provider
@@ -144,8 +158,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
 export const useCart = () => {
   const context = useContext(CartContext);
-  if (!context) {
-    throw new Error('useCart must be used within a CartProvider');
-  }
+  if (!context) throw new Error('useCart must be used within a CartProvider');
   return context;
 };

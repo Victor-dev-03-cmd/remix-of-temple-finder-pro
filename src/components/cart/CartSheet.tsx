@@ -53,7 +53,7 @@ const CartSheet = () => {
             <ScrollArea className="flex-1 -mx-6 px-6">
               <div className="space-y-4 py-4">
                 {items.map((item) => (
-                  <div key={item.id} className="flex gap-4">
+                  <div key={item.cartItemId} className="flex gap-4">
                     <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-muted">
                       {item.image_url ? (
                         <img
@@ -70,7 +70,10 @@ const CartSheet = () => {
                     <div className="flex flex-1 flex-col justify-between">
                       <div>
                         <h4 className="font-medium leading-tight">{item.name}</h4>
-                        <p className="text-sm text-primary">
+                        {item.variant_name && (
+                          <p className="text-sm text-muted-foreground">{item.variant_name}</p>
+                        )}
+                        <p className="text-sm text-primary pt-1">
                           LKR {item.price.toLocaleString()}
                         </p>
                       </div>
@@ -80,7 +83,7 @@ const CartSheet = () => {
                             variant="outline"
                             size="icon"
                             className="h-8 w-8"
-                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            onClick={() => updateQuantity(item.cartItemId, item.quantity - 1)}
                           >
                             <Minus className="h-3 w-3" />
                           </Button>
@@ -91,7 +94,7 @@ const CartSheet = () => {
                             variant="outline"
                             size="icon"
                             className="h-8 w-8"
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            onClick={() => updateQuantity(item.cartItemId, item.quantity + 1)}
                             disabled={item.quantity >= item.stock}
                           >
                             <Plus className="h-3 w-3" />
@@ -101,7 +104,7 @@ const CartSheet = () => {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => removeFromCart(item.id)}
+                          onClick={() => removeFromCart(item.cartItemId)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

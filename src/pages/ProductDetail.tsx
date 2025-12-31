@@ -47,7 +47,6 @@ const ProductDetail = () => {
   const variantSectionRef = useRef<HTMLDivElement>(null);
 
   const [quantity, setQuantity] = useState(1);
-  const [isAdded, setIsAdded] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewForm, setReviewForm] = useState({
@@ -63,12 +62,11 @@ const ProductDetail = () => {
     }
   }, [variants, selectedVariant]);
 
-  useEffect(() => {
-    if (product) {
-      const isInCart = items.some((item) => item.id === product.id);
-      setIsAdded(isInCart);
-    }
-  }, [items, product]);
+  const isAdded = () => {
+    if (!product) return false;
+    const cartItemId = selectedVariant ? `${product.id}-${selectedVariant.id}` : product.id;
+    return items.some(item => item.cartItemId === cartItemId);
+  };
 
   const scrollToVariants = () => {
     variantSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -103,20 +101,16 @@ const ProductDetail = () => {
     }
     
     addToCart({
-      id: selectedVariant ? `${product.id}-${selectedVariant.id}` : product.id,
-      name: selectedVariant ? `${product.name} - ${selectedVariant.name}` : product.name,
+      id: product.id,
+      name: product.name,
       price: getCurrentPrice(),
       image_url: product.image_url || undefined,
       vendor_id: product.vendor_id,
       stock: currentStock,
       quantity: quantity,
+      category: product.category,
       variant_id: selectedVariant?.id,
       variant_name: selectedVariant?.name,
-    });
-    setIsAdded(true);
-    toast({
-      title: 'Added to Cart',
-      description: `${product.name}${selectedVariant ? ` - ${selectedVariant.name}` : ''} added to your cart.`,
     });
   };
 
@@ -410,7 +404,7 @@ const ProductDetail = () => {
                     <Tag className="h-5 w-5" />
                     Select a Variant
                   </Button>
-                ) : isAdded ? (
+                ) : isAdded() ? (
                   <Link to="/cart" className="flex-1">
                     <Button size="lg" className="w-full gap-2">
                       <Check className="h-5 w-5" />
