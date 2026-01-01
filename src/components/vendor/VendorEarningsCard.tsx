@@ -149,92 +149,104 @@ const VendorEarningsCard = () => {
       <motion.div
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative rounded-xl border bg-card overflow-hidden"
+        className="relative rounded-2xl border-2 border-primary/20 bg-gradient-to-br from-card via-card to-primary/5 overflow-hidden shadow-lg"
       >
-        <div className="p-3 space-y-9">
+        {/* ATM Card Header Design */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+        
+        <div className="relative p-4 sm:p-6 space-y-5">
           {/* Header */}
-          <div className="flex items-center gap-2">
-            <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-              <CreditCard className="h-6 w-6 text-primary" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-base sm:text-lg">Vendor Earnings</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Balance & withdrawals
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold text-lg">Vendor Earnings</h3>
-              <p className="text-sm text-muted-foreground">
-                Balance & withdrawals overview
-              </p>
+            <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
+              <TrendingUp className="h-3 w-3" />
+              <span>Active</span>
             </div>
           </div>
 
-          {/* Available Balance */}
-          <div>
-            <p className="text-sm text-muted-foreground">Available Balance</p>
-            <p className="text-4xl font-bold mt-1">
-              ${balance?.available_balance.toFixed(2)}
+          {/* Available Balance - Hero Section */}
+          <div className="bg-gradient-to-r from-primary/10 to-transparent rounded-xl p-4 sm:p-5">
+            <p className="text-xs sm:text-sm text-muted-foreground mb-1">Available Balance</p>
+            <p className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground">
+              ${balance?.available_balance?.toFixed(2) || '0.00'}
             </p>
           </div>
 
-          {/* COLORFUL STATS */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {/* Stats Grid - Responsive */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <StatCard
               title="Total Earned"
               value={balance?.total_earnings}
               icon={<DollarSign className="h-4 w-4 text-emerald-500" />}
               bg="bg-emerald-500/10"
-              border="border-emerald-500/40"
+              border="border-emerald-500/30"
             />
-
             <StatCard
               title="Pending"
               value={balance?.pending_balance}
               icon={<Clock className="h-4 w-4 text-amber-500" />}
               bg="bg-amber-500/10"
-              border="border-amber-500/40"
+              border="border-amber-500/30"
             />
-
             <StatCard
               title="Withdrawn"
               value={balance?.withdrawn_amount}
               icon={<Wallet className="h-4 w-4 text-blue-500" />}
               bg="bg-blue-500/10"
-              border="border-blue-500/40"
+              border="border-blue-500/30"
             />
           </div>
 
-          {/* Progress */}
-          <div>
-            <div className="flex justify-between text-sm mb-2">
+          {/* Progress to minimum withdrawal */}
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs sm:text-sm">
               <span className="text-muted-foreground">
                 Progress to ${MIN_WITHDRAWAL} minimum
               </span>
-              <span className="font-medium">{progress.toFixed(0)}%</span>
+              <span className="font-medium text-primary">{progress.toFixed(0)}%</span>
             </div>
-            <Progress value={progress} className="h-2" />
+            <Progress value={progress} className="h-2 sm:h-3" />
           </div>
 
           {/* Withdraw Button */}
           <Button
-            className="w-full"
+            className="w-full h-11 sm:h-12 text-sm sm:text-base font-medium"
             disabled={!canWithdraw}
             onClick={() => setShowWithdrawDialog(true)}
           >
             <ArrowDownToLine className="mr-2 h-4 w-4" />
-            {canWithdraw ? 'Request Withdrawal' : `Min $${MIN_WITHDRAWAL} Required`}
+            {canWithdraw ? 'Request Withdrawal' : `Earn $${MIN_WITHDRAWAL} to Withdraw`}
           </Button>
         </div>
 
         {/* Recent Withdrawals */}
         {withdrawals.length > 0 && (
-          <div className="border-t px-6 py-4">
-            <p className="text-sm font-medium mb-3">Recent Withdrawals</p>
-            <div className="space-y-2 text-sm">
+          <div className="border-t border-border/50 px-4 sm:px-6 py-4 bg-muted/30">
+            <p className="text-xs sm:text-sm font-medium mb-3">Recent Withdrawals</p>
+            <div className="space-y-2">
               {withdrawals.map((w) => (
-                <div key={w.id} className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    {new Date(w.created_at).toLocaleDateString()}
-                  </span>
-                  <span className="font-semibold">
-                    ${w.amount.toFixed(2)}
-                  </span>
+                <div key={w.id} className="flex justify-between items-center text-xs sm:text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className={`h-2 w-2 rounded-full ${
+                      w.status === 'approved' ? 'bg-emerald-500' : 
+                      w.status === 'rejected' ? 'bg-destructive' : 'bg-amber-500'
+                    }`} />
+                    <span className="text-muted-foreground">
+                      {new Date(w.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <span className="font-semibold">${w.amount.toFixed(2)}</span>
                 </div>
               ))}
             </div>
@@ -302,14 +314,14 @@ const StatCard = ({
   bg: string;
   border: string;
 }) => (
-  <div className={`rounded-xl border ${border} ${bg} p-4`}>
-    <div className="flex items-center gap-3 mb-2">
+  <div className={`rounded-xl border ${border} ${bg} p-3 sm:p-4`}>
+    <div className="flex items-center gap-2 mb-1.5">
       {icon}
-      <span className="text-sm font-medium text-muted-foreground">
+      <span className="text-xs sm:text-sm font-medium text-muted-foreground">
         {title}
       </span>
     </div>
-    <p className="text-2xl font-bold">
+    <p className="text-lg sm:text-xl lg:text-2xl font-bold">
       ${value?.toFixed(2) || '0.00'}
     </p>
   </div>

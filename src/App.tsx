@@ -39,7 +39,9 @@ import UserManagementPage from "./pages/admin/UserManagementPage";
 import SiteSettingsPage from "./pages/admin/SiteSettingsPage";
 import TempleManagementPage from "./pages/admin/TempleManagementPage";
 import BookingManagementPage from "./pages/admin/BookingManagementPage";
+import VendorBalancesPage from "./pages/admin/VendorBalancesPage";
 import BookingLookup from "./pages/BookingLookup";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -222,6 +224,22 @@ const AppRoutes = () => {
           element={
             <ProtectedRoute allowedRoles={['admin']}>
               <BookingManagementPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/vendor-balances"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <VendorBalancesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'vendor', 'customer']}>
+              <Settings />
             </ProtectedRoute>
           }
         />
