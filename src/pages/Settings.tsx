@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, Phone, Globe, Camera, Loader2, Save } from 'lucide-react';
+import { User, Mail, Phone, Globe, Camera, Loader2, Save, Trash2, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,6 +10,17 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle, 
+  AlertDialogTrigger 
+} from "@/components/ui/alert-dialog";
 import { toast } from '@/hooks/use-toast';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 
@@ -41,10 +52,11 @@ const languages = [
 ];
 
 const Settings = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [profile, setProfile] = useState<Profile>({
     full_name: '',
     email: '',
@@ -64,7 +76,6 @@ const Settings = () => {
 
   const fetchProfile = async () => {
     if (!user) return;
-    
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -84,10 +95,7 @@ const Settings = () => {
           avatar_url: data.avatar_url,
         });
       } else {
-        setProfile(prev => ({
-          ...prev,
-          email: user.email || '',
-        }));
+        setProfile(prev => ({ ...prev, email: user.email || '' }));
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -96,9 +104,46 @@ const Settings = () => {
     }
   };
 
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      if (!event.target.files || event.target.files.length === 0) return;
+      
+      setSaving(true);
+      const file = event.target.files[0];
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user?.id}-${Date.now()}.${fileExt}`; // Date.now() cache பிரச்சனையை தவிர்க்கும்
+
+      const { data, error: uploadError } = await supabase.storage
+        .from('profile_photos')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('profile_photos')
+        .getPublicUrl(fileName);
+
+      // UI-ல் உடனே தெரியும்
+      setProfile(prev => ({ ...prev, avatar_url: publicUrl }));
+      
+      toast({
+        title: "Photo Uploaded",
+        description: "Click 'Save Changes' to update your database record.",
+      });
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Could not upload image",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!user) return;
-    
     setSaving(true);
     try {
       const { error } = await supabase
@@ -112,25 +157,33 @@ const Settings = () => {
           preferred_language: profile.preferred_language,
           avatar_url: profile.avatar_url,
           updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id',
-        });
+        }, { onConflict: 'user_id' });
 
       if (error) throw error;
-
-      toast({
-        title: 'Profile Updated',
-        description: 'Your profile has been saved successfully.',
-      });
-    } catch (error) {
-      console.error('Error saving profile:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to save profile. Please try again.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Success', description: 'Settings saved successfully.' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Failed to save', variant: 'destructive' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('user_id', user?.id);
+
+      if (profileError) throw profileError;
+      await signOut();
+      toast({ title: 'Account Deleted' });
+      navigate('/auth');
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -146,159 +199,129 @@ const Settings = () => {
 
   return (
     <DashboardLayout>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-2xl mx-auto space-y-6"
-      >
-        {/* Header */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto space-y-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Profile Settings</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Manage your account information and preferences
-          </p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Settings</h1>
+          <p className="text-sm text-muted-foreground">Manage your profile and account settings</p>
         </div>
 
-        {/* Avatar Card */}
+        {/* Avatar Section */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Profile Picture</CardTitle>
-            <CardDescription>Your profile photo visible to others</CardDescription>
+            <CardTitle>Profile Picture</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col sm:flex-row items-center gap-4">
-            <Avatar className="h-20 w-20 sm:h-24 sm:w-24">
-              <AvatarImage src={profile.avatar_url || ''} />
+          <CardContent className="flex flex-col sm:flex-row items-center gap-6">
+            <Avatar className="h-24 w-24 border-2 border-primary/20 shadow-md">
+              <AvatarImage src={profile.avatar_url || ''} className="object-cover" />
               <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
-                {profile.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
+                {profile.full_name?.[0]?.toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
-            <div className="text-center sm:text-left">
-              <p className="text-sm text-muted-foreground mb-2">
-                Upload a new profile picture
-              </p>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Camera className="h-4 w-4" />
-                Change Photo
+            <div className="space-y-3">
+              <input 
+                type="file" 
+                id="photo-upload" 
+                className="hidden" 
+                accept="image/*" 
+                onChange={handlePhotoUpload} 
+                disabled={saving}
+              />
+              <Button variant="outline" size="sm" className="gap-2" asChild>
+                <label htmlFor="photo-upload" className="cursor-pointer">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                  Change Avatar
+                </label>
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Personal Info Card */}
+        {/* General Info */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Personal Information
+              <User className="h-5 w-5 text-primary" /> Personal Details
             </CardTitle>
-            <CardDescription>Update your personal details</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
-                <Input
-                  id="fullName"
-                  placeholder="Enter your full name"
-                  value={profile.full_name || ''}
-                  onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
-                />
+                <Label>Full Name</Label>
+                <Input value={profile.full_name || ''} onChange={(e) => setProfile({ ...profile, full_name: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    className="pl-10"
-                    placeholder="your@email.com"
-                    value={profile.email || ''}
-                    onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                  />
-                </div>
+                <Label>Email</Label>
+                <Input value={profile.email || ''} className="bg-muted cursor-not-allowed" readOnly />
               </div>
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="phone"
-                  type="tel"
-                  className="pl-10"
-                  placeholder="+94 77 123 4567"
-                  value={profile.phone || ''}
-                  onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                />
-              </div>
+              <Label>Phone</Label>
+              <Input value={profile.phone || ''} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} />
             </div>
           </CardContent>
         </Card>
 
-        {/* Preferences Card */}
+        {/* Preferences */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <Globe className="h-5 w-5" />
-              Preferences
+              <Globe className="h-5 w-5 text-primary" /> Preferences
             </CardTitle>
-            <CardDescription>Set your regional and language preferences</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Country</Label>
-                <Select
-                  value={profile.country || 'LK'}
-                  onValueChange={(value) => setProfile({ ...profile, country: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select country" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {countries.map((country) => (
-                      <SelectItem key={country.code} value={country.code}>
-                        {country.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Language</Label>
-                <Select
-                  value={profile.preferred_language || 'en'}
-                  onValueChange={(value) => setProfile({ ...profile, preferred_language: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select language" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {languages.map((lang) => (
-                      <SelectItem key={lang.code} value={lang.code}>
-                        {lang.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Country</Label>
+              <Select value={profile.country || 'LK'} onValueChange={(v) => setProfile({ ...profile, country: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{countries.map(c => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Language</Label>
+              <Select value={profile.preferred_language || 'en'} onValueChange={(v) => setProfile({ ...profile, preferred_language: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{languages.map(l => <SelectItem key={l.code} value={l.code}>{l.name}</SelectItem>)}</SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>
 
-        {/* Save Button */}
         <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={saving} className="gap-2 w-full sm:w-auto">
-            {saving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
+          <Button onClick={handleSave} disabled={saving} className="px-10 h-11">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
             Save Changes
           </Button>
         </div>
+
+        {/* Danger Zone */}
+        <Card className="border-destructive/30 bg-destructive/5 mt-10">
+          <CardHeader>
+            <CardTitle className="text-lg text-destructive flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" /> Danger Zone
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="gap-2">
+                  <Trash2 className="h-4 w-4" /> Delete Account
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                  <AlertDialogDescription>This will delete your account and all data forever.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteAccount} className="bg-destructive hover:bg-destructive/90">
+                    {deleting ? "Deleting..." : "Delete Permanently"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </CardContent>
+        </Card>
       </motion.div>
     </DashboardLayout>
   );
