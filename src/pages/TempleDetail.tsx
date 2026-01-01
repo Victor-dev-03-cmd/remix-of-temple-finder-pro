@@ -2,7 +2,8 @@ import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   MapPin, Phone, Star, ArrowLeft, Package, Clock, Loader2, 
-  ExternalLink, ChevronUp, ChevronDown, MessageSquare, Eye, EyeOff, Trash2 
+  ExternalLink, ChevronUp, ChevronDown, MessageSquare, Eye, EyeOff, Trash2,
+  Image as ImageIcon // இங்குதான் பிழை இருந்தது, இப்போது சரி செய்யப்பட்டுள்ளது
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
@@ -137,8 +138,13 @@ const TempleDetail = () => {
     setFormKey(prev => prev + 1);
   };
 
-  const handleMapRedirect = () => { window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${temple.name} ${temple.district}`)}`, '_blank'); };
-  const galleryImages = temple.gallery_images || [temple.image];
+  const handleMapRedirect = () => { 
+    window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${temple.name} ${temple.district}`)}`, '_blank'); 
+  };
+
+  const galleryImages = (temple.gallery_images && temple.gallery_images.length > 0) 
+    ? temple.gallery_images 
+    : [temple.image];
 
   return (
     <div className="min-h-screen bg-background">
@@ -169,13 +175,10 @@ const TempleDetail = () => {
       {/* Content Section */}
       <section className="py-12">
         <div className="container">
-          {/* Desktop uses standard layout, Mobile uses Flex Column with Order */}
           <div className="flex flex-col lg:grid lg:grid-cols-3 gap-10">
             
-            {/* LEFT COLUMN: About, Gallery (Desktop), Reviews (Desktop) */}
             <div className="lg:col-span-2 flex flex-col gap-12">
               
-              {/* 1. About the Temple (Mobile Order: 1) */}
               <div className="space-y-4 order-1">
                 <h2 className="font-display text-2xl font-semibold flex items-center gap-2">
                   <div className="h-8 w-1 bg-primary rounded-full" /> About the Temple
@@ -195,28 +198,55 @@ const TempleDetail = () => {
                 </div>
               </div>
 
-              {/* GALLERY (Mobile Order: 5 | Desktop: Follows About) */}
+              {/* GALLERY SECTION */}
               <div className="space-y-4 order-5 lg:order-2">
-                <h3 className="font-display text-2xl font-semibold">Temple Gallery</h3>
+                <h3 className="font-display text-2xl font-semibold flex items-center gap-2">
+                  <ImageIcon className="text-primary" size={24} /> Temple Gallery
+                </h3>
                 <div className="h-[350px] sm:h-[450px] flex gap-4">
-                  <div className="flex-1 relative rounded-2xl overflow-hidden border-2 border-muted shadow-xl">
-                    <img src={galleryImages[currentImageIndex]} className="h-full w-full object-cover transition-all" />
+                  <div className="flex-1 relative rounded-2xl overflow-hidden border-2 border-muted shadow-xl bg-muted">
+                    <AnimatePresence mode="wait">
+                      <motion.img 
+                        key={currentImageIndex}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        src={galleryImages[currentImageIndex]} 
+                        className="h-full w-full object-cover" 
+                        alt={`${temple.name} Gallery`}
+                      />
+                    </AnimatePresence>
+                    
                     {galleryImages.length > 1 && (
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-2">
-                        <Button variant="secondary" size="icon" className="rounded-full shadow-xl" onClick={() => setCurrentImageIndex(prev => (prev - 1 + galleryImages.length) % galleryImages.length)}><ChevronUp size={20}/></Button>
-                        <Button variant="secondary" size="icon" className="rounded-full shadow-xl" onClick={() => setCurrentImageIndex(prev => (prev + 1) % galleryImages.length)}><ChevronDown size={20}/></Button>
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-10">
+                        <Button variant="secondary" size="icon" className="rounded-full shadow-xl bg-white/80 hover:bg-white" onClick={() => setCurrentImageIndex(prev => (prev - 1 + galleryImages.length) % galleryImages.length)}><ChevronUp size={20}/></Button>
+                        <Button variant="secondary" size="icon" className="rounded-full shadow-xl bg-white/80 hover:bg-white" onClick={() => setCurrentImageIndex(prev => (prev + 1) % galleryImages.length)}><ChevronDown size={20}/></Button>
                       </div>
                     )}
+
+                    <div className="absolute bottom-4 left-4">
+                      <Badge className="bg-black/50 backdrop-blur-sm border-none text-white">
+                        {currentImageIndex + 1} / {galleryImages.length}
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="hidden sm:flex flex-col gap-3 overflow-y-auto no-scrollbar w-24">
+
+                  <div className="hidden sm:flex flex-col gap-3 overflow-y-auto no-scrollbar w-24 scroll-smooth">
                     {galleryImages.map((img, i) => (
-                      <img key={i} src={img} onClick={() => setCurrentImageIndex(i)} className={`h-24 rounded-xl cursor-pointer object-cover border-2 transition-all ${i === currentImageIndex ? 'border-primary' : 'border-transparent opacity-50'}`} />
+                      <motion.img 
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        key={i} 
+                        src={img} 
+                        onClick={() => setCurrentImageIndex(i)} 
+                        className={`h-24 rounded-xl cursor-pointer object-cover border-2 transition-all ${i === currentImageIndex ? 'border-primary shadow-lg ring-2 ring-primary/20' : 'border-transparent opacity-60 hover:opacity-100'}`} 
+                        alt="Thumbnail"
+                      />
                     ))}
                   </div>
                 </div>
               </div>
 
-              {/* REVIEWS (Mobile Order: 4 | Desktop: Follows Gallery) */}
               <div className="pt-8 border-t space-y-6 order-4 lg:order-3">
                 <div className="flex items-center justify-between">
                   <h3 className="font-display text-2xl font-semibold flex items-center gap-2">
@@ -234,10 +264,7 @@ const TempleDetail = () => {
               </div>
             </div>
 
-            {/* SIDEBAR: Location, Contact, Review Form */}
             <div className="flex flex-col gap-6">
-              
-              {/* 2. Map and Contact (Mobile Order: 2) */}
               <div className="flex flex-col gap-6 order-2 lg:order-none">
                 <div className="rounded-2xl border p-6 bg-card shadow-sm space-y-4">
                   <h3 className="font-semibold text-lg">Location</h3>
@@ -248,7 +275,7 @@ const TempleDetail = () => {
                         <div className="bg-primary p-3 rounded-full shadow-2xl"><MapPin className="h-6 w-6 text-white" /></div>
                     </div>
                   </div>
-                  <p className="text-sm text-muted-foreground flex gap-2 font-medium">
+                  <p className="text-sm text-muted-foreground flex gap-2 font-medium leading-relaxed">
                     <MapPin size={18} className="shrink-0 text-primary mt-0.5"/>
                     {temple.address || `${temple.district}, ${temple.province}`}
                   </p>
@@ -265,7 +292,6 @@ const TempleDetail = () => {
                 </div>
               </div>
 
-              {/* 3. Review Form (Mobile Order: 3) */}
               <div className="order-3 lg:order-none">
                 <div className="rounded-2xl border bg-primary/5 p-6 border-primary/20 shadow-xl backdrop-blur-sm relative overflow-hidden">
                   <div className="absolute -right-8 -top-8 text-primary/5 rotate-12"><MessageSquare size={100} /></div>
@@ -281,11 +307,10 @@ const TempleDetail = () => {
         </div>
       </section>
 
-      {/* 6. Products (Mobile Order: Bottom) */}
       <section className="py-20 border-t bg-muted/20">
         <div className="container">
           <div className="mb-10 flex flex-col items-center text-center space-y-4">
-             <Badge className="px-4 py-1 text-sm rounded-full">Divine Offerings</Badge>
+             <Badge className="px-4 py-1 text-sm rounded-full bg-primary/10 text-primary border-primary/20 shadow-none">Divine Offerings</Badge>
              <h2 className="font-display text-3xl font-semibold sm:text-4xl">Available Temple Products</h2>
           </div>
           {productsLoading ? (
