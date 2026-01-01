@@ -29,7 +29,6 @@ const VendorTemple = () => {
     setIsUploading(true);
     const toastId = toast.loading("Uploading images...");
     
-    // gallery_images காலத்தை பயன்படுத்துகிறோம்
     const currentImages = temple.gallery_images || [];
     const newUrls: string[] = [...currentImages];
 
@@ -52,6 +51,7 @@ const VendorTemple = () => {
         newUrls.push(publicUrl);
       }
 
+      // Database-ஐ அப்டேட் செய்தல்
       const { error: updateError } = await supabase
         .from('temples')
         .update({ gallery_images: newUrls })
@@ -59,14 +59,16 @@ const VendorTemple = () => {
 
       if (updateError) throw updateError;
 
+      // தரவை மீண்டும் fetch செய்ய refetch() பயன்படுத்துகிறோம்
+      await refetch(); 
+      
       toast.success("Gallery updated successfully", { id: toastId });
-      refetch(); 
     } catch (error: any) {
       console.error("Upload error:", error);
       toast.error(`Upload failed: ${error.message}`, { id: toastId });
     } finally {
       setIsUploading(false);
-      e.target.value = '';
+      if (e.target) e.target.value = '';
     }
   };
 
@@ -85,8 +87,10 @@ const VendorTemple = () => {
       
       if (error) throw error;
       
+      // நீக்கிய பிறகு தரவை மீண்டும் fetch செய்ய refetch()
+      await refetch();
+      
       toast.success("Image removed", { id: toastId });
-      refetch();
     } catch (error: any) {
       toast.error(`Failed to remove: ${error.message}`, { id: toastId });
     }
@@ -138,7 +142,7 @@ const VendorTemple = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Responsive Header: Mobile-ல் ஒன்றன் கீழ் ஒன்றாக வரும் */}
+        {/* Responsive Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">My Temple</h1>
@@ -199,7 +203,7 @@ const VendorTemple = () => {
           </Card>
         </motion.div>
 
-        {/* --- GALLERY MANAGEMENT SECTION --- */}
+        {/* GALLERY MANAGEMENT SECTION */}
         <Card>
           <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="space-y-1">
@@ -248,12 +252,12 @@ const VendorTemple = () => {
           </CardContent>
         </Card>
 
-        {/* Ticket Management - Mobile friendly by default */}
+        {/* Ticket Management */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <TicketManagement templeId={temple.id} />
         </motion.div>
 
-        {/* Bottom Quick Stats */}
+        {/* Quick Stats */}
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
           <Card>
             <CardContent className="pt-6">
