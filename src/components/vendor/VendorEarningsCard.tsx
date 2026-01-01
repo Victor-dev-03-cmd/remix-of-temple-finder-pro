@@ -8,6 +8,7 @@ import {
   DollarSign,
   Clock,
   Wallet,
+  Percent,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -48,12 +49,99 @@ const VendorEarningsCard = () => {
   const [showWithdrawDialog, setShowWithdrawDialog] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [commissionRate, setCommissionRate] = useState<number>(10);
 
   const MIN_WITHDRAWAL = balance?.min_withdrawal_amount || 100;
 
   useEffect(() => {
-    if (user) fetchBalanceData();
+    if (user) {
+      fetchBalanceData();
+      fetchCommissionRate();
+    }
   }, [user]);
+
+  // Real-time subscription for balance updates
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('vendor-balance-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'vendor_balances',
+          filter: `vendor_id=eq.${user.id}`,
+        },
+        (payload) => {
+          if (payload.new) {
+            setBalance(payload.new as VendorBalance);
+            toast({
+              title: 'Balance Updated',
+              description: 'Your earnings have been updated.',
+            });
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'withdrawal_requests',
+          filter: `vendor_id=eq.${user.id}`,
+        },
+        () => {
+          fetchBalanceData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'withdrawal_requests',
+          filter: `vendor_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const updated = payload.new as WithdrawalRequest;
+          setWithdrawals(prev => 
+            prev.map(w => w.id === updated.id ? updated : w)
+          );
+          if (updated.status === 'approved') {
+            toast({
+              title: 'Withdrawal Approved!',
+              description: `Your withdrawal of $${updated.amount.toFixed(2)} has been approved.`,
+            });
+          } else if (updated.status === 'rejected') {
+            toast({
+              title: 'Withdrawal Rejected',
+              description: 'Your withdrawal request was not approved.',
+              variant: 'destructive',
+            });
+          }
+          fetchBalanceData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  const fetchCommissionRate = async () => {
+    const { data } = await supabase
+      .from('site_settings')
+      .select('commission_rate')
+      .limit(1)
+      .maybeSingle();
+    
+    if (data?.commission_rate) {
+      setCommissionRate(data.commission_rate);
+    }
+  };
 
   const fetchBalanceData = async () => {
     if (!user) return;
@@ -169,9 +257,15 @@ const VendorEarningsCard = () => {
                 </p>
               </div>
             </div>
-            <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
-              <TrendingUp className="h-3 w-3" />
-              <span>Active</span>
+            <div className="flex items-center gap-2">
+              <div className="hidden sm:flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                <Percent className="h-3 w-3" />
+                <span>{100 - commissionRate}% earnings</span>
+              </div>
+              <div className="hidden md:flex items-center gap-1 text-xs text-muted-foreground">
+                <TrendingUp className="h-3 w-3" />
+                <span>Live</span>
+              </div>
             </div>
           </div>
 
