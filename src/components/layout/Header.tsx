@@ -3,41 +3,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
-  Search, 
-  Bell, 
-  Menu, 
-  X, 
-  ShoppingCart, 
-  User, 
-  Sun, 
-  Moon, 
-  LogOut, 
-  LayoutDashboard,
-  MapPin,
-  Package,
-  CheckCircle2,
-  Info,
-  AlertCircle,
-  Shield,
-  Store,
-  UserCircle,
-  ChevronDown,
-  Languages
+  Search, Bell, Menu, X, ShoppingCart, User, Sun, Moon, LogOut, LayoutDashboard,
+  CheckCircle2, Info, AlertCircle, Shield, Store, UserCircle, ChevronDown, Languages, Globe, Settings as SettingsIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -48,49 +19,15 @@ import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 
-interface SearchResult {
-  id: string;
-  name: string;
-  type: 'temple' | 'product';
-  description?: string;
-  image_url?: string;
-}
+// --- Interface Definitions from your code ---
+interface SearchResult { id: string; name: string; type: 'temple' | 'product'; description?: string; image_url?: string; }
+interface Notification { id: string; type: string; title: string; message: string; read: boolean; link?: string; created_at: string; }
 
-interface Notification {
-  id: string;
-  type: string;
-  title: string;
-  message: string;
-  read: boolean;
-  link?: string;
-  created_at: string;
-}
-
-const countryFlags: Record<string, string> = {
-  'LK': '🇱🇰', 'MY': '🇲🇾', 'IN': '🇮🇳', 'TH': '🇹🇭', 'SG': '🇸🇬',
-  'ID': '🇮🇩', 'PH': '🇵🇭', 'VN': '🇻🇳', 'MM': '🇲🇲', 'NP': '🇳🇵',
-  'BD': '🇧🇩', 'PK': '🇵🇰', 'JP': '🇯🇵', 'KR': '🇰🇷', 'CN': '🇨🇳',
-  'AU': '🇦🇺', 'NZ': '🇳🇿', 'GB': '🇬🇧', 'US': '🇺🇸', 'CA': '🇨🇦',
-};
-
-// Language options with country associations
 const languages = [
   { code: 'en', name: 'English', flag: '🇬🇧', countries: ['GB', 'US', 'CA', 'AU', 'NZ', 'SG'] },
   { code: 'si', name: 'සිංහල', flag: '🇱🇰', countries: ['LK'] },
   { code: 'ta', name: 'தமிழ்', flag: '🇮🇳', countries: ['LK', 'IN', 'MY', 'SG'] },
   { code: 'hi', name: 'हिन्दी', flag: '🇮🇳', countries: ['IN', 'NP'] },
-  { code: 'ms', name: 'Bahasa Melayu', flag: '🇲🇾', countries: ['MY', 'SG', 'ID'] },
-  { code: 'th', name: 'ไทย', flag: '🇹🇭', countries: ['TH'] },
-  { code: 'id', name: 'Bahasa Indonesia', flag: '🇮🇩', countries: ['ID'] },
-  { code: 'vi', name: 'Tiếng Việt', flag: '🇻🇳', countries: ['VN'] },
-  { code: 'my', name: 'မြန်မာ', flag: '🇲🇲', countries: ['MM'] },
-  { code: 'ne', name: 'नेपाली', flag: '🇳🇵', countries: ['NP'] },
-  { code: 'bn', name: 'বাংলা', flag: '🇧🇩', countries: ['BD', 'IN'] },
-  { code: 'ur', name: 'اردو', flag: '🇵🇰', countries: ['PK'] },
-  { code: 'tl', name: 'Filipino', flag: '🇵🇭', countries: ['PH'] },
-  { code: 'ja', name: '日本語', flag: '🇯🇵', countries: ['JP'] },
-  { code: 'ko', name: '한국어', flag: '🇰🇷', countries: ['KR'] },
-  { code: 'zh', name: '中文', flag: '🇨🇳', countries: ['CN', 'SG', 'MY'] },
 ];
 
 const Header = () => {
@@ -100,13 +37,9 @@ const Header = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [userCountry, setUserCountry] = useState<string | null>(null);
-  const [selectedLanguage, setSelectedLanguage] = useState(() => {
-    return localStorage.getItem('preferredLanguage') || 'en';
-  });
+  const [selectedLanguage, setSelectedLanguage] = useState(() => localStorage.getItem('preferredLanguage') || 'en');
   
   const { data: siteSettings } = useSiteSettings();
   const location = useLocation();
@@ -114,832 +47,253 @@ const Header = () => {
   const { user, signOut, isAdmin, isVendor, activeViewRole, userRoles, switchRole, hasMultipleRoles } = useAuth();
   const { totalItems, setIsCartOpen } = useCart();
 
-  // Get default country from site settings
-  const defaultCountry = siteSettings?.defaultCountry || 'LK';
-
-  // Check if current view is admin (to hide quick actions and language selector)
-  const isAdminView = activeViewRole === 'admin';
-
-  // --- LOGIC UPDATED ONLY HERE ---
   const navLinks = [
     { href: '/', label: t('nav.home') },
     { href: '/temples', label: t('nav.temples') },
     { href: '/products', label: t('nav.products') },
-    // Show "My Booking" for ALL authenticated users
     ...(user ? [{ href: '/booking', label: t('nav.myBooking') }] : []),
-    // "Become a Vendor" remains hidden for admins and vendors
-    ...(!isAdmin && !isVendor ? [{ href: '/become-vendor', label: t('nav.becomeVendor') }] : []),
   ];
-  // -------------------------------
 
-  // Get relevant languages based on user country or default country
-  const getRelevantLanguages = () => {
-    const countryToUse = userCountry || defaultCountry;
-    const relevantLangs = languages.filter(lang => 
-      lang.countries.includes(countryToUse) || lang.code === 'en'
-    );
-    // Ensure English is always first
-    return relevantLangs.sort((a, b) => {
-      if (a.code === 'en') return -1;
-      if (b.code === 'en') return 1;
-      return 0;
-    });
-  };
+  const currentLanguage = languages.find(l => l.code === selectedLanguage) || languages[0];
+
+  // --- DATABASE LOGIC: Notifications & Search (Taken from your original code) ---
+  useEffect(() => {
+    if (!user) return;
+    const fetchNotifications = async () => {
+      const { data } = await supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10);
+      if (data) { setNotifications(data); setUnreadCount(data.filter(n => !n.read).length); }
+    };
+    fetchNotifications();
+
+    const channel = supabase.channel('notif-realtime').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, (payload) => {
+      const newNotif = payload.new as Notification;
+      setNotifications(prev => [newNotif, ...prev]);
+      setUnreadCount(prev => prev + 1);
+      toast({ title: newNotif.title, description: newNotif.message });
+    }).subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
+  useEffect(() => {
+    const delayDebounce = setTimeout(async () => {
+      if (searchQuery.trim().length < 2) return setSearchResults([]);
+      const { data: temples } = await supabase.from('temples').select('id, name, description, image_url').ilike('name', `%${searchQuery}%`).eq('is_active', true).limit(3);
+      const { data: products } = await supabase.from('products').select('id, name, description, image_url').ilike('name', `%${searchQuery}%`).eq('status', 'approved').limit(3);
+      setSearchResults([...(temples || []).map(t => ({...t, type: 'temple' as const})), ...(products || []).map(p => ({...p, type: 'product' as const}))]);
+    }, 300);
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery]);
 
   const handleLanguageChange = async (langCode: string) => {
     setSelectedLanguage(langCode);
     localStorage.setItem('preferredLanguage', langCode);
     i18n.changeLanguage(langCode);
-    
-    // Save to user profile if logged in
-    if (user) {
-      await supabase
-        .from('profiles')
-        .update({ preferred_language: langCode })
-        .eq('user_id', user.id);
-    }
-    
-    toast({
-      title: t('language.languageChanged'),
-      description: `${t('language.languageSetTo')} ${languages.find(l => l.code === langCode)?.name || langCode}`,
-    });
-  };
-
-  const currentLanguage = languages.find(l => l.code === selectedLanguage) || languages[0];
-
-  // Fetch user's country and language preference from profile
-  useEffect(() => {
-    if (!user) {
-      setUserCountry(null);
-      return;
-    }
-
-    const fetchUserProfile = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('country, preferred_language')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (data?.country) {
-        setUserCountry(data.country);
-      }
-      
-      // Load saved language preference
-      if (data?.preferred_language) {
-        setSelectedLanguage(data.preferred_language);
-        localStorage.setItem('preferredLanguage', data.preferred_language);
-        i18n.changeLanguage(data.preferred_language);
-      }
-    };
-
-    fetchUserProfile();
-  }, [user, i18n]);
-
-  // Fetch notifications from database
-  useEffect(() => {
-    if (!user) {
-      setNotifications([]);
-      setUnreadCount(0);
-      return;
-    }
-
-    const fetchNotifications = async () => {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(20);
-
-      if (!error && data) {
-        setNotifications(data);
-        setUnreadCount(data.filter(n => !n.read).length);
-      }
-    };
-
-    fetchNotifications();
-
-    // Subscribe to real-time notifications
-    const channel = supabase
-      .channel('notifications-channel')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          const newNotification = payload.new as Notification;
-          setNotifications(prev => [newNotification, ...prev]);
-          setUnreadCount(prev => prev + 1);
-          
-          // Show toast for new notification
-          toast({
-            title: newNotification.title,
-            description: newNotification.message,
-          });
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          const updatedNotification = payload.new as Notification;
-          setNotifications(prev =>
-            prev.map(n => n.id === updatedNotification.id ? updatedNotification : n)
-          );
-          // Recalculate unread count
-          setNotifications(prev => {
-            setUnreadCount(prev.filter(n => !n.read).length);
-            return prev;
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
-
-  // Search functionality
-  useEffect(() => {
-    const searchDebounce = setTimeout(async () => {
-      if (searchQuery.trim().length < 2) {
-        setSearchResults([]);
-        return;
-      }
-
-      setIsSearching(true);
-      try {
-        // Search temples
-        const { data: temples } = await supabase
-          .from('temples')
-          .select('id, name, description, image_url')
-          .ilike('name', `%${searchQuery}%`)
-          .eq('is_active', true)
-          .limit(5);
-
-        // Search products
-        const { data: products } = await supabase
-          .from('products')
-          .select('id, name, description, image_url')
-          .ilike('name', `%${searchQuery}%`)
-          .eq('status', 'approved')
-          .limit(5);
-
-        const results: SearchResult[] = [
-          ...(temples || []).map(t => ({ ...t, type: 'temple' as const })),
-          ...(products || []).map(p => ({ ...p, type: 'product' as const })),
-        ];
-
-        setSearchResults(results);
-      } catch (error) {
-        console.error('Search error:', error);
-      } finally {
-        setIsSearching(false);
-      }
-    }, 300);
-
-    return () => clearTimeout(searchDebounce);
-  }, [searchQuery]);
-
-  const isActive = (href: string) => location.pathname === href;
-
-  const toggleTheme = () => {
-    setIsDark(!isDark);
-    document.documentElement.classList.toggle('dark');
-    localStorage.setItem('theme', isDark ? 'light' : 'dark');
-  };
-
-  const handleSignOut = async () => {
-    await signOut();
-    toast({
-      title: 'Signed Out',
-      description: 'You have been signed out successfully.',
-    });
-    navigate('/');
-  };
-
-  const getDashboardLink = () => {
-    if (isAdmin) return '/admin';
-    if (isVendor) return '/vendor';
-    return '/dashboard';
-  };
-
-  const getRoleBadge = () => {
-    if (activeViewRole === 'admin') return 'Admin';
-    if (activeViewRole === 'vendor') return 'Vendor';
-    return 'Customer';
-  };
-
-  const getRoleIcon = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return <Shield className="h-4 w-4" />;
-      case 'vendor':
-        return <Store className="h-4 w-4" />;
-      default:
-        return <UserCircle className="h-4 w-4" />;
-    }
-  };
-
-  const getRoleLabel = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return 'Admin View';
-      case 'vendor':
-        return 'Vendor View';
-      default:
-        return 'Customer View';
-    }
-  };
-
-  const handleRoleSwitch = (role: 'admin' | 'vendor' | 'customer') => {
-    switchRole(role);
-    // Navigate to the appropriate dashboard
-    if (role === 'admin') {
-      navigate('/admin');
-    } else if (role === 'vendor') {
-      navigate('/vendor');
-    } else {
-      navigate('/dashboard');
-    }
-  };
-
-  const handleSearchResultClick = (result: SearchResult) => {
-    setIsSearchOpen(false);
-    setSearchQuery('');
-    if (result.type === 'temple') {
-      navigate(`/temples/${result.id}`);
-    } else {
-      navigate(`/products/${result.id}`);
-    }
+    if (user) await supabase.from('profiles').update({ preferred_language: langCode }).eq('user_id', user.id);
   };
 
   const markAllAsRead = async () => {
     if (!user) return;
-    
-    const { error } = await supabase
-      .from('notifications')
-      .update({ read: true })
-      .eq('user_id', user.id)
-      .eq('read', false);
-
-    if (!error) {
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-      setUnreadCount(0);
-    }
+    const { error } = await supabase.from('notifications').update({ read: true }).eq('user_id', user.id).eq('read', false);
+    if (!error) { setNotifications(prev => prev.map(n => ({ ...n, read: true }))); setUnreadCount(0); }
   };
 
-  const markAsRead = async (notificationId: string) => {
-    const { error } = await supabase
-      .from('notifications')
-      .update({ read: true })
-      .eq('id', notificationId);
-
-    if (!error) {
-      setNotifications(prev =>
-        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
-      );
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    }
-  };
-
-  const handleNotificationClick = async (notification: Notification) => {
-    if (!notification.read) {
-      await markAsRead(notification.id);
-    }
-    if (notification.link) {
-      navigate(notification.link);
-    }
-  };
-
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'success':
-        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-      case 'warning':
-        return <AlertCircle className="h-4 w-4 text-yellow-500" />;
-      default:
-        return <Info className="h-4 w-4 text-blue-500" />;
-    }
-  };
-
-  const formatTime = (dateString: string) => {
-    try {
-      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
-    } catch {
-      return 'Just now';
-    }
-  };
+  const getDashboardLink = () => isAdmin ? '/admin' : isVendor ? '/vendor' : '/dashboard';
+  const getRoleBadge = () => activeViewRole === 'admin' ? 'Admin' : activeViewRole === 'vendor' ? 'Vendor' : 'Customer';
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+      <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur shadow-sm">
         <div className="container flex h-16 items-center justify-between">
-          {/* Logo */}
+          
           <Link to="/" className="flex items-center gap-2">
-            {siteSettings?.logoUrl ? (
-              <motion.img
-                whileHover={{ scale: 1.05 }}
-                src={siteSettings.logoUrl}
-                alt={siteSettings.siteName}
-                className="h-9 w-auto max-w-[120px] object-contain"
-              />
-            ) : (
-              <motion.div
-                whileHover={{ rotate: 10 }}
-                className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary"
-              >
-                <span className="text-lg font-bold text-primary-foreground">◇</span>
-              </motion.div>
-            )}
-            <span className="text-xl font-semibold text-primary">{siteSettings?.siteName || 'Temple Connect'}</span>
+            <span className="text-xl font-bold text-primary">{siteSettings?.siteName || 'Temple Connect'}</span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden items-center gap-6 md:flex">
+          <nav className="hidden md:flex items-center gap-6">
             {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                to={link.href}
-                className={cn(
-                  'text-sm font-medium transition-colors hover:text-primary',
-                  isActive(link.href) ? 'text-primary' : 'text-muted-foreground'
-                )}
-              >
+              <Link key={link.href} to={link.href} className={cn('text-sm font-medium transition-colors hover:text-primary', location.pathname === link.href ? 'text-primary' : 'text-muted-foreground')}>
                 {link.label}
               </Link>
             ))}
           </nav>
 
-          {/* Desktop Actions */}
-          <div className="hidden items-center gap-2 md:flex">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="relative"
-              onClick={() => setIsSearchOpen(true)}
-            >
-              <Search className="h-5 w-5" />
-            </Button>
+          {/* --- DESKTOP ACTIONS --- */}
+          <div className="hidden md:flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(true)}><Search className="h-5 w-5" /></Button>
+            
             <Button variant="ghost" size="icon" className="relative" onClick={() => setIsCartOpen(true)}>
               <ShoppingCart className="h-5 w-5" />
-              {totalItems > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
-                  {totalItems > 9 ? '9+' : totalItems}
-                </span>
-              )}
+              {totalItems > 0 && <span className="absolute -right-1 -top-1 bg-primary text-[10px] text-white rounded-full h-4 w-4 flex items-center justify-center font-bold">{totalItems}</span>}
             </Button>
-            
-            {/* Notifications Dropdown */}
+
+            {/* Desktop Notifications */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
                   <Bell className="h-5 w-5" />
-                  {unreadCount > 0 && (
-                    <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs font-medium text-destructive-foreground">
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </span>
-                  )}
+                  {unreadCount > 0 && <span className="absolute -right-1 -top-1 bg-destructive text-[10px] text-white rounded-full h-4 w-4 flex items-center justify-center font-bold">{unreadCount}</span>}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-80">
-                <div className="flex items-center justify-between px-3 py-2">
+                <div className="flex items-center justify-between px-3 py-2 border-b">
                   <h4 className="text-sm font-semibold">Notifications</h4>
-                  {unreadCount > 0 && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-auto p-0 text-xs text-primary hover:text-primary/80"
-                      onClick={markAllAsRead}
-                    >
-                      Mark all as read
-                    </Button>
-                  )}
+                  <Button variant="ghost" size="sm" className="h-auto p-0 text-xs text-primary" onClick={markAllAsRead}>Mark all read</Button>
                 </div>
-                <DropdownMenuSeparator />
-                {user ? (
-                  notifications.length > 0 ? (
-                    <ScrollArea className="h-64">
-                      {notifications.map((notification) => (
-                        <div
-                          key={notification.id}
-                          onClick={() => handleNotificationClick(notification)}
-                          className={cn(
-                            'flex gap-3 px-3 py-3 hover:bg-muted/50 cursor-pointer',
-                            !notification.read && 'bg-muted/30'
-                          )}
-                        >
-                          <div className="mt-0.5">
-                            {getNotificationIcon(notification.type)}
-                          </div>
-                          <div className="flex-1 space-y-1">
-                            <p className="text-sm font-medium leading-none">
-                              {notification.title}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {notification.message}
-                            </p>
-                            <p className="text-xs text-muted-foreground/70">
-                              {formatTime(notification.created_at)}
-                            </p>
-                          </div>
-                          {!notification.read && (
-                            <div className="h-2 w-2 rounded-full bg-primary" />
-                          )}
-                        </div>
-                      ))}
-                    </ScrollArea>
-                  ) : (
-                    <div className="py-8 text-center text-sm text-muted-foreground">
-                      No notifications yet
+                <ScrollArea className="h-72">
+                  {notifications.length > 0 ? notifications.map(n => (
+                    <div key={n.id} onClick={() => n.link && navigate(n.link)} className={cn("p-3 border-b hover:bg-muted/50 cursor-pointer", !n.read && "bg-muted/20")}>
+                      <p className="text-sm font-medium">{n.title}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2">{n.message}</p>
+                      <p className="text-[10px] text-muted-foreground/60 mt-1">{formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}</p>
                     </div>
-                  )
-                ) : (
-                  <div className="py-8 text-center">
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Sign in to see your notifications
-                    </p>
-                    <Link to="/auth">
-                      <Button size="sm" variant="outline">Sign In</Button>
-                    </Link>
-                  </div>
-                )}
+                  )) : <div className="p-8 text-center text-sm text-muted-foreground">No new notifications</div>}
+                </ScrollArea>
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button variant="ghost" size="icon" onClick={toggleTheme}>
+            <Button variant="ghost" size="icon" onClick={() => {setIsDark(!isDark); document.documentElement.classList.toggle('dark');}}>
               {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
-
-            {/* Language Selector - Hide for admin view */}
-            {!isAdminView && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-1.5 px-2">
-                    <Languages className="h-4 w-4" />
-                    <span className="hidden lg:inline">{currentLanguage.name}</span>
-                    <span className="lg:hidden">{currentLanguage.flag}</span>
-                    <ChevronDown className="h-3 w-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48 max-h-[300px] overflow-y-auto">
-                  <div className="px-2 py-1.5">
-                    <p className="text-xs font-medium text-muted-foreground">{t('language.selectLanguage')}</p>
-                  </div>
-                  <DropdownMenuSeparator />
-                  {getRelevantLanguages().map((lang) => (
-                    <DropdownMenuItem
-                      key={lang.code}
-                      onClick={() => handleLanguageChange(lang.code)}
-                      className={cn(
-                        "flex cursor-pointer items-center gap-2",
-                        selectedLanguage === lang.code && "bg-primary/10 text-primary"
-                      )}
-                    >
-                      <span>{lang.flag}</span>
-                      <span>{lang.name}</span>
-                      {selectedLanguage === lang.code && (
-                        <CheckCircle2 className="ml-auto h-4 w-4" />
-                      )}
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                  <div className="px-2 py-1.5">
-                    <p className="text-xs text-muted-foreground">{t('language.allLanguages')}</p>
-                  </div>
-                  {languages.filter(lang => !getRelevantLanguages().includes(lang)).map((lang) => (
-                    <DropdownMenuItem
-                      key={lang.code}
-                      onClick={() => handleLanguageChange(lang.code)}
-                      className={cn(
-                        "flex cursor-pointer items-center gap-2",
-                        selectedLanguage === lang.code && "bg-primary/10 text-primary"
-                      )}
-                    >
-                      <span>{lang.flag}</span>
-                      <span>{lang.name}</span>
-                      {selectedLanguage === lang.code && (
-                        <CheckCircle2 className="ml-auto h-4 w-4" />
-                      )}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-
-          
-            {/* Role Switcher - Only show if user has multiple roles */}
-            {user && hasMultipleRoles && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    {getRoleIcon(activeViewRole || 'customer')}
-                    <span className="hidden lg:inline">{getRoleLabel(activeViewRole || 'customer')}</span>
-                    <ChevronDown className="h-3 w-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <div className="px-2 py-1.5">
-                    <p className="text-xs font-medium text-muted-foreground">Switch View</p>
-                  </div>
-                  <DropdownMenuSeparator />
-                  {userRoles.map((role) => (
-                    <DropdownMenuItem
-                      key={role}
-                      onClick={() => handleRoleSwitch(role)}
-                      className={cn(
-                        "flex cursor-pointer items-center gap-2",
-                        activeViewRole === role && "bg-primary/10 text-primary"
-                      )}
-                    >
-                      {getRoleIcon(role)}
-                      {getRoleLabel(role)}
-                      {activeViewRole === role && (
-                        <CheckCircle2 className="ml-auto h-4 w-4" />
-                      )}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
 
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="gap-2">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
-                      {user.email?.[0]?.toUpperCase() || 'U'}
-                    </div>
-                    <span className="hidden lg:inline">{user.email?.split('@')[0]}</span>
+                    <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center text-white text-xs">{user.email?.[0].toUpperCase()}</div>
+                    <span>{user.email?.split('@')[0]}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <div className="px-2 py-1.5">
-                    <p className="text-sm font-medium text-foreground">
-                      {user.email?.split('@')[0]}
-                    </p>
+                  <div className="px-2 py-2 border-b">
                     <p className="text-xs text-muted-foreground">{user.email}</p>
-                    <span className="mt-1 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                    {/* Role Badge - desktop dashboard kku kela added here */}
+                    <span className="mt-1 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary tracking-wide uppercase">
                       {getRoleBadge()}
                     </span>
                   </div>
+                  <DropdownMenuItem onClick={() => navigate(getDashboardLink())}>Dashboard</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/settings')}>Profile Settings</DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to={getDashboardLink()} className="flex cursor-pointer items-center gap-2">
-                      <LayoutDashboard className="h-4 w-4" />
-                      Dashboard
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/settings" className="flex cursor-pointer items-center gap-2">
-                      <User className="h-4 w-4" />
-                      Profile Settings
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleSignOut}
-                    className="flex cursor-pointer items-center gap-2 text-destructive focus:text-destructive"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Sign Out
-                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => signOut()} className="text-destructive">Sign Out</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <>
-                <Link to="/auth">
-                  <Button variant="ghost" size="sm">
-                    Login
-                  </Button>
-                </Link>
-                <Link to="/auth">
-                  <Button size="sm">Sign Up</Button>
-                </Link>
-              </>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={() => navigate('/auth')}>Login</Button>
+                <Button size="sm" onClick={() => navigate('/auth')}>Sign Up</Button>
+              </div>
             )}
           </div>
 
-          {/* Mobile Actions (visible on small screens) */}
-          <div className="flex items-center gap-2 md:hidden">
-            <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(true)}>
-              <Search className="h-5 w-5" />
-            </Button>
-
+          {/* --- MOBILE ACTIONS (Search & Notification added to Header) --- */}
+          <div className="flex items-center gap-1 md:hidden">
+            <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(true)}><Search className="h-5 w-5" /></Button>
+            
             <Button variant="ghost" size="icon" className="relative" onClick={() => setIsCartOpen(true)}>
               <ShoppingCart className="h-5 w-5" />
-              {totalItems > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
-                  {totalItems > 9 ? '9+' : totalItems}
-                </span>
-              )}
+              {totalItems > 0 && <span className="absolute -right-1 -top-1 bg-primary text-[10px] text-white rounded-full h-4 w-4 flex items-center justify-center">{totalItems}</span>}
             </Button>
 
-            {/* Mobile Notifications Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
                   <Bell className="h-5 w-5" />
-                  {unreadCount > 0 && (
-                    <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground">
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </span>
-                  )}
+                  {unreadCount > 0 && <span className="absolute -right-1 -top-1 bg-destructive text-[10px] text-white rounded-full h-3.5 w-3.5 flex items-center justify-center">{unreadCount}</span>}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-screen max-w-xs">
-                <div className="flex items-center justify-between px-3 py-2">
-                  <h4 className="text-sm font-semibold">Notifications</h4>
-                  {unreadCount > 0 && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-auto p-0 text-xs text-primary hover:text-primary/80"
-                      onClick={markAllAsRead}
-                    >
-                      Mark all as read
-                    </Button>
-                  )}
-                </div>
-                <DropdownMenuSeparator />
-                {user ? (
-                  notifications.length > 0 ? (
-                    <ScrollArea className="h-64">
-                      {notifications.map((notification) => (
-                        <div
-                          key={notification.id}
-                          onClick={() => handleNotificationClick(notification)}
-                          className={cn(
-                            'flex gap-3 px-3 py-3 hover:bg-muted/50 cursor-pointer',
-                            !notification.read && 'bg-muted/30'
-                          )}
-                        >
-                          <div className="mt-0.5">
-                            {getNotificationIcon(notification.type)}
-                          </div>
-                          <div className="flex-1 space-y-1">
-                            <p className="text-sm font-medium leading-none">
-                              {notification.title}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {notification.message}
-                            </p>
-                            <p className="text-xs text-muted-foreground/70">
-                              {formatTime(notification.created_at)}
-                            </p>
-                          </div>
-                          {!notification.read && (
-                            <div className="h-2 w-2 rounded-full bg-primary" />
-                          )}
-                        </div>
-                      ))}
-                    </ScrollArea>
-                  ) : (
-                    <div className="py-8 text-center text-sm text-muted-foreground">
-                      No notifications yet
-                    </div>
-                  )
-                ) : (
-                  <div className="py-8 text-center">
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Sign in to see your notifications
-                    </p>
-                    <Link to="/auth">
-                      <Button size="sm" variant="outline">Sign In</Button>
-                    </Link>
-                  </div>
-                )}
+              <DropdownMenuContent align="end" className="w-[280px]">
+                <div className="p-3 text-sm font-semibold border-b">Notifications</div>
+                <ScrollArea className="h-64">
+                   {notifications.length > 0 ? notifications.map(n => (
+                    <div key={n.id} className="p-3 border-b"><p className="text-xs font-medium">{n.title}</p></div>
+                  )) : <div className="p-4 text-center text-xs text-muted-foreground">No new notifications</div>}
+                </ScrollArea>
               </DropdownMenuContent>
             </DropdownMenu>
-
-            <Button variant="ghost" size="icon" onClick={toggleTheme}>
-              {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            
+            <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+              {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </Button>
           </div>
-
-          {/* Mobile Menu Toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </Button>
         </div>
 
-        {/* Mobile Menu */}
+        {/* --- MOBILE TOGGLE MENU (Role & Language within settings) --- */}
         <AnimatePresence>
           {isMobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="border-t border-border bg-card md:hidden"
-            >
-              <nav className="container flex flex-col gap-2 py-4">
-                {/* Mobile Search */}
-                <div className="px-3 pb-2">
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start gap-2 text-muted-foreground"
-                    onClick={() => {
-                      setIsMobileMenuOpen(false);
-                      setIsSearchOpen(true);
-                    }}
-                  >
-                    <Search className="h-4 w-4" />
-                    Search...
-                  </Button>
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="md:hidden border-t bg-card overflow-hidden">
+              <div className="container py-4 flex flex-col gap-4">
+                <div className="flex flex-col gap-1">
+                  {navLinks.map((link) => (
+                    <Link key={link.href} to={link.href} onClick={() => setIsMobileMenuOpen(false)} className={cn("px-4 py-3 rounded-lg text-sm font-medium", location.pathname === link.href ? "bg-primary/10 text-primary" : "text-muted-foreground")}>
+                      {link.label}
+                    </Link>
+                  ))}
                 </div>
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.href}
-                    to={link.href}
-                    className={cn(
-                      'flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-muted',
-                      isActive(link.href) ? 'bg-muted text-primary' : 'text-muted-foreground'
-                    )}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-              </nav>
+
+                <div className="h-px bg-border mx-2" />
+
+                <div className="px-4 space-y-4">
+                  {user ? (
+                    <>
+                      <Button variant="outline" className="w-full justify-start gap-3 h-11" onClick={() => { navigate(getDashboardLink()); setIsMobileMenuOpen(false); }}>
+                        <LayoutDashboard className="h-4 w-4" /> Dashboard
+                      </Button>
+                      <Button variant="outline" className="w-full justify-start gap-3 h-11" onClick={() => { navigate('/settings'); setIsMobileMenuOpen(false); }}>
+                        <SettingsIcon className="h-4 w-4" /> Profile Settings
+                      </Button>
+
+                      {/* Language Selector inside Mobile Menu */}
+                      <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                        <div className="flex items-center gap-2 text-sm font-medium"><Globe className="h-4 w-4 text-primary" /> Language</div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1">
+                              {currentLanguage.flag} {currentLanguage.name} <ChevronDown className="h-3 w-3" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            {languages.map(l => (
+                              <DropdownMenuItem key={l.code} onClick={() => handleLanguageChange(l.code)}>{l.flag} {l.name}</DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+
+                      <Button variant="destructive" className="w-full justify-start gap-3 h-11" onClick={() => signOut()}>
+                        <LogOut className="h-4 w-4" /> Sign Out
+                      </Button>
+                    </>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3 pb-2">
+                      <Button variant="outline" onClick={() => {navigate('/auth'); setIsMobileMenuOpen(false);}}>Login</Button>
+                      <Button onClick={() => {navigate('/auth'); setIsMobileMenuOpen(false);}}>Sign Up</Button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
       </header>
 
-      {/* Search Dialog */}
+      {/* --- Search Dialog (Logic from your code) --- */}
       <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
-        <DialogContent className="sm:max-w-[550px] p-0 gap-0 overflow-hidden">
-          <DialogHeader className="p-4 border-b">
-            <div className="flex items-center gap-2">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search temples, products..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="border-0 focus-visible:ring-0 p-0 h-auto text-base"
-                autoFocus
-              />
-            </div>
-          </DialogHeader>
-          <ScrollArea className="max-h-[350px]">
-            <div className="p-2">
-              {isSearching ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  Searching...
+        <DialogContent className="p-0 sm:max-w-[550px] overflow-hidden">
+          <div className="flex items-center p-4 border-b">
+            <Search className="h-5 w-5 text-muted-foreground mr-3" />
+            <Input placeholder="Search temples or products..." className="border-none focus-visible:ring-0 shadow-none" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} autoFocus />
+          </div>
+          <ScrollArea className="max-h-[350px] p-2">
+            {searchResults.length > 0 ? searchResults.map(r => (
+              <div key={r.id} onClick={() => { navigate(`/${r.type}s/${r.id}`); setIsSearchOpen(false); }} className="p-3 hover:bg-muted rounded-md cursor-pointer flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">{r.name}</p>
+                  <p className="text-xs text-muted-foreground line-clamp-1">{r.description}</p>
                 </div>
-              ) : searchResults.length > 0 ? (
-                <div className="grid gap-1">
-                  {searchResults.map((result) => (
-                    <button
-                      key={`${result.type}-${result.id}`}
-                      onClick={() => handleSearchResultClick(result)}
-                      className="flex items-center gap-3 p-2 text-left hover:bg-muted rounded-md transition-colors w-full"
-                    >
-                      <div className="h-10 w-10 shrink-0 overflow-hidden rounded bg-muted">
-                        {result.image_url ? (
-                          <img src={result.image_url} alt="" className="h-full w-full object-cover" />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center">
-                            {result.type === 'temple' ? <MapPin size={16} /> : <Package size={16} />}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 overflow-hidden">
-                        <p className="text-sm font-medium leading-none truncate">{result.name}</p>
-                        <p className="text-xs text-muted-foreground mt-1 truncate">{result.description}</p>
-                      </div>
-                      <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80 capitalize">
-                        {result.type}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              ) : searchQuery.length > 1 ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  No results found for "{searchQuery}"
-                </div>
-              ) : (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  Type at least 2 characters to search
-                </div>
-              )}
-            </div>
+                <span className="text-[10px] uppercase font-bold bg-primary/10 text-primary px-2 py-1 rounded">{r.type}</span>
+              </div>
+            )) : searchQuery.length > 1 && <div className="p-8 text-center text-sm text-muted-foreground">No results found for "{searchQuery}"</div>}
           </ScrollArea>
         </DialogContent>
       </Dialog>
