@@ -19,6 +19,17 @@ import { useTempleProducts } from '@/hooks/useTempleProducts';
 import { useTempleReviews } from '@/hooks/useTempleReviews';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const ExpandableReviewCard = ({ review, onUpdate }: { review: any, onUpdate: () => void }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -32,11 +43,10 @@ const ExpandableReviewCard = ({ review, onUpdate }: { review: any, onUpdate: () 
     });
   }, []);
 
-  const displayName = review.profiles?.full_name || review.user_name || 'Anonymous Devotee';
+  const displayName = review.profile?.full_name || review.user_name || 'Anonymous Devotee';
   const isOwner = currentUserId === review.user_id;
 
   const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this review?")) return;
     try {
       const { error } = await supabase.from('temple_reviews').delete().eq('id', review.id);
       if (error) throw error;
@@ -70,9 +80,25 @@ const ExpandableReviewCard = ({ review, onUpdate }: { review: any, onUpdate: () 
             </button>
           )}
           {isOwner && (
-            <button onClick={handleDelete} className="text-muted-foreground hover:text-destructive p-1.5 hover:bg-destructive/10 rounded-md">
-              <Trash2 size={16} />
-            </button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button className="text-muted-foreground hover:text-destructive p-1.5 hover:bg-destructive/10 rounded-md">
+                  <Trash2 size={16} />
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete your review.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
         </div>
       </div>
@@ -99,7 +125,18 @@ const TempleDetail = () => {
   if (isLoading) return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!temple || error) return <div className="flex min-h-screen items-center justify-center bg-background p-4"><div className="text-center"><h1 className="mb-4 text-2xl font-semibold">Temple Not Found</h1><Link to="/temples"><Button>Browse Temples</Button></Link></div></div>;
 
-  const handleReviewSuccess = () => { refetchReviews(); setFormKey(prev => prev + 1); };
+  const handleReviewSuccess = (operation: 'create' | 'update') => {
+    refetchReviews();
+    if (operation === 'create') {
+      setFormKey(prev => prev + 1);
+    }
+  };
+  
+  const handleReviewDelete = () => {
+    refetchReviews();
+    setFormKey(prev => prev + 1);
+  };
+
   const handleMapRedirect = () => { window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${temple.name} ${temple.district}`)}`, '_blank'); };
   const galleryImages = temple.gallery_images || [temple.image];
 
@@ -190,7 +227,7 @@ const TempleDetail = () => {
                 {reviewsLoading ? (
                   <div className="grid gap-6 sm:grid-cols-2">{[1, 2].map(i => <Skeleton key={i} className="h-40 w-full rounded-2xl" />)}</div>
                 ) : reviews.length > 0 ? (
-                  <div className="grid gap-6 sm:grid-cols-2">{reviews.map((review: any) => <ExpandableReviewCard key={review.id} review={review} onUpdate={refetchReviews} />)}</div>
+                  <div className="grid gap-6 sm:grid-cols-2">{reviews.map((review: any) => <ExpandableReviewCard key={review.id} review={review} onUpdate={handleReviewDelete} />)}</div>
                 ) : (
                   <div className="text-center py-12 bg-muted/30 rounded-2xl border-2 border-dashed border-muted-foreground/20"><p className="text-muted-foreground font-medium">No experiences shared yet.</p></div>
                 )}
