@@ -111,9 +111,9 @@ const Settings = () => {
       setSaving(true);
       const file = event.target.files[0];
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user?.id}-${Date.now()}.${fileExt}`; // Date.now() cache பிரச்சனையை தவிர்க்கும்
+      const fileName = `${user?.id}-${Date.now()}.${fileExt}`;
 
-      const { data, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('profile_photos')
         .upload(fileName, file, { upsert: true });
 
@@ -123,7 +123,6 @@ const Settings = () => {
         .from('profile_photos')
         .getPublicUrl(fileName);
 
-      // UI-ல் உடனே தெரியும்
       setProfile(prev => ({ ...prev, avatar_url: publicUrl }));
       
       toast({
@@ -131,10 +130,9 @@ const Settings = () => {
         description: "Click 'Save Changes' to update your database record.",
       });
     } catch (error: any) {
-      console.error("Upload error:", error);
       toast({
         title: "Upload Failed",
-        description: error.message || "Could not upload image",
+        description: error.message,
         variant: "destructive",
       });
     } finally {
@@ -162,26 +160,45 @@ const Settings = () => {
       if (error) throw error;
       toast({ title: 'Success', description: 'Settings saved successfully.' });
     } catch (error: any) {
-      toast({ title: 'Error', description: error.message || 'Failed to save', variant: 'destructive' });
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
       setSaving(false);
     }
   };
 
+  // --- UPDATED DELETE ACCOUNT FUNCTION ---
   const handleDeleteAccount = async () => {
+    if (!user) return;
     setDeleting(true);
+    
     try {
+      // 1. Profiles டேபிளில் இருந்து தரவை நீக்குதல்
       const { error: profileError } = await supabase
         .from('profiles')
         .delete()
-        .eq('user_id', user?.id);
+        .eq('user_id', user.id);
 
       if (profileError) throw profileError;
+
+      // 2. Auth சிஸ்டத்தில் இருந்து பயனரை நீக்குதல் (RPC Call)
+      const { error: authError } = await supabase.rpc('delete_user_account');
+      
+      if (authError) throw authError;
+
+      // 3. Logout செய்துவிட்டு வெளியே அனுப்புதல்
       await signOut();
-      toast({ title: 'Account Deleted' });
+      toast({ 
+        title: 'Account Deleted', 
+        description: 'Your account has been permanently removed.' 
+      });
       navigate('/auth');
     } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      console.error("Delete account error:", error);
+      toast({ 
+        title: 'Error', 
+        description: error.message || "Failed to delete account", 
+        variant: 'destructive' 
+      });
     } finally {
       setDeleting(false);
     }
@@ -205,7 +222,7 @@ const Settings = () => {
           <p className="text-sm text-muted-foreground">Manage your profile and account settings</p>
         </div>
 
-        {/* Avatar Section */}
+        {/* Avatar Card */}
         <Card>
           <CardHeader>
             <CardTitle>Profile Picture</CardTitle>
@@ -218,14 +235,7 @@ const Settings = () => {
               </AvatarFallback>
             </Avatar>
             <div className="space-y-3">
-              <input 
-                type="file" 
-                id="photo-upload" 
-                className="hidden" 
-                accept="image/*" 
-                onChange={handlePhotoUpload} 
-                disabled={saving}
-              />
+              <input type="file" id="photo-upload" className="hidden" accept="image/*" onChange={handlePhotoUpload} disabled={saving} />
               <Button variant="outline" size="sm" className="gap-2" asChild>
                 <label htmlFor="photo-upload" className="cursor-pointer">
                   {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
@@ -236,13 +246,9 @@ const Settings = () => {
           </CardContent>
         </Card>
 
-        {/* General Info */}
+        {/* Info Card */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <User className="h-5 w-5 text-primary" /> Personal Details
-            </CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle className="text-lg flex items-center gap-2"><User className="h-5 w-5" /> Personal Details</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -251,7 +257,7 @@ const Settings = () => {
               </div>
               <div className="space-y-2">
                 <Label>Email</Label>
-                <Input value={profile.email || ''} className="bg-muted cursor-not-allowed" readOnly />
+                <Input value={profile.email || ''} className="bg-muted" readOnly />
               </div>
             </div>
             <div className="space-y-2">
@@ -261,13 +267,9 @@ const Settings = () => {
           </CardContent>
         </Card>
 
-        {/* Preferences */}
+        {/* Preferences Card */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Globe className="h-5 w-5 text-primary" /> Preferences
-            </CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Globe className="h-5 w-5" /> Preferences</CardTitle></CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Country</Label>
@@ -296,26 +298,25 @@ const Settings = () => {
         {/* Danger Zone */}
         <Card className="border-destructive/30 bg-destructive/5 mt-10">
           <CardHeader>
-            <CardTitle className="text-lg text-destructive flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" /> Danger Zone
-            </CardTitle>
+            <CardTitle className="text-lg text-destructive flex items-center gap-2"><AlertTriangle className="h-5 w-5" /> Danger Zone</CardTitle>
           </CardHeader>
           <CardContent>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="gap-2">
-                  <Trash2 className="h-4 w-4" /> Delete Account
+                <Button variant="destructive" className="gap-2" disabled={deleting}>
+                  {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  Delete Account
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                  <AlertDialogDescription>This will delete your account and all data forever.</AlertDialogDescription>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>This action is permanent. You will need to sign up again to use the app.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDeleteAccount} className="bg-destructive hover:bg-destructive/90">
-                    {deleting ? "Deleting..." : "Delete Permanently"}
+                  <AlertDialogAction onClick={handleDeleteAccount} className="bg-destructive hover:bg-destructive/90 text-white">
+                    Confirm Delete
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
