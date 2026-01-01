@@ -76,7 +76,7 @@ const ProductDetail = () => {
 
   const getCurrentPrice = () => selectedVariant ? selectedVariant.price : (product?.price || 0);
   const getCurrentStock = () => selectedVariant ? selectedVariant.stock : (product?.stock || 0);
-  const getCurrentSKU = () => (selectedVariant && selectedVariant.sku) ? selectedVariant.sku : (product?.sku || "N/A");
+  const getCurrentSKU = () => (selectedVariant && selectedVariant.sku) ? selectedVariant.sku : "N/A";
 
   const handleAddToCart = () => {
     if (!product) return;

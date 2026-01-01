@@ -1,9 +1,11 @@
 import { motion } from 'framer-motion';
-import { Users, FileCheck, DollarSign, Store } from 'lucide-react';
+import { Users, FileCheck, DollarSign, Store, Wallet } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import UserManagement from '@/components/admin/UserManagement';
 import VendorApprovalQueue from '@/components/admin/VendorApprovalQueue';
 import AdminChatPanel from '@/components/admin/AdminChatPanel';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 
 const AdminDashboard = () => {
@@ -20,13 +22,21 @@ const AdminDashboard = () => {
     <DashboardLayout>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="mb-1 font-display text-2xl sm:text-3xl font-bold text-foreground">
-            Admin Dashboard
-          </h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Manage vendors, approvals, and platform settings.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="mb-1 font-display text-2xl sm:text-3xl font-bold text-foreground">
+              Admin Dashboard
+            </h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
+              Manage vendors, approvals, and platform settings.
+            </p>
+          </div>
+          <Link to="/admin/vendor-balances">
+            <Button variant="outline" className="gap-2">
+              <Wallet className="h-4 w-4" />
+              Manage Vendor Balances
+            </Button>
+          </Link>
         </div>
 
         {/* Stats Grid */}
