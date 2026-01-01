@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { DollarSign, Check, X, Loader2, RefreshCw, CreditCard, ArrowUpRight } from 'lucide-react';
+import { 
+  DollarSign, Check, X, RefreshCw, CreditCard, 
+  ArrowUpRight, Eye, Search, Loader2 
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,18 +16,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 
-// Interfaces for Type Safety
 interface WithdrawalRequest {
   id: string;
   vendor_id: string;
@@ -32,7 +26,7 @@ interface WithdrawalRequest {
   status: string;
   admin_notes: string | null;
   created_at: string;
-  vendor_profile?: {
+  profiles?: {
     full_name: string | null;
     email: string | null;
   };
@@ -44,8 +38,7 @@ interface VendorBalance {
   available_balance: number;
   pending_balance: number;
   withdrawn_amount: number;
-  min_withdrawal_amount: number;
-  vendor_profile?: {
+  profiles?: {
     full_name: string | null;
     email: string | null;
   };
@@ -55,312 +48,256 @@ const VendorBalanceManagement = () => {
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [balances, setBalances] = useState<VendorBalance[]>([]);
   const [loading, setLoading] = useState(true);
-  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
   const [showAddBalance, setShowAddBalance] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<string>('');
   const [addAmount, setAddAmount] = useState('');
-  const [adminNotes, setAdminNotes] = useState('');
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
+  // 1. Fetch Function (Inspired by your VendorApprovalQueue logic)
   const fetchData = async () => {
     setLoading(true);
     try {
-      // 1. Fetch Withdrawal Requests
-      const { data: withdrawalData, error: withdrawalError } = await supabase
+      // Withdrawal requests எடுத்தல்
+      const { data: withdrawalData, error: wError } = await supabase
         .from('withdrawal_requests')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (withdrawalError) throw withdrawalError;
+      if (wError) throw wError;
 
-      // 2. Fetch Vendor Balances (Using available_balance to avoid order error)
-      const { data: balanceData, error: balanceError } = await supabase
+      // Profiles-ஐ ஒவ்வொரு withdrawal-க்கும் தனித்தனியாக எடுத்தல் (உங்களது ஸ்டைல்)
+      const withdrawalsWithProfiles = await Promise.all(
+        (withdrawalData || []).map(async (item) => {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name, email')
+            .eq('user_id', item.vendor_id)
+            .maybeSingle();
+          return { ...item, profiles: profile || undefined };
+        })
+      );
+
+      // Balances எடுத்தல்
+      const { data: balanceData, error: bError } = await supabase
         .from('vendor_balances')
         .select('*');
 
-      if (balanceError) throw balanceError;
+      if (bError) throw bError;
 
-      // 3. Collect Unique Vendor IDs
-      const vendorIds = [...new Set([
-        ...(withdrawalData?.map(w => w.vendor_id) || []),
-        ...(balanceData?.map(b => b.vendor_id) || [])
-      ])];
+      // Profiles-ஐ ஒவ்வொரு balance-க்கும் தனித்தனியாக எடுத்தல்
+      const balancesWithProfiles = await Promise.all(
+        (balanceData || []).map(async (item) => {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name, email')
+            .eq('user_id', item.vendor_id)
+            .maybeSingle();
+          return { ...item, profiles: profile || undefined };
+        })
+      );
 
-      if (vendorIds.length > 0) {
-        // 4. Fetch Profiles for those Vendors
-        const { data: profiles, error: profileError } = await supabase
-          .from('profiles')
-          .select('user_id, full_name, email')
-          .in('user_id', vendorIds);
-
-        if (profileError) throw profileError;
-
-        const profileMap = new Map(profiles?.map(p => [p.user_id, p]));
-
-        setWithdrawals((withdrawalData || []).map(w => ({
-          ...w,
-          vendor_profile: profileMap.get(w.vendor_id),
-        })));
-
-        setBalances((balanceData || []).map(b => ({
-          ...b,
-          vendor_profile: profileMap.get(b.vendor_id),
-        })));
-      } else {
-        setWithdrawals(withdrawalData || []);
-        setBalances(balanceData || []);
-      }
+      setWithdrawals(withdrawalsWithProfiles);
+      setBalances(balancesWithProfiles);
     } catch (error: any) {
-      console.error('Error fetching data:', error);
-      toast({ 
-        title: 'Error', 
-        description: error.message || 'Failed to load data.', 
-        variant: 'destructive' 
-      });
+      console.error('Error:', error);
+      toast({ title: 'Error', description: 'Failed to load data', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleProcessWithdrawal = async (id: string, action: 'approve' | 'reject') => {
-    setProcessingId(id);
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // 2. Handle Approval/Rejection
+  const handleProcess = async (id: string, action: 'approve' | 'reject') => {
+    setProcessing(true);
     try {
       const withdrawal = withdrawals.find(w => w.id === id);
       if (!withdrawal) return;
 
       const newStatus = action === 'approve' ? 'completed' : 'rejected';
 
-      // Update Withdrawal Status
-      const { error: updateError } = await supabase
-        .from('withdrawal_requests')
-        .update({ 
-          status: newStatus, 
-          admin_notes: adminNotes || null,
-          processed_at: new Date().toISOString(),
-        })
-        .eq('id', id);
+      // Update request status
+      await supabase.from('withdrawal_requests').update({
+        status: newStatus,
+        processed_at: new Date().toISOString()
+      }).eq('id', id);
 
-      if (updateError) throw updateError;
-
-      // Update Vendor Balance Logic
+      // Update Vendor Balance
       const balance = balances.find(b => b.vendor_id === withdrawal.vendor_id);
       if (balance) {
         if (action === 'approve') {
-          await supabase
-            .from('vendor_balances')
-            .update({
-              pending_balance: Math.max(0, (balance.pending_balance || 0) - withdrawal.amount),
-              withdrawn_amount: (balance.withdrawn_amount || 0) + withdrawal.amount,
-            })
-            .eq('vendor_id', withdrawal.vendor_id);
+          await supabase.from('vendor_balances').update({
+            pending_balance: Math.max(0, (balance.pending_balance || 0) - withdrawal.amount),
+            withdrawn_amount: (balance.withdrawn_amount || 0) + withdrawal.amount
+          }).eq('vendor_id', withdrawal.vendor_id);
         } else {
-          await supabase
-            .from('vendor_balances')
-            .update({
-              pending_balance: Math.max(0, (balance.pending_balance || 0) - withdrawal.amount),
-              available_balance: (balance.available_balance || 0) + withdrawal.amount,
-            })
-            .eq('vendor_id', withdrawal.vendor_id);
+          await supabase.from('vendor_balances').update({
+            pending_balance: Math.max(0, (balance.pending_balance || 0) - withdrawal.amount),
+            available_balance: (balance.available_balance || 0) + withdrawal.amount
+          }).eq('vendor_id', withdrawal.vendor_id);
         }
       }
 
-      toast({
-        title: action === 'approve' ? 'Withdrawal Approved' : 'Withdrawal Rejected',
-        description: `Request ${newStatus} successfully.`,
-      });
-
-      setAdminNotes('');
+      toast({ title: 'Success', description: `Request ${newStatus}` });
       fetchData();
-    } catch (error: any) {
-      console.error('Error processing withdrawal:', error);
-      toast({ title: 'Error', description: 'Action failed.', variant: 'destructive' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Action failed', variant: 'destructive' });
     } finally {
-      setProcessingId(null);
+      setProcessing(false);
     }
   };
 
+  // 3. Add Manual Balance
   const handleAddBalance = async () => {
-    if (!selectedVendor || !addAmount) {
-      toast({ title: 'Input Required', description: 'Please fill all fields.', variant: 'destructive' });
-      return;
-    }
-
-    const amount = parseFloat(addAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast({ title: 'Invalid Amount', description: 'Enter a valid number.', variant: 'destructive' });
-      return;
-    }
-
+    if (!selectedVendor || !addAmount) return;
     try {
-      const existingBalance = balances.find(b => b.vendor_id === selectedVendor);
+      const amount = parseFloat(addAmount);
+      const existing = balances.find(b => b.vendor_id === selectedVendor);
 
-      if (existingBalance) {
-        const { error } = await supabase
-          .from('vendor_balances')
-          .update({
-            total_earnings: (existingBalance.total_earnings || 0) + amount,
-            available_balance: (existingBalance.available_balance || 0) + amount,
-          })
-          .eq('vendor_id', selectedVendor);
-        if (error) throw error;
+      if (existing) {
+        await supabase.from('vendor_balances').update({
+          total_earnings: (existing.total_earnings || 0) + amount,
+          available_balance: (existing.available_balance || 0) + amount
+        }).eq('vendor_id', selectedVendor);
       } else {
-        const { error } = await supabase
-          .from('vendor_balances')
-          .insert({
-            vendor_id: selectedVendor,
-            total_earnings: amount,
-            available_balance: amount,
-            pending_balance: 0,
-            withdrawn_amount: 0
-          });
-        if (error) throw error;
+        await supabase.from('vendor_balances').insert({
+          vendor_id: selectedVendor,
+          total_earnings: amount,
+          available_balance: amount,
+          pending_balance: 0,
+          withdrawn_amount: 0
+        });
       }
 
-      toast({ title: 'Success', description: `$${amount.toFixed(2)} added successfully.` });
       setShowAddBalance(false);
       setAddAmount('');
       fetchData();
-    } catch (error: any) {
-      console.error('Error adding balance:', error);
-      toast({ title: 'Update Failed', description: error.message, variant: 'destructive' });
+      toast({ title: 'Success', description: 'Balance updated successfully' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Update failed', variant: 'destructive' });
     }
   };
-
-  const pendingWithdrawals = withdrawals.filter(w => w.status === 'pending');
 
   return (
     <div className="space-y-6 p-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="flex items-center gap-2 text-xl font-bold text-foreground">
-            <CreditCard className="h-6 w-6 text-primary" />
-            Vendor Wallet Management
+          <h2 className="flex items-center gap-2 text-xl font-bold">
+            <CreditCard className="h-6 w-6 text-primary" /> Wallet Management
           </h2>
-          <p className="text-sm text-muted-foreground">Monitor earnings and approve payouts</p>
+          <p className="text-sm text-muted-foreground">Manage vendor payouts and balances</p>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
+        <div className="flex gap-2">
           <Button variant="outline" size="icon" onClick={fetchData} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={loading ? 'animate-spin' : ''} size={16} />
           </Button>
-          <Button onClick={() => setShowAddBalance(true)} className="gap-2 flex-1 sm:flex-none">
-            <ArrowUpRight className="h-4 w-4" />
-            Add Balance
+          <Button onClick={() => setShowAddBalance(true)} className="gap-2">
+            <ArrowUpRight size={16} /> Add Balance
           </Button>
         </div>
       </div>
 
-      {/* Tables Section */}
+      {/* Tables */}
       <div className="grid gap-6">
-        {/* Pending Requests Table */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-xl border bg-card shadow-sm overflow-hidden">
-          <div className="bg-muted/50 p-4 border-b">
-            <h3 className="font-semibold text-sm uppercase tracking-wider">Pending Withdrawals ({pendingWithdrawals.length})</h3>
+        {/* Pending Withdrawals */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-lg border bg-card">
+          <div className="p-4 border-b bg-muted/20">
+            <h3 className="font-semibold">Pending Requests</h3>
           </div>
           <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Vendor Details</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <table className="w-full text-sm text-left">
+              <thead className="bg-muted/50 text-muted-foreground font-medium border-b">
+                <tr>
+                  <th className="p-3">Vendor</th>
+                  <th className="p-3">Amount</th>
+                  <th className="p-3">Date</th>
+                  <th className="p-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
                 {loading ? (
-                  <TableRow><TableCell colSpan={4} className="h-32 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /></TableCell></TableRow>
-                ) : pendingWithdrawals.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} className="h-32 text-center text-muted-foreground">No pending requests found</TableCell></TableRow>
+                  <tr><td colSpan={4} className="p-8 text-center"><Loader2 className="animate-spin mx-auto" /></td></tr>
+                ) : withdrawals.filter(w => w.status === 'pending').length === 0 ? (
+                  <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">No pending requests</td></tr>
                 ) : (
-                  pendingWithdrawals.map((w) => (
-                    <TableRow key={w.id}>
-                      <TableCell>
-                        <div className="font-medium">{w.vendor_profile?.full_name || 'User'}</div>
-                        <div className="text-xs text-muted-foreground">{w.vendor_profile?.email}</div>
-                      </TableCell>
-                      <TableCell className="font-bold text-primary">${w.amount.toFixed(2)}</TableCell>
-                      <TableCell className="text-xs">{new Date(w.created_at).toLocaleDateString()}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-success" onClick={() => handleProcessWithdrawal(w.id, 'approve')} disabled={!!processingId}><Check className="h-4 w-4" /></Button>
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" onClick={() => handleProcessWithdrawal(w.id, 'reject')} disabled={!!processingId}><X className="h-4 w-4" /></Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                  withdrawals.filter(w => w.status === 'pending').map((w) => (
+                    <tr key={w.id} className="hover:bg-muted/10">
+                      <td className="p-3">
+                        <p className="font-medium">{w.profiles?.full_name || 'User'}</p>
+                        <p className="text-xs text-muted-foreground">{w.profiles?.email}</p>
+                      </td>
+                      <td className="p-3 font-bold text-primary">${w.amount.toFixed(2)}</td>
+                      <td className="p-3 text-muted-foreground">{new Date(w.created_at).toLocaleDateString()}</td>
+                      <td className="p-3 text-right flex justify-end gap-1">
+                        <Button size="sm" variant="ghost" className="text-success" onClick={() => handleProcess(w.id, 'approve')} disabled={processing}><Check size={18} /></Button>
+                        <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleProcess(w.id, 'reject')} disabled={processing}><X size={18} /></Button>
+                      </td>
+                    </tr>
                   ))
                 )}
-              </TableBody>
-            </Table>
+              </tbody>
+            </table>
           </div>
         </motion.div>
 
-        {/* Master Balance Table */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="rounded-xl border bg-card shadow-sm overflow-hidden">
-          <div className="bg-muted/50 p-4 border-b">
-            <h3 className="font-semibold text-sm uppercase tracking-wider">All Vendor Balances</h3>
+        {/* Balance Ledger */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="rounded-lg border bg-card">
+          <div className="p-4 border-b bg-muted/20">
+            <h3 className="font-semibold">Vendor Balances</h3>
           </div>
           <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Vendor</TableHead>
-                  <TableHead>Total Earnings</TableHead>
-                  <TableHead>Available</TableHead>
-                  <TableHead>Pending</TableHead>
-                  <TableHead>Withdrawn</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <table className="w-full text-sm text-left">
+              <thead className="bg-muted/50 text-muted-foreground font-medium border-b">
+                <tr>
+                  <th className="p-3">Vendor</th>
+                  <th className="p-3">Total Earned</th>
+                  <th className="p-3">Available</th>
+                  <th className="p-3">Pending</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
                 {balances.map((b) => (
-                  <TableRow key={b.vendor_id}>
-                    <TableCell>
-                      <div className="font-medium text-sm">{b.vendor_profile?.full_name || 'N/A'}</div>
-                    </TableCell>
-                    <TableCell className="font-medium">${(b.total_earnings || 0).toFixed(2)}</TableCell>
-                    <TableCell className="text-success font-bold">${(b.available_balance || 0).toFixed(2)}</TableCell>
-                    <TableCell className="text-warning">${(b.pending_balance || 0).toFixed(2)}</TableCell>
-                    <TableCell className="text-muted-foreground">${(b.withdrawn_amount || 0).toFixed(2)}</TableCell>
-                  </TableRow>
+                  <tr key={b.vendor_id}>
+                    <td className="p-3 font-medium">{b.profiles?.full_name || 'N/A'}</td>
+                    <td className="p-3">${(b.total_earnings || 0).toFixed(2)}</td>
+                    <td className="p-3 text-success font-bold">${(b.available_balance || 0).toFixed(2)}</td>
+                    <td className="p-3 text-warning">${(b.pending_balance || 0).toFixed(2)}</td>
+                  </tr>
                 ))}
-              </TableBody>
-            </Table>
+              </tbody>
+            </table>
           </div>
         </motion.div>
       </div>
 
-      {/* Add Balance Modal */}
+      {/* Dialog */}
       <Dialog open={showAddBalance} onOpenChange={setShowAddBalance}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Manual Balance</DialogTitle>
-            <DialogDescription>Increase a vendor's total and available earnings.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Select Vendor Profile</Label>
-              <select 
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
-                value={selectedVendor}
-                onChange={(e) => setSelectedVendor(e.target.value)}
-              >
-                <option value="">-- Choose Vendor --</option>
-                {balances.map((b) => (
-                  <option key={b.vendor_id} value={b.vendor_id}>{b.vendor_profile?.full_name || b.vendor_id}</option>
+              <Label>Select Vendor</Label>
+              <select className="w-full p-2 border rounded-md" value={selectedVendor} onChange={(e) => setSelectedVendor(e.target.value)}>
+                <option value="">-- Select --</option>
+                {balances.map(b => (
+                  <option key={b.vendor_id} value={b.vendor_id}>{b.profiles?.full_name || b.vendor_id}</option>
                 ))}
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="amount">Amount to Add ($)</Label>
-              <Input id="amount" type="number" placeholder="0.00" value={addAmount} onChange={(e) => setAddAmount(e.target.value)} />
+              <Label>Amount ($)</Label>
+              <Input type="number" value={addAmount} onChange={(e) => setAddAmount(e.target.value)} placeholder="0.00" />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddBalance(false)}>Cancel</Button>
-            <Button onClick={handleAddBalance}>Confirm Deposit</Button>
+            <Button onClick={handleAddBalance}>Update</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
