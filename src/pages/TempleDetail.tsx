@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   MapPin, Phone, Star, ArrowLeft, Package, Clock, Loader2, 
   ExternalLink, ChevronUp, ChevronDown, MessageSquare, Eye, EyeOff, Trash2,
-  Image as ImageIcon // இங்குதான் பிழை இருந்தது, இப்போது சரி செய்யப்பட்டுள்ளது
+  Image as ImageIcon
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
@@ -120,6 +120,7 @@ const TempleDetail = () => {
   const { products, loading: productsLoading } = useTempleProducts(id);
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [direction, setDirection] = useState(0); // அசைவு திசைக்காக
   const [formKey, setFormKey] = useState(0);
   const [isAboutExpanded, setIsAboutExpanded] = useState(false);
 
@@ -145,6 +146,36 @@ const TempleDetail = () => {
   const galleryImages = (temple.gallery_images && temple.gallery_images.length > 0) 
     ? temple.gallery_images 
     : [temple.image];
+
+  // Gallery அனிமேஷன் வேரியண்ட்கள்
+  const variants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? 300 : -300,
+      opacity: 0,
+      scale: 0.95
+    }),
+    center: {
+      zIndex: 1,
+      x: 0,
+      opacity: 1,
+      scale: 1
+    },
+    exit: (direction: number) => ({
+      zIndex: 0,
+      x: direction < 0 ? 300 : -300,
+      opacity: 0,
+      scale: 0.95
+    })
+  };
+
+  const paginate = (newDirection: number) => {
+    setDirection(newDirection);
+    if (newDirection > 0) {
+      setCurrentImageIndex(prev => (prev + 1) % galleryImages.length);
+    } else {
+      setCurrentImageIndex(prev => (prev - 1 + galleryImages.length) % galleryImages.length);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -198,33 +229,39 @@ const TempleDetail = () => {
                 </div>
               </div>
 
-              {/* GALLERY SECTION */}
+              {/* GALLERY SECTION - ANIMATED */}
               <div className="space-y-4 order-5 lg:order-2">
                 <h3 className="font-display text-2xl font-semibold flex items-center gap-2">
                   <ImageIcon className="text-primary" size={24} /> Temple Gallery
                 </h3>
                 <div className="h-[350px] sm:h-[450px] flex gap-4">
                   <div className="flex-1 relative rounded-2xl overflow-hidden border-2 border-muted shadow-xl bg-muted">
-                    <AnimatePresence mode="wait">
+                    <AnimatePresence initial={false} custom={direction} mode="popLayout">
                       <motion.img 
                         key={currentImageIndex}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
+                        custom={direction}
+                        variants={variants}
+                        initial="enter"
+                        animate="center"
+                        exit="exit"
+                        transition={{
+                          x: { type: "spring", stiffness: 300, damping: 30 },
+                          opacity: { duration: 0.3 }
+                        }}
                         src={galleryImages[currentImageIndex]} 
-                        className="h-full w-full object-cover" 
+                        className="h-full w-full object-cover absolute inset-0" 
                         alt={`${temple.name} Gallery`}
                       />
                     </AnimatePresence>
                     
                     {galleryImages.length > 1 && (
                       <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-10">
-                        <Button variant="secondary" size="icon" className="rounded-full shadow-xl bg-white/80 hover:bg-white" onClick={() => setCurrentImageIndex(prev => (prev - 1 + galleryImages.length) % galleryImages.length)}><ChevronUp size={20}/></Button>
-                        <Button variant="secondary" size="icon" className="rounded-full shadow-xl bg-white/80 hover:bg-white" onClick={() => setCurrentImageIndex(prev => (prev + 1) % galleryImages.length)}><ChevronDown size={20}/></Button>
+                        <Button variant="secondary" size="icon" className="rounded-full shadow-xl bg-white/80 hover:bg-white" onClick={() => paginate(-1)}><ChevronUp size={20}/></Button>
+                        <Button variant="secondary" size="icon" className="rounded-full shadow-xl bg-white/80 hover:bg-white" onClick={() => paginate(1)}><ChevronDown size={20}/></Button>
                       </div>
                     )}
 
-                    <div className="absolute bottom-4 left-4">
+                    <div className="absolute bottom-4 left-4 z-10">
                       <Badge className="bg-black/50 backdrop-blur-sm border-none text-white">
                         {currentImageIndex + 1} / {galleryImages.length}
                       </Badge>
@@ -238,7 +275,10 @@ const TempleDetail = () => {
                         whileTap={{ scale: 0.95 }}
                         key={i} 
                         src={img} 
-                        onClick={() => setCurrentImageIndex(i)} 
+                        onClick={() => {
+                          setDirection(i > currentImageIndex ? 1 : -1);
+                          setCurrentImageIndex(i);
+                        }} 
                         className={`h-24 rounded-xl cursor-pointer object-cover border-2 transition-all ${i === currentImageIndex ? 'border-primary shadow-lg ring-2 ring-primary/20' : 'border-transparent opacity-60 hover:opacity-100'}`} 
                         alt="Thumbnail"
                       />
