@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ShoppingCart, 
@@ -33,9 +33,11 @@ import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { getCategoryLabel } from '@/lib/categories';
+import { AuthModal } from '@/components/auth/AuthModal';
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { product, loading, error } = useProduct(id);
   const { variants, loading: variantsLoading } = useProductVariants(id);
   const { reviews, loading: reviewsLoading, averageRating, refetch: refetchReviews } = useProductReviews(id);
@@ -51,6 +53,7 @@ const ProductDetail = () => {
   const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [showReviewForm, setShowReviewForm] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [reviewForm, setReviewForm] = useState({
     rating: 5,
     title: '',
@@ -79,6 +82,10 @@ const ProductDetail = () => {
   const getCurrentSKU = () => (selectedVariant && selectedVariant.sku) ? selectedVariant.sku : "N/A";
 
   const handleAddToCart = () => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
     if (!product) return;
     const currentStock = getCurrentStock();
     if (currentStock === 0) {
@@ -98,6 +105,14 @@ const ProductDetail = () => {
       variant_id: selectedVariant?.id,
       variant_name: selectedVariant?.name,
     });
+  };
+
+  const handleViewCart = () => {
+    if (!user) {
+      setShowAuthModal(true);
+    } else {
+      navigate('/cart');
+    }
   };
 
   const handleSubmitReview = async (e: React.FormEvent) => {
@@ -134,6 +149,7 @@ const ProductDetail = () => {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container py-6 px-4 sm:py-8">
+        <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
         <nav className="mb-4">
           <Link to="/products" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
             <ChevronLeft className="mr-1 h-4 w-4" /> Back to Products
@@ -226,11 +242,14 @@ const ProductDetail = () => {
                     {isAdded() ? 'Add More to Cart' : 'Add to Cart'}
                   </Button>
                   
-                  <Link to="/cart" className="w-full order-2">
-                    <Button variant="outline" size="lg" className="w-full gap-2 text-base font-semibold bg-amber-400 hover:bg-amber-500 text-black border-none">
-                      <Eye className="h-5 w-5" /> View Cart
-                    </Button>
-                  </Link>
+                  <Button 
+                    variant="outline" 
+                    size="lg" 
+                    className="w-full gap-2 text-base font-semibold bg-amber-400 hover:bg-amber-500 text-black border-none order-2"
+                    onClick={handleViewCart}
+                  >
+                    <Eye className="h-5 w-5" /> View Cart
+                  </Button>
                 </div>
                 
                 <Button variant="outline" size="lg" className="w-full gap-2 font-medium order-3">
