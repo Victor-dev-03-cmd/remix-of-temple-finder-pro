@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -45,6 +46,50 @@ import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+// --- MODERN PAGE LOADER WITH TEMPLE ICON & SPINNER ---
+const GlobalLoadingSkeleton = () => (
+  <div className="flex flex-col items-center justify-center min-h-screen bg-background w-full">
+    <div className="relative flex flex-col items-center gap-6">
+      
+      {/* Temple Icon Container with Spinner */}
+      <div className="relative">
+        <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10 ">
+          <span className="text-4xl text-primary">ૐ</span>
+        </div>
+        
+        {/* Spinner around the Icon */}
+        <div className="absolute -inset-2 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+      </div>
+
+      {/* Loading Text */}
+      <div className="flex flex-col items-center gap-2">
+        <h2 className="text-xl font-semibold text-primary animate-pulse">
+          Temple Info
+        </h2>
+        <p className="text-sm text-muted-foreground">Loading your experience...</p>
+      </div>
+
+      {/* 3 Seconds Progress Bar */}
+      <div className="w-48 h-1 bg-muted rounded-full overflow-hidden">
+        <div 
+          className="h-full bg-primary" 
+          style={{
+            animation: 'progress 1.5s linear forwards'
+          }} 
+        />
+      </div>
+    </div>
+
+    {/* Custom Animation Style */}
+    <style>{`
+      @keyframes progress {
+        0% { width: 0%; }
+        100% { width: 100%; }
+      }
+    `}</style>
+  </div>
+);
 
 // Redirect authenticated users away from auth page
 const AuthRoute = () => {
@@ -251,27 +296,41 @@ const AppRoutes = () => {
   );
 };
 
-const App = () => (
-  <HelmetProvider>
-    <I18nextProvider i18n={i18n}>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <BrowserRouter>
-            <AuthProvider>
-              <SiteSettingsProvider>
-                <CartProvider>
-                  <Toaster />
-                  <Sonner />
-                  <AppRoutes />
-                  <ChatWidget />
-                </CartProvider>
-              </SiteSettingsProvider>
-            </AuthProvider>
-          </BrowserRouter>
-        </TooltipProvider>
-      </QueryClientProvider>
-    </I18nextProvider>
-  </HelmetProvider>
-);
+const App = () => {
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  useEffect(() => {
+    // 3 seconds delay for the loader
+    const timer = setTimeout(() => {
+      setIsInitialLoading(false);
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <HelmetProvider>
+      <I18nextProvider i18n={i18n}>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <BrowserRouter>
+              <AuthProvider>
+                <SiteSettingsProvider>
+                  <CartProvider>
+                    <Toaster />
+                    <Sonner />
+                    {/* Shows Loader for 3s, then the Website */}
+                    {isInitialLoading ? <GlobalLoadingSkeleton /> : <AppRoutes />}
+                    <ChatWidget />
+                  </CartProvider>
+                </SiteSettingsProvider>
+              </AuthProvider>
+            </BrowserRouter>
+          </TooltipProvider>
+        </QueryClientProvider>
+      </I18nextProvider>
+    </HelmetProvider>
+  );
+};
 
 export default App;
