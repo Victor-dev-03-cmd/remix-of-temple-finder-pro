@@ -166,13 +166,13 @@ const Settings = () => {
     }
   };
 
-  // --- UPDATED DELETE ACCOUNT FUNCTION ---
+  // --- DELETE ACCOUNT FUNCTION ---
   const handleDeleteAccount = async () => {
     if (!user) return;
     setDeleting(true);
     
     try {
-      // 1. Profiles டேபிளில் இருந்து தரவை நீக்குதல்
+      // Delete profile data
       const { error: profileError } = await supabase
         .from('profiles')
         .delete()
@@ -180,16 +180,11 @@ const Settings = () => {
 
       if (profileError) throw profileError;
 
-      // 2. Auth சிஸ்டத்தில் இருந்து பயனரை நீக்குதல் (RPC Call)
-      const { error: authError } = await supabase.rpc('delete_user_account');
-      
-      if (authError) throw authError;
-
-      // 3. Logout செய்துவிட்டு வெளியே அனுப்புதல்
+      // Logout and redirect
       await signOut();
       toast({ 
         title: 'Account Deleted', 
-        description: 'Your account has been permanently removed.' 
+        description: 'Your profile data has been removed. Contact support to fully delete your account.' 
       });
       navigate('/auth');
     } catch (error: any) {

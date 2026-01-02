@@ -9,6 +9,7 @@ import {
   Clock,
   Wallet,
   Percent,
+  CalendarDays,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -269,37 +270,63 @@ const VendorEarningsCard = () => {
             </div>
           </div>
 
-          {/* Available Balance - Hero Section */}
-          <div className="bg-gradient-to-r from-primary/10 to-transparent rounded-xl p-4 sm:p-5">
-            <p className="text-xs sm:text-sm text-muted-foreground mb-1">Available Balance</p>
-            <p className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground">
-              ${balance?.available_balance?.toFixed(2) || '0.00'}
-            </p>
+          {/* Desktop: Horizontal Layout | Mobile: Stacked */}
+          <div className="flex flex-col lg:flex-row lg:items-stretch gap-4">
+            {/* Available Balance - Hero Section */}
+            <div className="flex-1 bg-gradient-to-r from-primary/10 to-transparent rounded-xl p-4 sm:p-5 flex flex-col justify-center">
+              <p className="text-xs sm:text-sm text-muted-foreground mb-1">Available Balance</p>
+              <p className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground">
+                ${balance?.available_balance?.toFixed(2) || '0.00'}
+              </p>
+            </div>
+
+            {/* Stats Grid - Horizontal on Desktop */}
+            <div className="flex flex-col sm:flex-row lg:flex-row gap-3 lg:gap-2">
+              <StatCard
+                title="Total Earned"
+                value={balance?.total_earnings}
+                icon={<DollarSign className="h-4 w-4 text-emerald-500" />}
+                bg="bg-emerald-500/10"
+                border="border-emerald-500/30"
+              />
+              <StatCard
+                title="Pending"
+                value={balance?.pending_balance}
+                icon={<Clock className="h-4 w-4 text-amber-500" />}
+                bg="bg-amber-500/10"
+                border="border-amber-500/30"
+              />
+              <StatCard
+                title="Withdrawn"
+                value={balance?.withdrawn_amount}
+                icon={<Wallet className="h-4 w-4 text-blue-500" />}
+                bg="bg-blue-500/10"
+                border="border-blue-500/30"
+              />
+            </div>
           </div>
 
-          {/* Stats Grid - Responsive */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <StatCard
-              title="Total Earned"
-              value={balance?.total_earnings}
-              icon={<DollarSign className="h-4 w-4 text-emerald-500" />}
-              bg="bg-emerald-500/10"
-              border="border-emerald-500/30"
-            />
-            <StatCard
-              title="Pending"
-              value={balance?.pending_balance}
-              icon={<Clock className="h-4 w-4 text-amber-500" />}
-              bg="bg-amber-500/10"
-              border="border-amber-500/30"
-            />
-            <StatCard
-              title="Withdrawn"
-              value={balance?.withdrawn_amount}
-              icon={<Wallet className="h-4 w-4 text-blue-500" />}
-              bg="bg-blue-500/10"
-              border="border-blue-500/30"
-            />
+          {/* Total Monthly Revenue Section */}
+          <div className="bg-muted/40 rounded-xl p-4 border border-border/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <CalendarDays className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Total Monthly Revenue</p>
+                  <p className="text-xl sm:text-2xl font-bold text-foreground">
+                    ${balance?.total_earnings?.toFixed(2) || '0.00'}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground">Commission ({commissionRate}%)</p>
+                <p className="text-base sm:text-lg font-semibold text-destructive">
+                  -${((balance?.total_earnings || 0) * commissionRate / 100).toFixed(2)}
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Progress to minimum withdrawal */}
@@ -408,14 +435,14 @@ const StatCard = ({
   bg: string;
   border: string;
 }) => (
-  <div className={`rounded-xl border ${border} ${bg} p-3 sm:p-4`}>
+  <div className={`rounded-xl border ${border} ${bg} p-3 sm:p-4 min-w-[120px] lg:min-w-[140px]`}>
     <div className="flex items-center gap-2 mb-1.5">
       {icon}
-      <span className="text-xs sm:text-sm font-medium text-muted-foreground">
+      <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
         {title}
       </span>
     </div>
-    <p className="text-lg sm:text-xl lg:text-2xl font-bold">
+    <p className="text-lg sm:text-xl font-bold">
       ${value?.toFixed(2) || '0.00'}
     </p>
   </div>

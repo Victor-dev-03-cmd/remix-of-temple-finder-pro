@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Building, MapPin, ExternalLink, Package, Loader2, Edit, Image as ImageIcon, Plus, X } from 'lucide-react';
+import { Building, MapPin, ExternalLink, Package, Loader2, Edit, Image as ImageIcon } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVendorTemple } from '@/hooks/useVendorTemple';
@@ -11,90 +11,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import VendorTempleForm from '@/components/vendor/VendorTempleForm';
 import TicketManagement from '@/components/vendor/TicketManagement';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 
 const VendorTemple = () => {
   const { user } = useAuth();
   const { temple, application, loading, refetch } = useVendorTemple(user?.id);
   const { products } = useProducts({ vendorId: user?.id, status: 'approved' });
   const [isEditing, setIsEditing] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-
-  // --- Gallery Upload Handler ---
-  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0 || !temple) return;
-
-    setIsUploading(true);
-    const toastId = toast.loading("Uploading images...");
-    
-    const currentImages = temple.gallery_images || [];
-    const newUrls: string[] = [...currentImages];
-
-    try {
-      for (const file of Array.from(files)) {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-        const filePath = `gallery/${temple.id}/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('temple-images')
-          .upload(filePath, file);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('temple-images')
-          .getPublicUrl(filePath);
-
-        newUrls.push(publicUrl);
-      }
-
-      // Database-ஐ அப்டேட் செய்தல்
-      const { error: updateError } = await supabase
-        .from('temples')
-        .update({ gallery_images: newUrls })
-        .eq('id', temple.id);
-
-      if (updateError) throw updateError;
-
-      // தரவை மீண்டும் fetch செய்ய refetch() பயன்படுத்துகிறோம்
-      await refetch(); 
-      
-      toast.success("Gallery updated successfully", { id: toastId });
-    } catch (error: any) {
-      console.error("Upload error:", error);
-      toast.error(`Upload failed: ${error.message}`, { id: toastId });
-    } finally {
-      setIsUploading(false);
-      if (e.target) e.target.value = '';
-    }
-  };
-
-  // --- Remove Image Handler ---
-  const removeImage = async (urlToRemove: string) => {
-    if (!temple) return;
-    
-    const toastId = toast.loading("Removing image...");
-    const updatedImages = (temple.gallery_images || []).filter((url: string) => url !== urlToRemove);
-    
-    try {
-      const { error } = await supabase
-        .from('temples')
-        .update({ gallery_images: updatedImages })
-        .eq('id', temple.id);
-      
-      if (error) throw error;
-      
-      // நீக்கிய பிறகு தரவை மீண்டும் fetch செய்ய refetch()
-      await refetch();
-      
-      toast.success("Image removed", { id: toastId });
-    } catch (error: any) {
-      toast.error(`Failed to remove: ${error.message}`, { id: toastId });
-    }
-  };
 
   if (loading) {
     return (
@@ -203,55 +125,6 @@ const VendorTemple = () => {
           </Card>
         </motion.div>
 
-        {/* GALLERY MANAGEMENT SECTION */}
-        <Card>
-          <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <CardTitle className="text-xl">Gallery Images</CardTitle>
-              <CardDescription>Upload photos for devotees</CardDescription>
-            </div>
-            <div className="relative w-full sm:w-auto">
-              <input 
-                type="file" 
-                id="gallery-upload"
-                multiple 
-                accept="image/*" 
-                className="hidden" 
-                onChange={handleGalleryUpload} 
-                disabled={isUploading} 
-              />
-              <Button asChild disabled={isUploading} className="w-full sm:w-auto">
-                <label htmlFor="gallery-upload" className="cursor-pointer flex items-center justify-center gap-2">
-                  {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                  Add Photos
-                </label>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {temple.gallery_images && temple.gallery_images.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4">
-                {temple.gallery_images.map((img: string, index: number) => (
-                  <div key={index} className="group relative aspect-square rounded-xl overflow-hidden border bg-muted shadow-sm">
-                    <img src={img} className="h-full w-full object-cover" alt={`Gallery ${index}`} />
-                    <button 
-                      onClick={() => removeImage(img)}
-                      className="absolute top-2 right-2 p-1.5 bg-destructive/90 text-destructive-foreground rounded-full shadow-md sm:opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed rounded-xl bg-muted/20 border-muted-foreground/10">
-                <ImageIcon className="h-10 w-10 text-muted-foreground/30 mb-2" />
-                <p className="text-sm text-muted-foreground">No gallery images yet</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Ticket Management */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <TicketManagement templeId={temple.id} />
@@ -279,7 +152,7 @@ const VendorTemple = () => {
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10"><ImageIcon className="h-5 w-5 text-warning" /></div>
-                <div><p className="text-xs sm:text-sm text-muted-foreground">Gallery</p><p className="text-xl sm:text-2xl font-bold">{temple.gallery_images?.length || 0}</p></div>
+                <div><p className="text-xs sm:text-sm text-muted-foreground">Temple Image</p><p className="text-xl sm:text-2xl font-bold">{temple.image_url ? '1' : '0'}</p></div>
               </div>
             </CardContent>
           </Card>
