@@ -127,11 +127,9 @@ const TempleDetail = () => {
   if (isLoading) return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!temple || error) return <div className="flex min-h-screen items-center justify-center bg-background p-4"><div className="text-center"><h1 className="mb-4 text-2xl font-semibold">Temple Not Found</h1><Link to="/temples"><Button>Browse Temples</Button></Link></div></div>;
 
-  const handleReviewSuccess = (operation: 'create' | 'update') => {
+  const handleReviewSuccess = () => {
     refetchReviews();
-    if (operation === 'create') {
-      setFormKey(prev => prev + 1);
-    }
+    setFormKey(prev => prev + 1);
   };
   
   const handleReviewDelete = () => {
@@ -143,9 +141,8 @@ const TempleDetail = () => {
     window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${temple.name} ${temple.district}`)}`, '_blank'); 
   };
 
-  const galleryImages = (temple.gallery_images && temple.gallery_images.length > 0) 
-    ? temple.gallery_images 
-    : [temple.image];
+  // Use main image as gallery since gallery_images doesn't exist in schema
+  const galleryImages = temple.image_url ? [temple.image_url] : [];
 
   // Gallery அனிமேஷன் வேரியண்ட்கள்
   const variants = {
@@ -184,7 +181,7 @@ const TempleDetail = () => {
       {/* Hero Section */}
       <section className="relative h-[45vh] min-h-[350px] overflow-hidden">
         <div className="absolute inset-0">
-          <img src={temple.image} alt={temple.name} className="h-full w-full object-cover" />
+          <img src={temple.image_url || ''} alt={temple.name} className="h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
         </div>
         <div className="container relative flex h-full flex-col justify-end pb-8">
@@ -338,7 +335,7 @@ const TempleDetail = () => {
                   <h3 className="mb-4 font-semibold text-lg flex items-center gap-2 text-primary">
                     <Star className="fill-primary" size={20} /> Share Experience
                   </h3>
-                  <TempleReviewForm key={formKey} templeId={id || ''} onSuccess={handleReviewSuccess} />
+                  <TempleReviewForm key={formKey} templeId={id || ''} />
                 </div>
               </div>
 

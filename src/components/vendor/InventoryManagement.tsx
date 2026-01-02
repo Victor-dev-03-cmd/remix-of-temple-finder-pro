@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
 import { useInventoryProducts, Product, NewProduct } from '@/hooks/useInventoryProducts';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,10 +15,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { PlusCircle, FileDown, Search, Package, TrendingDown, LayoutGrid, MoreHorizontal, Trash2, Pencil } from 'lucide-react';
+import { PlusCircle, FileDown, Search, Package, TrendingDown, LayoutGrid, MoreHorizontal, Trash2, Pencil, ChevronDown, ChevronUp } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+
+interface ProductVariant {
+  id: string;
+  name: string;
+  sku: string | null;
+  stock: number;
+  price: number;
+  product_id: string;
+}
 
 const productSchema = z.object({
   id: z.string().optional(),
@@ -47,6 +58,8 @@ const InventoryManagement = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
+  const [productVariants, setProductVariants] = useState<Record<string, ProductVariant[]>>({});
 
   const form = useForm<z.infer<typeof productSchema>>({
     resolver: zodResolver(productSchema),
@@ -59,6 +72,32 @@ const InventoryManagement = () => {
     },
   });
 
+  // Fetch variants for all products
+  useEffect(() => {
+    const fetchAllVariants = async () => {
+      if (!products || products.length === 0) return;
+      
+      const productIds = products.map(p => p.id);
+      const { data, error } = await supabase
+        .from('product_variants')
+        .select('*')
+        .in('product_id', productIds);
+      
+      if (!error && data) {
+        const variantMap: Record<string, ProductVariant[]> = {};
+        data.forEach(variant => {
+          if (!variantMap[variant.product_id]) {
+            variantMap[variant.product_id] = [];
+          }
+          variantMap[variant.product_id].push(variant);
+        });
+        setProductVariants(variantMap);
+      }
+    };
+    
+    fetchAllVariants();
+  }, [products]);
+
   const filteredProducts = useMemo(() => {
     if (!products) return [];
     return products
@@ -67,6 +106,26 @@ const InventoryManagement = () => {
   }, [products, searchTerm, categoryFilter]);
 
   const outOfStockProducts = useMemo(() => products?.filter(p => (p.stock || 0) === 0) || [], [products]);
+
+  const toggleExpanded = (productId: string) => {
+    setExpandedProducts(prev => {
+      const next = new Set(prev);
+      if (next.has(productId)) {
+        next.delete(productId);
+      } else {
+        next.add(productId);
+      }
+      return next;
+    });
+  };
+
+  const getTotalStock = (product: Product) => {
+    const variants = productVariants[product.id] || [];
+    if (variants.length > 0) {
+      return variants.reduce((sum, v) => sum + v.stock, 0);
+    }
+    return product.stock;
+  };
 
   const handleAddNew = () => {
     setEditingProduct(null);
@@ -181,7 +240,7 @@ const InventoryManagement = () => {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <CardTitle>Inventory</CardTitle>
-              <CardDescription>Manage your products and their stock levels.</CardDescription>
+              <CardDescription>Manage your products, variants, and stock levels.</CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <Button onClick={handleAddNew}>
@@ -214,39 +273,128 @@ const InventoryManagement = () => {
               </SelectContent>
             </Select>
           </div>
-          <div className="rounded-md border">
+          
+          {/* Desktop Table View */}
+          <div className="hidden md:block rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[40px]"></TableHead>
                   <TableHead>Product</TableHead>
+                  <TableHead>SKU</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead className="text-right">Price</TableHead>
                   <TableHead className="text-center">Stock</TableHead>
+                  <TableHead className="text-center">Variants</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProducts.map((product) => (
-                  <TableRow key={product.id} className={product.stock === 0 ? 'bg-muted/50 text-muted-foreground' : ''}>
-                    <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell>
-                       <Badge variant="outline">{product.category}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">₹{(product.price || 0).toFixed(2)}</TableCell>
-                    <TableCell className="text-center">
-                        {product.stock === 0 ? (
+                {filteredProducts.map((product) => {
+                  const variants = productVariants[product.id] || [];
+                  const hasVariants = variants.length > 0;
+                  const isExpanded = expandedProducts.has(product.id);
+                  const totalStock = getTotalStock(product);
+                  
+                  return (
+                    <>
+                      <TableRow key={product.id} className={totalStock === 0 ? 'bg-muted/50 text-muted-foreground' : ''}>
+                        <TableCell>
+                          {hasVariants && (
+                            <button 
+                              onClick={() => toggleExpanded(product.id)}
+                              className="p-1 hover:bg-muted rounded"
+                            >
+                              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            </button>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-medium">{product.name}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs font-mono">
+                          {hasVariants ? '(see variants)' : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{product.category}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">₹{(product.price || 0).toFixed(2)}</TableCell>
+                        <TableCell className="text-center">
+                          {totalStock === 0 ? (
                             <Badge variant="destructive">SOLD OUT</Badge>
-                        ) : (
-                            <span className={`font-bold ${product.stock < 10 ? 'text-destructive' : ''}`}>
-                                {product.stock}
+                          ) : (
+                            <span className={`font-bold ${totalStock < 10 ? 'text-destructive' : ''}`}>
+                              {totalStock}
                             </span>
-                        )}
-                    </TableCell>
-                    <TableCell className="text-right">
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="secondary">{variants.length}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEdit(product)}>
+                                <Pencil className="mr-2 h-4 w-4" /> Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDelete(product)} className="text-destructive focus:text-destructive">
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                      {/* Variant Rows */}
+                      {isExpanded && variants.map((variant) => (
+                        <TableRow key={variant.id} className="bg-muted/30 border-l-4 border-l-primary/30">
+                          <TableCell></TableCell>
+                          <TableCell className="pl-8 text-sm text-muted-foreground">
+                            ↳ {variant.name}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">
+                            {variant.sku || '-'}
+                          </TableCell>
+                          <TableCell></TableCell>
+                          <TableCell className="text-right text-sm">₹{variant.price.toFixed(2)}</TableCell>
+                          <TableCell className="text-center">
+                            <span className={`font-semibold text-sm ${variant.stock < 5 ? 'text-destructive' : ''}`}>
+                              {variant.stock}
+                            </span>
+                          </TableCell>
+                          <TableCell></TableCell>
+                          <TableCell></TableCell>
+                        </TableRow>
+                      ))}
+                    </>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-3">
+            {filteredProducts.map((product) => {
+              const variants = productVariants[product.id] || [];
+              const hasVariants = variants.length > 0;
+              const isExpanded = expandedProducts.has(product.id);
+              const totalStock = getTotalStock(product);
+              
+              return (
+                <Card key={product.id} className={totalStock === 0 ? 'bg-muted/50' : ''}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold truncate">{product.name}</h4>
+                        <Badge variant="outline" className="mt-1">{product.category}</Badge>
+                      </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0" disabled={product.stock === 0}>
-                            <span className="sr-only">Open menu</span>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -254,17 +402,68 @@ const InventoryManagement = () => {
                           <DropdownMenuItem onClick={() => handleEdit(product)}>
                             <Pencil className="mr-2 h-4 w-4" /> Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDelete(product)} className="text-destructive focus:text-destructive">
+                          <DropdownMenuItem onClick={() => handleDelete(product)} className="text-destructive">
                             <Trash2 className="mr-2 h-4 w-4" /> Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-2 mt-3 text-sm">
+                      <div>
+                        <p className="text-muted-foreground text-xs">Price</p>
+                        <p className="font-semibold">₹{product.price.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">Stock</p>
+                        {totalStock === 0 ? (
+                          <Badge variant="destructive" className="text-xs">Sold Out</Badge>
+                        ) : (
+                          <p className={`font-semibold ${totalStock < 10 ? 'text-destructive' : ''}`}>{totalStock}</p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">Variants</p>
+                        <p className="font-semibold">{variants.length}</p>
+                      </div>
+                    </div>
+
+                    {hasVariants && (
+                      <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(product.id)}>
+                        <CollapsibleTrigger asChild>
+                          <Button variant="ghost" size="sm" className="w-full mt-3 text-xs">
+                            {isExpanded ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />}
+                            {isExpanded ? 'Hide' : 'Show'} Variants ({variants.length})
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="mt-2 space-y-2">
+                          {variants.map((variant) => (
+                            <div key={variant.id} className="bg-muted/50 rounded-lg p-3 text-sm border-l-2 border-l-primary/30">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <p className="font-medium">{variant.name}</p>
+                                  {variant.sku && (
+                                    <p className="text-xs text-muted-foreground font-mono">SKU: {variant.sku}</p>
+                                  )}
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-semibold">₹{variant.price.toFixed(2)}</p>
+                                  <p className={`text-xs ${variant.stock < 5 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                                    Stock: {variant.stock}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </CollapsibleContent>
+                      </Collapsible>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
+
           {filteredProducts.length === 0 && (
             <div className="text-center p-8 text-muted-foreground">
               No products found.
