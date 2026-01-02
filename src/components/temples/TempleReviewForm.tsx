@@ -31,25 +31,45 @@ const TempleReviewForm = ({ templeId }: TempleReviewFormProps) => {
     }
   }, [existingReview]);
 
+  const resetForm = () => {
+    setRating(0);
+    setTitle('');
+    setComment('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (rating === 0) return;
 
     if (existingReview) {
-      updateReview.mutate({
-        id: existingReview.id,
-        rating,
-        title: title.trim() || undefined,
-        comment: comment.trim() || undefined,
-      });
+      updateReview.mutate(
+        {
+          id: existingReview.id,
+          rating,
+          title: title.trim() || undefined,
+          comment: comment.trim() || undefined,
+        },
+        {
+          onSuccess: () => {
+            // Form will repopulate from existingReview on next fetch
+          },
+        }
+      );
     } else {
-      createReview.mutate({
-        temple_id: templeId,
-        rating,
-        title: title.trim() || undefined,
-        comment: comment.trim() || undefined,
-      });
+      createReview.mutate(
+        {
+          temple_id: templeId,
+          rating,
+          title: title.trim() || undefined,
+          comment: comment.trim() || undefined,
+        },
+        {
+          onSuccess: () => {
+            resetForm();
+          },
+        }
+      );
     }
   };
 
