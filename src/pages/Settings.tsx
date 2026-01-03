@@ -166,26 +166,26 @@ const Settings = () => {
     }
   };
 
-  // --- DELETE ACCOUNT FUNCTION ---
+  // --- FIXED DELETE ACCOUNT FUNCTION ---
   const handleDeleteAccount = async () => {
     if (!user) return;
     setDeleting(true);
     
     try {
-      // Delete profile data
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('user_id', user.id);
+      // 1. Call the RPC function to delete from auth.users (This also deletes profile via CASCADE)
+      const { error: deleteError } = await supabase.rpc('delete_user_account');
 
-      if (profileError) throw profileError;
+      if (deleteError) throw deleteError;
 
-      // Logout and redirect
+      // 2. Sign out the user locally
       await signOut();
+      
       toast({ 
         title: 'Account Deleted', 
-        description: 'Your profile data has been removed. Contact support to fully delete your account.' 
+        description: 'Your account has been permanently removed.' 
       });
+      
+      // 3. Redirect to auth page
       navigate('/auth');
     } catch (error: any) {
       console.error("Delete account error:", error);
@@ -306,7 +306,7 @@ const Settings = () => {
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                  <AlertDialogDescription>This action is permanent. You will need to sign up again to use the app.</AlertDialogDescription>
+                  <AlertDialogDescription>This action is permanent. All your data will be wiped out and you can sign up again with the same email.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>

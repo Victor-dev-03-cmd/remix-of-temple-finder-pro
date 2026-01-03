@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useQueryClient } from '@tanstack/react-query'; 
 import {
   Select,
   SelectContent,
@@ -25,6 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import CountrySelector from './CountrySelector';
 
+// --- CONSTANTS START (DO NOT REMOVE) ---
 const settingsSections = [
   { id: 'settings-general', label: 'General Settings', icon: Settings, keywords: ['site name', 'logo', 'commission', 'country', 'maintenance'] },
   { id: 'settings-notifications', label: 'Notifications', icon: Bell, keywords: ['email', 'alerts', 'chat', 'sound', 'vendor', 'order'] },
@@ -59,63 +61,51 @@ const colorPresets = [
   { name: 'Teal', primary: '173 80% 40%', accent: '187 92% 69%' },
 ];
 
-// Convert HSL string to hex for color input
 const hslToHex = (hsl: string): string => {
-  const [h, s, l] = hsl.split(' ').map((v) => parseFloat(v));
+  const [h, s, l] = hsl.replace(/%/g, '').split(' ').map((v) => parseFloat(v));
   const sDecimal = s / 100;
   const lDecimal = l / 100;
-  
   const c = (1 - Math.abs(2 * lDecimal - 1)) * sDecimal;
   const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
   const m = lDecimal - c / 2;
-  
   let r = 0, g = 0, b = 0;
-  
   if (h >= 0 && h < 60) { r = c; g = x; b = 0; }
   else if (h >= 60 && h < 120) { r = x; g = c; b = 0; }
   else if (h >= 120 && h < 180) { r = 0; g = c; b = x; }
   else if (h >= 180 && h < 240) { r = 0; g = x; b = c; }
   else if (h >= 240 && h < 300) { r = x; g = 0; b = c; }
   else { r = c; g = 0; b = x; }
-  
   const toHex = (n: number) => {
     const hex = Math.round((n + m) * 255).toString(16);
     return hex.length === 1 ? '0' + hex : hex;
   };
-  
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 };
 
-// Convert hex to HSL string
 const hexToHsl = (hex: string): string => {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   if (!result) return '217 91% 60%';
-  
   let r = parseInt(result[1], 16) / 255;
   let g = parseInt(result[2], 16) / 255;
   let b = parseInt(result[3], 16) / 255;
-  
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  let h = 0, s = 0;
-  const l = (max + min) / 2;
-  
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0, l = (max + min) / 2;
   if (max !== min) {
     const d = max - min;
     s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    
     switch (max) {
       case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
       case g: h = ((b - r) / d + 2) / 6; break;
       case b: h = ((r - g) / d + 4) / 6; break;
     }
   }
-  
   return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
 };
+// --- CONSTANTS END ---
 
 const SiteSettings = () => {
   const { toast } = useToast();
+  const queryClient = useQueryClient(); 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -125,6 +115,7 @@ const SiteSettings = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const heroFileInputRef = useRef<HTMLInputElement>(null);
+  
   const [settings, setSettings] = useState({
     siteName: 'Temple Connect',
     defaultCountry: 'LK',
@@ -153,7 +144,6 @@ const SiteSettings = () => {
     heroCtaText: 'Become a Temple Vendor',
     heroCtaLink: '/become-vendor',
     commissionRate: 10,
-    // Email template settings
     emailFromName: 'Temple Connect',
     emailFromAddress: 'onboarding@resend.dev',
     bookingEmailSubject: 'Booking Confirmation - {{temple_name}}',
@@ -168,18 +158,32 @@ const SiteSettings = () => {
     newOrderEmailMessage: 'You have received a new order. Please check your vendor dashboard for order details and process it promptly.',
   });
 
-  // Fetch settings from database
+  // Dynamic Font Refresh Fix
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--font-sans', settings.primaryFont);
+    root.style.setProperty('--font-display', settings.displayFont);
+    root.style.setProperty('--primary', settings.primaryColor);
+    root.style.setProperty('--accent', settings.accentColor);
+
+    const fontId = 'dynamic-site-fonts';
+    let link = document.getElementById(fontId) as HTMLLinkElement;
+    if (!link) {
+      link = document.createElement('link');
+      link.id = fontId;
+      link.rel = 'stylesheet';
+      document.head.appendChild(link);
+    }
+    const primary = settings.primaryFont.replace(/\s+/g, '+');
+    const display = settings.displayFont.replace(/\s+/g, '+');
+    link.href = `https://fonts.googleapis.com/css2?family=${primary}:wght@400;500;600;700&family=${display}:wght@400;500;600;700&display=swap`;
+  }, [settings.primaryFont, settings.displayFont, settings.primaryColor, settings.accentColor]);
+
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const { data, error } = await supabase
-          .from('site_settings')
-          .select('*')
-          .limit(1)
-          .maybeSingle();
-
+        const { data, error } = await supabase.from('site_settings').select('*').limit(1).maybeSingle();
         if (error) throw error;
-
         if (data) {
           setSettingsId(data.id);
           setSettings({
@@ -198,180 +202,67 @@ const SiteSettings = () => {
             primaryColor: data.primary_color || '217 91% 60%',
             accentColor: data.accent_color || '43 96% 56%',
             logoUrl: data.logo_url,
-            footerTagline: data.footer_tagline || 'Connecting devotees with Hindu temples across Sri Lanka.',
+            footerTagline: data.footer_tagline || '',
             socialFacebook: data.social_facebook || '',
             socialInstagram: data.social_instagram || '',
             socialTwitter: data.social_twitter || '',
             socialLinkedin: data.social_linkedin || '',
             socialYoutube: data.social_youtube || '',
-            heroTitle: data.hero_title || 'Discover Sacred Temples',
-            heroSubtitle: data.hero_subtitle || 'Connect with Hindu temples across Sri Lanka and explore sacred traditions',
+            heroTitle: data.hero_title || '',
+            heroSubtitle: data.hero_subtitle || '',
             heroImageUrl: data.hero_image_url,
-            heroCtaText: data.hero_cta_text || 'Become a Temple Vendor',
-            heroCtaLink: data.hero_cta_link || '/become-vendor',
+            heroCtaText: data.hero_cta_text || '',
+            heroCtaLink: data.hero_cta_link || '',
             commissionRate: (data as any).commission_rate || 10,
-            // Email templates
             emailFromName: (data as any).email_from_name || 'Temple Connect',
             emailFromAddress: (data as any).email_from_address || 'onboarding@resend.dev',
-            bookingEmailSubject: (data as any).booking_email_subject || 'Booking Confirmation - {{temple_name}}',
-            bookingEmailGreeting: (data as any).booking_email_greeting || 'Namaste, {{customer_name}}!',
-            bookingEmailMessage: (data as any).booking_email_message || 'Your temple visit has been confirmed. Please present this QR code at the temple entrance.',
-            bookingEmailInstructions: (data as any).booking_email_instructions || 'Please arrive 15 minutes before your scheduled visit|Carry a valid ID proof along with this confirmation|Dress code: Traditional or modest attire recommended|Photography rules vary by temple - please check at entrance',
-            vendorApprovalEmailSubject: (data as any).vendor_approval_email_subject || 'Your Vendor Application has been Approved!',
-            vendorApprovalEmailMessage: (data as any).vendor_approval_email_message || 'Congratulations! Your application to become a vendor on Temple Connect has been approved. You can now access your vendor dashboard and start managing your temple products.',
-            vendorRejectionEmailSubject: (data as any).vendor_rejection_email_subject || 'Update on Your Vendor Application',
-            vendorRejectionEmailMessage: (data as any).vendor_rejection_email_message || 'Thank you for your interest in becoming a vendor on Temple Connect. After careful review, we are unable to approve your application at this time. Please feel free to reapply or contact us for more information.',
-            newOrderEmailSubject: (data as any).new_order_email_subject || 'New Order Received - Order #{{order_id}}',
-            newOrderEmailMessage: (data as any).new_order_email_message || 'You have received a new order. Please check your vendor dashboard for order details and process it promptly.',
+            bookingEmailSubject: (data as any).booking_email_subject || '',
+            bookingEmailGreeting: (data as any).booking_email_greeting || '',
+            bookingEmailMessage: (data as any).booking_email_message || '',
+            bookingEmailInstructions: (data as any).booking_email_instructions || '',
+            vendorApprovalEmailSubject: (data as any).vendor_approval_email_subject || '',
+            vendorApprovalEmailMessage: (data as any).vendor_approval_email_message || '',
+            vendorRejectionEmailSubject: (data as any).vendor_rejection_email_subject || '',
+            vendorRejectionEmailMessage: (data as any).vendor_rejection_email_message || '',
+            newOrderEmailSubject: (data as any).new_order_email_subject || '',
+            newOrderEmailMessage: (data as any).new_order_email_message || '',
           });
         }
       } catch (err) {
         console.error('Error fetching settings:', err);
-        toast({
-          title: 'Error loading settings',
-          description: 'Could not load site settings. Using defaults.',
-          variant: 'destructive',
-        });
-      } finally {
-        setLoading(false);
-      }
+      } finally { setLoading(false); }
     };
-
     fetchSettings();
   }, [toast]);
-
-  // Apply font and color changes to CSS variables
-  useEffect(() => {
-    document.documentElement.style.setProperty('--font-sans', settings.primaryFont);
-    document.documentElement.style.setProperty('--font-display', settings.displayFont);
-    document.documentElement.style.setProperty('--primary', settings.primaryColor);
-    document.documentElement.style.setProperty('--accent', settings.accentColor);
-  }, [settings.primaryFont, settings.displayFont, settings.primaryColor, settings.accentColor]);
 
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast({
-        title: 'Invalid file type',
-        description: 'Please upload an image file.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // Validate file size (max 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      toast({
-        title: 'File too large',
-        description: 'Please upload an image smaller than 2MB.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `logo-${Date.now()}.${fileExt}`;
-      const filePath = `logos/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('site-assets')
-        .upload(filePath, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('site-assets')
-        .getPublicUrl(filePath);
-
+      const filePath = `logos/logo-${Date.now()}.${file.name.split('.').pop()}`;
+      await supabase.storage.from('site-assets').upload(filePath, file);
+      const { data: { publicUrl } } = supabase.storage.from('site-assets').getPublicUrl(filePath);
       setSettings({ ...settings, logoUrl: publicUrl });
-      toast({
-        title: 'Logo uploaded',
-        description: 'Your logo has been uploaded. Click Save to apply changes.',
-      });
+      toast({ title: 'Logo uploaded' });
     } catch (err) {
-      console.error('Error uploading logo:', err);
-      toast({
-        title: 'Upload failed',
-        description: 'Could not upload logo. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-
-  const handleRemoveLogo = () => {
-    setSettings({ ...settings, logoUrl: null });
+      toast({ title: 'Upload failed', variant: 'destructive' });
+    } finally { setUploading(false); }
   };
 
   const handleHeroImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      toast({
-        title: 'Invalid file type',
-        description: 'Please upload an image file.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: 'File too large',
-        description: 'Please upload an image smaller than 5MB.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setUploadingHero(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `hero-${Date.now()}.${fileExt}`;
-      const filePath = `hero/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('site-assets')
-        .upload(filePath, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('site-assets')
-        .getPublicUrl(filePath);
-
+      const filePath = `hero/hero-${Date.now()}.${file.name.split('.').pop()}`;
+      await supabase.storage.from('site-assets').upload(filePath, file);
+      const { data: { publicUrl } } = supabase.storage.from('site-assets').getPublicUrl(filePath);
       setSettings({ ...settings, heroImageUrl: publicUrl });
-      toast({
-        title: 'Hero image uploaded',
-        description: 'Your hero image has been uploaded. Click Save to apply changes.',
-      });
+      toast({ title: 'Hero uploaded' });
     } catch (err) {
-      console.error('Error uploading hero image:', err);
-      toast({
-        title: 'Upload failed',
-        description: 'Could not upload hero image. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setUploadingHero(false);
-      if (heroFileInputRef.current) {
-        heroFileInputRef.current.value = '';
-      }
-    }
-  };
-
-  const handleRemoveHeroImage = () => {
-    setSettings({ ...settings, heroImageUrl: null });
+      toast({ title: 'Upload failed', variant: 'destructive' });
+    } finally { setUploadingHero(false); }
   };
 
   const handleSave = async () => {
@@ -405,7 +296,6 @@ const SiteSettings = () => {
         hero_cta_text: settings.heroCtaText,
         hero_cta_link: settings.heroCtaLink,
         commission_rate: settings.commissionRate,
-        // Email template settings
         email_from_name: settings.emailFromName,
         email_from_address: settings.emailFromAddress,
         booking_email_subject: settings.bookingEmailSubject,
@@ -421,47 +311,24 @@ const SiteSettings = () => {
       };
 
       if (settingsId) {
-        const { error } = await supabase
-          .from('site_settings')
-          .update(updateData)
-          .eq('id', settingsId);
-
-        if (error) throw error;
+        await supabase.from('site_settings').update(updateData).eq('id', settingsId);
       } else {
-        const { data, error } = await supabase
-          .from('site_settings')
-          .insert(updateData)
-          .select()
-          .single();
-
-        if (error) throw error;
-        setSettingsId(data.id);
+        const { data } = await supabase.from('site_settings').insert(updateData).select().single();
+        if (data) setSettingsId(data.id);
       }
 
-      toast({
-        title: 'Settings saved',
-        description: 'Your site settings have been updated successfully.',
-      });
+      await queryClient.invalidateQueries({ queryKey: ['site-settings'] });
+      toast({ title: 'Settings saved successfully' });
     } catch (err) {
-      console.error('Error saving settings:', err);
-      toast({
-        title: 'Error saving settings',
-        description: 'Could not save settings. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setSaving(false);
-    }
+      toast({ title: 'Error saving', variant: 'destructive' });
+    } finally { setSaving(false); }
   };
 
   const applyColorPreset = (preset: typeof colorPresets[0]) => {
-    setSettings({
-      ...settings,
-      primaryColor: preset.primary,
-      accentColor: preset.accent,
-    });
+    setSettings({ ...settings, primaryColor: preset.primary, accentColor: preset.accent });
   };
-
+  
+  
   if (loading) {
     return (
       <div className="space-y-6">

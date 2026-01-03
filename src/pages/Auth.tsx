@@ -201,7 +201,9 @@ const Auth = () => {
           navigate('/');
         }
       } else if (mode === 'signup') {
-        const { error } = await signUp(email, password, fullName, country);
+        // 1. பயனரைப் பதிவு செய்தல்
+        const { data, error } = await signUp(email, password, fullName, country);
+        
         if (error) {
           if (error.message.includes('User already registered')) {
             toast({
@@ -219,6 +221,12 @@ const Auth = () => {
         } else {
           // Sign out after signup to require re-login
           await supabase.auth.signOut();
+          // 2. பதிவு செய்தவுடன் ஆட்டோமேட்டிக்காக லாகின் செய்தல்
+          // ஒருவேளை Session உடனடியாக கிடைக்கவில்லை என்றால், மீண்டும் ஒருமுறை signIn அழைக்கப்படுகிறது.
+          if (!data?.session) {
+            await signIn(email, password);
+          }
+          
           toast({
             title: 'Account Created!',
             description: 'Your account has been created successfully. Please sign in to continue.',

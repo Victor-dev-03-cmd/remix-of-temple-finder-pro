@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
-  Search, Bell, Menu, X, ShoppingCart, User, Sun, Moon, LogOut, LayoutDashboard,
-  CheckCircle2, Info, AlertCircle, Shield, Store, UserCircle, ChevronDown, Languages, Globe, Settings as SettingsIcon
+  Search, Bell, Menu, X, ShoppingCart, Sun, Moon, LogOut, LayoutDashboard,
+  Globe, ChevronDown, Settings as SettingsIcon, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -19,22 +19,22 @@ import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 
-// --- Interface Definitions from your code ---
 interface SearchResult { id: string; name: string; type: 'temple' | 'product'; description?: string; image_url?: string; }
 interface Notification { id: string; type: string; title: string; message: string; read: boolean; link?: string; created_at: string; }
 
 const languages = [
-  { code: 'en', name: 'English', flag: '🇬🇧', countries: ['GB', 'US', 'CA', 'AU', 'NZ', 'SG'] },
-  { code: 'si', name: 'සිංහල', flag: '🇱🇰', countries: ['LK'] },
-  { code: 'ta', name: 'தமிழ்', flag: '🇮🇳', countries: ['LK', 'IN', 'MY', 'SG'] },
-  { code: 'hi', name: 'हिन्दी', flag: '🇮🇳', countries: ['IN', 'NP'] },
+  { code: 'en', name: 'English', flag: '🇬🇧' },
+  { code: 'si', name: 'සිංහල', flag: '🇱🇰' },
+  { code: 'ta', name: 'தமிழ்', flag: '🇱🇰' },
+  { code: 'hi', name: 'हिन्दी', flag: '🇮🇳' },
 ];
 
 const Header = () => {
   const { t, i18n } = useTranslation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isDark, setIsDark] = useState(document.documentElement.classList.contains('dark'));
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -44,19 +44,26 @@ const Header = () => {
   const { data: siteSettings } = useSiteSettings();
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, signOut, isAdmin, isVendor, activeViewRole, userRoles, switchRole, hasMultipleRoles } = useAuth();
+  const { user, signOut, isAdmin, isVendor, activeViewRole } = useAuth();
   const { totalItems, setIsCartOpen } = useCart();
 
-  const navLinks = [
-    { href: '/', label: t('nav.home') },
-    { href: '/temples', label: t('nav.temples') },
-    { href: '/products', label: t('nav.products') },
-    ...(user ? [{ href: '/booking', label: t('nav.myBooking') }] : []),
-  ];
+  // 1. Theme Sync with LocalStorage
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+      setIsDark(true);
+    }
+  }, []);
 
-  const currentLanguage = languages.find(l => l.code === selectedLanguage) || languages[0];
+  const handleThemeToggle = () => {
+    const newTheme = !isDark ? 'dark' : 'light';
+    setIsDark(!isDark);
+    document.documentElement.classList.toggle('dark');
+    localStorage.setItem('theme', newTheme);
+  };
 
-  // --- DATABASE LOGIC: Notifications & Search (Taken from your original code) ---
+  // 2. Real-time Notifications & Database Sync
   useEffect(() => {
     if (!user) return;
     const fetchNotifications = async () => {
@@ -65,7 +72,7 @@ const Header = () => {
     };
     fetchNotifications();
 
-    const channel = supabase.channel('notif-realtime').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, (payload) => {
+    const channel = supabase.channel(`notif-${user.id}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, (payload) => {
       const newNotif = payload.new as Notification;
       setNotifications(prev => [newNotif, ...prev]);
       setUnreadCount(prev => prev + 1);
@@ -75,21 +82,30 @@ const Header = () => {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
+  // 3. Search with Loader Logic
   useEffect(() => {
+    if (searchQuery.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    setIsSearching(true);
     const delayDebounce = setTimeout(async () => {
-      if (searchQuery.trim().length < 2) return setSearchResults([]);
       const { data: temples } = await supabase.from('temples').select('id, name, description, image_url').ilike('name', `%${searchQuery}%`).eq('is_active', true).limit(3);
       const { data: products } = await supabase.from('products').select('id, name, description, image_url').ilike('name', `%${searchQuery}%`).eq('status', 'approved').limit(3);
       setSearchResults([...(temples || []).map(t => ({...t, type: 'temple' as const})), ...(products || []).map(p => ({...p, type: 'product' as const}))]);
-    }, 300);
+      setIsSearching(false);
+    }, 400);
     return () => clearTimeout(delayDebounce);
   }, [searchQuery]);
 
+  // 4. Language Change with Database Sync
   const handleLanguageChange = async (langCode: string) => {
     setSelectedLanguage(langCode);
     localStorage.setItem('preferredLanguage', langCode);
     i18n.changeLanguage(langCode);
-    if (user) await supabase.from('profiles').update({ preferred_language: langCode }).eq('user_id', user.id);
+    if (user) {
+      await supabase.from('profiles').update({ preferred_language: langCode }).eq('id', user.id);
+    }
   };
 
   const markAllAsRead = async () => {
@@ -98,8 +114,21 @@ const Header = () => {
     if (!error) { setNotifications(prev => prev.map(n => ({ ...n, read: true }))); setUnreadCount(0); }
   };
 
+  const handleLogout = async () => {
+    setIsMobileMenuOpen(false);
+    await signOut();
+    navigate('/auth');
+  };
+
   const getDashboardLink = () => isAdmin ? '/admin' : isVendor ? '/vendor' : '/dashboard';
-  const getRoleBadge = () => activeViewRole === 'admin' ? 'Admin' : activeViewRole === 'vendor' ? 'Vendor' : 'Customer';
+  const currentLanguage = languages.find(l => l.code === selectedLanguage) || languages[0];
+
+  const navLinks = [
+    { href: '/', label: t('nav.home') },
+    { href: '/temples', label: t('nav.temples') },
+    { href: '/products', label: t('nav.products') },
+    ...(user ? [{ href: '/booking', label: t('nav.myBooking') }] : []),
+  ];
 
   return (
     <>
@@ -107,7 +136,11 @@ const Header = () => {
         <div className="container flex h-16 items-center justify-between">
           
           <Link to="/" className="flex items-center gap-2">
-            <span className="text-xl font-bold text-primary">{siteSettings?.siteName || 'Temple Connect'}</span>
+            {siteSettings?.logoUrl ? (
+              <img src={siteSettings.logoUrl} alt="Logo" className="h-8 w-auto object-contain" />
+            ) : (
+              <span className="text-xl font-bold text-primary">{siteSettings?.siteName || 'Temple Connect'}</span>
+            )}
           </Link>
 
           <nav className="hidden md:flex items-center gap-6">
@@ -152,7 +185,7 @@ const Header = () => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button variant="ghost" size="icon" onClick={() => {setIsDark(!isDark); document.documentElement.classList.toggle('dark');}}>
+            <Button variant="ghost" size="icon" onClick={handleThemeToggle}>
               {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
 
@@ -160,33 +193,23 @@ const Header = () => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="gap-2">
-                    <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center text-white text-xs">{user.email?.[0].toUpperCase()}</div>
+                    <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center text-white text-xs uppercase">{user.email?.[0]}</div>
                     <span>{user.email?.split('@')[0]}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <div className="px-2 py-2 border-b">
-                    <p className="text-xs text-muted-foreground">{user.email}</p>
-                    {/* Role Badge - desktop dashboard kku kela added here */}
-                    <span className="mt-1 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary tracking-wide uppercase">
-                      {getRoleBadge()}
-                    </span>
-                  </div>
                   <DropdownMenuItem onClick={() => navigate(getDashboardLink())}>Dashboard</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/settings')}>Profile Settings</DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => signOut()} className="text-destructive">Sign Out</DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout} className="text-destructive">Sign Out</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <div className="flex gap-2">
-                <Button variant="ghost" size="sm" onClick={() => navigate('/auth')}>Login</Button>
-                <Button size="sm" onClick={() => navigate('/auth')}>Sign Up</Button>
-              </div>
+              <Button size="sm" onClick={() => navigate('/auth')}>Login</Button>
             )}
           </div>
 
-          {/* --- MOBILE ACTIONS (Search & Notification added to Header) --- */}
+          {/* --- MOBILE ACTIONS (Theme & Notif added here) --- */}
           <div className="flex items-center gap-1 md:hidden">
             <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(true)}><Search className="h-5 w-5" /></Button>
             
@@ -195,6 +218,7 @@ const Header = () => {
               {totalItems > 0 && <span className="absolute -right-1 -top-1 bg-primary text-[10px] text-white rounded-full h-4 w-4 flex items-center justify-center">{totalItems}</span>}
             </Button>
 
+            {/* Mobile Notifications Icon */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
@@ -207,10 +231,14 @@ const Header = () => {
                 <ScrollArea className="h-64">
                    {notifications.length > 0 ? notifications.map(n => (
                     <div key={n.id} className="p-3 border-b"><p className="text-xs font-medium">{n.title}</p></div>
-                  )) : <div className="p-4 text-center text-xs text-muted-foreground">No new notifications</div>}
+                  )) : <div className="p-4 text-center text-xs text-muted-foreground">No notifications</div>}
                 </ScrollArea>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            <Button variant="ghost" size="icon" onClick={handleThemeToggle}>
+              {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </Button>
             
             <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
               {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -218,7 +246,7 @@ const Header = () => {
           </div>
         </div>
 
-        {/* --- MOBILE TOGGLE MENU (Role & Language within settings) --- */}
+        {/* --- MOBILE TOGGLE MENU --- */}
         <AnimatePresence>
           {isMobileMenuOpen && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="md:hidden border-t bg-card overflow-hidden">
@@ -239,10 +267,7 @@ const Header = () => {
                       <Button variant="outline" className="w-full justify-start gap-3 h-11" onClick={() => { navigate(getDashboardLink()); setIsMobileMenuOpen(false); }}>
                         <LayoutDashboard className="h-4 w-4" /> Dashboard
                       </Button>
-                      <Button variant="outline" className="w-full justify-start gap-3 h-11" onClick={() => { navigate('/settings'); setIsMobileMenuOpen(false); }}>
-                        <SettingsIcon className="h-4 w-4" /> Profile Settings
-                      </Button>
-
+                      
                       {/* Language Selector inside Mobile Menu */}
                       <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
                         <div className="flex items-center gap-2 text-sm font-medium"><Globe className="h-4 w-4 text-primary" /> Language</div>
@@ -260,15 +285,12 @@ const Header = () => {
                         </DropdownMenu>
                       </div>
 
-                      <Button variant="destructive" className="w-full justify-start gap-3 h-11" onClick={() => signOut()}>
+                      <Button variant="destructive" className="w-full justify-start gap-3 h-11" onClick={handleLogout}>
                         <LogOut className="h-4 w-4" /> Sign Out
                       </Button>
                     </>
                   ) : (
-                    <div className="grid grid-cols-2 gap-3 pb-2">
-                      <Button variant="outline" onClick={() => {navigate('/auth'); setIsMobileMenuOpen(false);}}>Login</Button>
-                      <Button onClick={() => {navigate('/auth'); setIsMobileMenuOpen(false);}}>Sign Up</Button>
-                    </div>
+                    <Button className="w-full" onClick={() => navigate('/auth')}>Login / Sign Up</Button>
                   )}
                 </div>
               </div>
@@ -277,23 +299,21 @@ const Header = () => {
         </AnimatePresence>
       </header>
 
-      {/* --- Search Dialog (Logic from your code) --- */}
+      {/* --- Search Dialog with Loader --- */}
       <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
         <DialogContent className="p-0 sm:max-w-[550px] overflow-hidden">
           <div className="flex items-center p-4 border-b">
             <Search className="h-5 w-5 text-muted-foreground mr-3" />
-            <Input placeholder="Search temples or products..." className="border-none focus-visible:ring-0 shadow-none" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} autoFocus />
+            <Input placeholder="Search..." className="border-none focus-visible:ring-0 shadow-none flex-1" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} autoFocus />
+            {isSearching && <Loader2 className="h-4 w-4 animate-spin text-primary ml-2" />}
           </div>
           <ScrollArea className="max-h-[350px] p-2">
             {searchResults.length > 0 ? searchResults.map(r => (
               <div key={r.id} onClick={() => { navigate(`/${r.type}s/${r.id}`); setIsSearchOpen(false); }} className="p-3 hover:bg-muted rounded-md cursor-pointer flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">{r.name}</p>
-                  <p className="text-xs text-muted-foreground line-clamp-1">{r.description}</p>
-                </div>
+                <p className="text-sm font-medium">{r.name}</p>
                 <span className="text-[10px] uppercase font-bold bg-primary/10 text-primary px-2 py-1 rounded">{r.type}</span>
               </div>
-            )) : searchQuery.length > 1 && <div className="p-8 text-center text-sm text-muted-foreground">No results found for "{searchQuery}"</div>}
+            )) : searchQuery.length > 1 && !isSearching && <div className="p-8 text-center text-sm text-muted-foreground">No results found</div>}
           </ScrollArea>
         </DialogContent>
       </Dialog>
