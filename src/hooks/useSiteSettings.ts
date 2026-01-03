@@ -46,7 +46,7 @@ const defaultSettings: SiteSettings = {
 };
 
 async function fetchSiteSettings(): Promise<SiteSettings> {
-  const { data, error } = await supabase
+  const { data, error }: any = await supabase
     .from('site_settings')
     .select('site_name, logo_url, primary_color, accent_color, primary_font, display_font, footer_tagline, social_facebook, social_instagram, social_twitter, social_linkedin, social_youtube, hero_title, hero_subtitle, hero_image_url, hero_cta_text, hero_cta_link, commission_rate, default_country')
     .limit(1)
@@ -57,12 +57,12 @@ async function fetchSiteSettings(): Promise<SiteSettings> {
   }
 
   return {
-    siteName: data.site_name,
+    siteName: data.site_name || defaultSettings.siteName,
     logoUrl: data.logo_url,
     primaryColor: data.primary_color || defaultSettings.primaryColor,
     accentColor: data.accent_color || defaultSettings.accentColor,
-    primaryFont: data.primary_font,
-    displayFont: data.display_font,
+    primaryFont: data.primary_font || defaultSettings.primaryFont,
+    displayFont: data.display_font || defaultSettings.displayFont,
     footerTagline: data.footer_tagline || defaultSettings.footerTagline,
     socialFacebook: data.social_facebook,
     socialInstagram: data.social_instagram,

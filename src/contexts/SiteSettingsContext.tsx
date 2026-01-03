@@ -145,7 +145,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
                       currentPath.startsWith('/auth') || 
                       currentPath === '/auth';
   
-  const isMaintenanceActive = settings?.maintenanceMode === true;
+  const isMaintenanceActive = settings?.maintenance_mode === true;
   const showMaintenance = isMaintenanceActive && !isAdminPath;
 
   return (
