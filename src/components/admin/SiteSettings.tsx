@@ -26,7 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import CountrySelector from './CountrySelector';
 
-// --- CONSTANTS START (DO NOT REMOVE) ---
+// --- CONSTANTS START ---
 const settingsSections = [
   { id: 'settings-general', label: 'General Settings', icon: Settings, keywords: ['site name', 'logo', 'commission', 'country', 'maintenance'] },
   { id: 'settings-notifications', label: 'Notifications', icon: Bell, keywords: ['email', 'alerts', 'chat', 'sound', 'vendor', 'order'] },
@@ -36,7 +36,7 @@ const settingsSections = [
   { id: 'settings-typography', label: 'Typography', icon: Type, keywords: ['font', 'display', 'text', 'heading'] },
   { id: 'settings-hero', label: 'Hero Section', icon: Layout, keywords: ['banner', 'title', 'subtitle', 'cta', 'image', 'background'] },
   { id: 'settings-footer', label: 'Footer', icon: Globe, keywords: ['tagline', 'social', 'facebook', 'instagram', 'twitter', 'linkedin', 'youtube'] },
-  { id: 'settings-email', label: 'Email Templates', icon: Mail, keywords: ['booking', 'vendor', 'approval', 'rejection', 'order', 'template', 'subject', 'message'] },
+  { id: 'settings-email-templates', label: 'Email Templates', icon: Mail, keywords: ['booking', 'vendor', 'approval', 'rejection', 'order'] },
 ];
 
 const fontOptions = [
@@ -158,7 +158,7 @@ const SiteSettings = () => {
     newOrderEmailMessage: 'You have received a new order. Please check your vendor dashboard for order details and process it promptly.',
   });
 
-  // Dynamic Font Refresh Fix
+  // Dynamic Font/Color Style Injector
   useEffect(() => {
     const root = document.documentElement;
     root.style.setProperty('--font-sans', settings.primaryFont);
@@ -179,6 +179,7 @@ const SiteSettings = () => {
     link.href = `https://fonts.googleapis.com/css2?family=${primary}:wght@400;500;600;700&family=${display}:wght@400;500;600;700&display=swap`;
   }, [settings.primaryFont, settings.displayFont, settings.primaryColor, settings.accentColor]);
 
+  // Fetch Settings
   useEffect(() => {
     const fetchSettings = async () => {
       try {
@@ -233,8 +234,9 @@ const SiteSettings = () => {
       } finally { setLoading(false); }
     };
     fetchSettings();
-  }, [toast]);
+  }, []);
 
+  // Upload/Removal Handlers
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -250,6 +252,11 @@ const SiteSettings = () => {
     } finally { setUploading(false); }
   };
 
+  const handleRemoveLogo = () => {
+    setSettings(prev => ({ ...prev, logoUrl: null }));
+    toast({ title: "Logo removed", description: "Save changes to apply permanently." });
+  };
+
   const handleHeroImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -259,12 +266,18 @@ const SiteSettings = () => {
       await supabase.storage.from('site-assets').upload(filePath, file);
       const { data: { publicUrl } } = supabase.storage.from('site-assets').getPublicUrl(filePath);
       setSettings({ ...settings, heroImageUrl: publicUrl });
-      toast({ title: 'Hero uploaded' });
+      toast({ title: 'Hero image uploaded' });
     } catch (err) {
       toast({ title: 'Upload failed', variant: 'destructive' });
     } finally { setUploadingHero(false); }
   };
 
+  const handleRemoveHeroImage = () => {
+    setSettings(prev => ({ ...prev, heroImageUrl: null }));
+    toast({ title: "Hero image removed", description: "Save changes to apply permanently." });
+  };
+
+  // Global Save Logic
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -327,6 +340,8 @@ const SiteSettings = () => {
   const applyColorPreset = (preset: typeof colorPresets[0]) => {
     setSettings({ ...settings, primaryColor: preset.primary, accentColor: preset.accent });
   };
+
+  
   
   if (loading) {
     return (
@@ -506,14 +521,18 @@ const SiteSettings = () => {
             <CardDescription>Basic platform configuration</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Site Name Input */}
             <div className="space-y-2">
               <Label htmlFor="siteName">Site Name</Label>
               <Input
                 id="siteName"
+                placeholder="Enter site name"
                 value={settings.siteName}
                 onChange={(e) => setSettings({ ...settings, siteName: e.target.value })}
               />
             </div>
+
+            {/* Commission Rate Input */}
             <div className="space-y-2">
               <Label htmlFor="commissionRate">Vendor Commission Rate (%)</Label>
               <Input
@@ -528,6 +547,8 @@ const SiteSettings = () => {
                 Percentage commission taken from vendor sales
               </p>
             </div>
+
+            {/* Site Logo Upload Section */}
             <div className="space-y-2">
               <Label>Site Logo</Label>
               <div className="flex items-center gap-4">
@@ -540,8 +561,8 @@ const SiteSettings = () => {
                     />
                     <button
                       type="button"
-                      onClick={handleRemoveLogo}
-                      className="absolute -top-2 -right-2 rounded-full bg-destructive p-1 text-destructive-foreground hover:bg-destructive/90"
+                      onClick={handleRemoveLogo} // இது உங்கள் லாஜிக் பகுதியில் நான் சேர்த்த பங்க்ஷன்
+                      className="absolute -top-2 -right-2 rounded-full bg-destructive p-1 text-destructive-foreground hover:bg-destructive/90 transition-colors"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -551,7 +572,7 @@ const SiteSettings = () => {
                     <Image className="h-6 w-6 text-muted-foreground" />
                   </div>
                 )}
-                <div>
+                <div className="flex flex-col gap-2">
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -568,19 +589,27 @@ const SiteSettings = () => {
                     disabled={uploading}
                   >
                     {uploading ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Uploading...
+                      </>
                     ) : (
-                      <Upload className="mr-2 h-4 w-4" />
+                      <>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload Logo
+                      </>
                     )}
-                    {uploading ? 'Uploading...' : 'Upload Logo'}
                   </Button>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="text-[10px] text-muted-foreground">
                     Max 2MB. PNG, JPG, or SVG.
                   </p>
                 </div>
               </div>
             </div>
+
             <Separator />
+
+            {/* Country Selector */}
             <div className="space-y-2">
               <Label>Default Country</Label>
               <CountrySelector
@@ -588,11 +617,13 @@ const SiteSettings = () => {
                 onChange={(value) => setSettings({ ...settings, defaultCountry: value })}
               />
             </div>
-            <div className="flex items-center justify-between">
+
+            {/* Maintenance Mode Switch */}
+            <div className="flex items-center justify-between border rounded-lg p-3 bg-muted/10">
               <div className="space-y-0.5">
-                <Label>Maintenance Mode</Label>
-                <p className="text-sm text-muted-foreground">
-                  Temporarily disable the site
+                <Label className="text-sm font-medium">Maintenance Mode</Label>
+                <p className="text-xs text-muted-foreground">
+                  Temporarily disable the site for users
                 </p>
               </div>
               <Switch
@@ -607,114 +638,115 @@ const SiteSettings = () => {
 
 {/* Notification Settings */}
 <Card id="settings-notifications" className="relative">
-  <CardHeader>
-    <CardTitle className="flex items-center gap-2">
-      <Bell className="h-5 w-5" />
-      Notifications
-    </CardTitle>
-    <CardDescription>Configure alert preferences</CardDescription>
-  </CardHeader>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5" />
+              Notifications
+            </CardTitle>
+            <CardDescription>Configure alert preferences</CardDescription>
+          </CardHeader>
 
-  <CardContent className="space-y-4">
-    {/* Email Notifications */}
-    <div className="flex items-center justify-between">
-      <div className="space-y-0.5">
-        <Label>Email Notifications</Label>
-        <p className="text-sm text-muted-foreground">
-          Receive email alerts
-        </p>
-      </div>
-      <Switch
-        checked={settings.emailNotifications}
-        onCheckedChange={(checked) =>
-          setSettings({ ...settings, emailNotifications: checked })
-        }
-      />
-    </div>
+          <CardContent className="space-y-4">
+            {/* Email Notifications */}
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-medium">Email Notifications</Label>
+                <p className="text-xs text-muted-foreground">
+                  Receive email alerts for system events
+                </p>
+              </div>
+              <Switch
+                checked={settings.emailNotifications}
+                onCheckedChange={(checked) =>
+                  setSettings({ ...settings, emailNotifications: checked })
+                }
+              />
+            </div>
 
-    <Separator />
+            <Separator />
 
-    {/* New Vendor Alerts */}
-    <div className="flex items-center justify-between">
-      <div className="space-y-0.5">
-        <Label>New Vendor Alerts</Label>
-        <p className="text-sm text-muted-foreground">
-          Get notified of new applications
-        </p>
-      </div>
-      <Switch
-        checked={settings.newVendorAlerts}
-        onCheckedChange={(checked) =>
-          setSettings({ ...settings, newVendorAlerts: checked })
-        }
-      />
-    </div>
+            {/* New Vendor Alerts */}
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-medium">New Vendor Alerts</Label>
+                <p className="text-xs text-muted-foreground">
+                  Get notified of new vendor applications
+                </p>
+              </div>
+              <Switch
+                checked={settings.newVendorAlerts}
+                onCheckedChange={(checked) =>
+                  setSettings({ ...settings, newVendorAlerts: checked })
+                }
+              />
+            </div>
 
-    <Separator />
+            <Separator />
 
-    {/* Order Alerts */}
-    <div className="flex items-center justify-between">
-      <div className="space-y-0.5">
-        <Label>Order Alerts</Label>
-        <p className="text-sm text-muted-foreground">
-          Notify on new orders
-        </p>
-      </div>
-      <Switch
-        checked={settings.orderAlerts}
-        onCheckedChange={(checked) =>
-          setSettings({ ...settings, orderAlerts: checked })
-        }
-      />
-    </div>
+            {/* Order Alerts */}
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-medium">Order Alerts</Label>
+                <p className="text-xs text-muted-foreground">
+                  Notify on new customer orders
+                </p>
+              </div>
+              <Switch
+                checked={settings.orderAlerts}
+                onCheckedChange={(checked) =>
+                  setSettings({ ...settings, orderAlerts: checked })
+                }
+              />
+            </div>
 
-    <Separator />
+            <Separator />
 
-    {/* Chat Notifications */}
-    <div className="flex items-center justify-between">
-      <div className="space-y-0.5">
-        <Label>Chat Notifications</Label>
-        <p className="text-sm text-muted-foreground">
-          Get notified of new chat messages
-        </p>
-      </div>
-      <Switch
-        checked={settings.chatNotifications}
-        onCheckedChange={(checked) =>
-          setSettings({ ...settings, chatNotifications: checked })
-        }
-      />
-    </div>
+            {/* Chat Notifications */}
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-medium">Chat Notifications</Label>
+                <p className="text-xs text-muted-foreground">
+                  Get notified of new chat messages
+                </p>
+              </div>
+              <Switch
+                checked={settings.chatNotifications}
+                onCheckedChange={(checked) =>
+                  setSettings({ ...settings, chatNotifications: checked })
+                }
+              />
+            </div>
 
-    <Separator />
+            <Separator />
 
-    {/* Chat Sound */}
-    <div className="flex items-center justify-between">
-      <div className="space-y-0.5">
-        <Label>Chat Sound</Label>
-        <p className="text-sm text-muted-foreground">
-          Play sound for new messages
-        </p>
-      </div>
-      <Switch
-        checked={settings.chatNotificationSound}
-        onCheckedChange={(checked) =>
-          setSettings({ ...settings, chatNotificationSound: checked })
-        }
-      />
-    </div>
+            {/* Chat Sound */}
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-medium">Chat Sound</Label>
+                <p className="text-xs text-muted-foreground">
+                  Play sound for new incoming messages
+                </p>
+              </div>
+              <Switch
+                checked={settings.chatNotificationSound}
+                onCheckedChange={(checked) =>
+                  setSettings({ ...settings, chatNotificationSound: checked })
+                }
+              />
+            </div>
 
-    {/* GIF BELOW - 80% WIDTH, CENTER */}
-    <div className="pt-4">
-      <img
-        src="/New Mail.gif"
-        alt="New Mail Animation"
-        className="w-[80%] mx-auto max-h-40 object-contain"
-      />
-    </div>
-  </CardContent>
-</Card>
-
+            {/* GIF - 80% WIDTH, CENTERED */}
+            <div className="pt-6">
+              <div className="bg-muted/30 rounded-lg p-4">
+                <img
+                  src="/New Mail.gif"
+                  alt="New Mail Animation"
+                  className="w-[80%] mx-auto max-h-40 object-contain mix-blend-multiply dark:mix-blend-normal"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
 
         {/* Security Settings */}
@@ -727,24 +759,40 @@ const SiteSettings = () => {
             <CardDescription>Security and access controls</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Two-Factor Authentication */}
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Two-Factor Authentication</Label>
-                <p className="text-sm text-muted-foreground">
-                  Require 2FA for admins
+                <Label className="text-sm font-medium">Two-Factor Authentication</Label>
+                <p className="text-xs text-muted-foreground">
+                  Require 2FA for admin and staff accounts
                 </p>
               </div>
-              <Switch />
+              <Switch 
+                disabled // இப்போதைக்கு லாஜிக் இல்லாததால் டிஸேபிள் செய்யப்பட்டுள்ளது
+              />
             </div>
+
             <Separator />
+
+            {/* Session Timeout */}
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Session Timeout</Label>
-                <p className="text-sm text-muted-foreground">
-                  Auto logout after inactivity
+                <Label className="text-sm font-medium">Session Timeout</Label>
+                <p className="text-xs text-muted-foreground">
+                  Automatically log out after 30 minutes of inactivity
                 </p>
               </div>
-              <Switch defaultChecked />
+              <Switch 
+                defaultChecked 
+                disabled // இப்போதைக்கு லாஜிக் இல்லாததால் டிஸேபிள் செய்யப்பட்டுள்ளது
+              />
+            </div>
+
+            <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-900/30 rounded-lg">
+              <p className="text-[11px] text-yellow-800 dark:text-yellow-200 flex items-start gap-2">
+                <Shield className="h-3 w-3 mt-0.5 shrink-0" />
+                Security features are managed via Supabase Auth policies by default.
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -808,7 +856,9 @@ const SiteSettings = () => {
                   <button
                     key={preset.name}
                     onClick={() => applyColorPreset(preset)}
-                    className="flex flex-col items-center gap-1 rounded-lg border border-border p-2 hover:bg-muted transition-colors"
+                    className={`flex flex-col items-center gap-1 rounded-lg border border-border p-2 hover:bg-muted transition-colors ${
+                      settings.primaryColor === preset.primary ? 'ring-2 ring-primary ring-offset-2' : ''
+                    }`}
                   >
                     <div
                       className="h-6 w-6 rounded-full"
@@ -830,7 +880,7 @@ const SiteSettings = () => {
                   onChange={(e) =>
                     setSettings({ ...settings, primaryColor: hexToHsl(e.target.value) })
                   }
-                  className="h-10 w-14 cursor-pointer rounded border border-border bg-transparent"
+                  className="h-10 w-14 cursor-pointer rounded border border-border bg-transparent p-0"
                 />
                 <div className="flex-1">
                   <p className="text-sm font-medium">Primary</p>
@@ -850,7 +900,7 @@ const SiteSettings = () => {
                   onChange={(e) =>
                     setSettings({ ...settings, accentColor: hexToHsl(e.target.value) })
                   }
-                  className="h-10 w-14 cursor-pointer rounded border border-border bg-transparent"
+                  className="h-10 w-14 cursor-pointer rounded border border-border bg-transparent p-0"
                 />
                 <div className="flex-1">
                   <p className="text-sm font-medium">Accent</p>
@@ -864,8 +914,13 @@ const SiteSettings = () => {
             <div className="rounded-lg border border-border bg-muted/30 p-4">
               <p className="text-sm font-medium text-foreground mb-3">Preview</p>
               <div className="flex gap-2">
-                <Button size="sm">Primary Button</Button>
-                <Button size="sm" variant="outline">Outline</Button>
+                {/* CSS Variables மூலம் பிரீவியூ தானாக மாறும் */}
+                <Button size="sm" style={{ backgroundColor: `hsl(${settings.primaryColor})`, color: 'white' }}>
+                  Primary Button
+                </Button>
+                <Button size="sm" variant="outline" style={{ borderColor: `hsl(${settings.primaryColor})`, color: `hsl(${settings.primaryColor})` }}>
+                  Outline
+                </Button>
               </div>
             </div>
           </CardContent>
@@ -927,10 +982,17 @@ const SiteSettings = () => {
             <Separator />
             <div className="rounded-lg border border-border bg-muted/30 p-4">
               <p className="text-sm font-medium text-foreground mb-2">Preview</p>
-              <h3 className="font-display text-xl font-semibold text-foreground mb-1">
+              {/* Inline style logic to show immediate preview based on selection */}
+              <h3 
+                className="text-xl font-semibold text-foreground mb-1"
+                style={{ fontFamily: settings.displayFont }}
+              >
                 Temple Connect
               </h3>
-              <p className="text-sm text-muted-foreground">
+              <p 
+                className="text-sm text-muted-foreground"
+                style={{ fontFamily: settings.primaryFont }}
+              >
                 This is how your text will appear with the selected fonts.
               </p>
             </div>
@@ -999,8 +1061,8 @@ const SiteSettings = () => {
                       />
                       <button
                         type="button"
-                        onClick={handleRemoveHeroImage}
-                        className="absolute top-2 right-2 rounded-full bg-destructive p-1.5 text-destructive-foreground hover:bg-destructive/90"
+                        onClick={handleRemoveHeroImage} // இது லாஜிக்கில் நாம் சேர்த்த பங்க்ஷன்
+                        className="absolute top-2 right-2 rounded-full bg-destructive p-1.5 text-destructive-foreground hover:bg-destructive/90 transition-colors"
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -1152,7 +1214,7 @@ const SiteSettings = () => {
                     id="emailFromAddress"
                     value={settings.emailFromAddress}
                     onChange={(e) => setSettings({ ...settings, emailFromAddress: e.target.value })}
-                    placeholder="noreply@yourdomain.com"
+                    placeholder="onboarding@resend.dev"
                   />
                   <p className="text-xs text-muted-foreground">
                     Must be a verified domain in Resend
@@ -1203,23 +1265,17 @@ const SiteSettings = () => {
                     id="bookingEmailInstructions"
                     value={settings.bookingEmailInstructions}
                     onChange={(e) => setSettings({ ...settings, bookingEmailInstructions: e.target.value })}
-                    placeholder="Instruction 1|Instruction 2|Instruction 3"
+                    placeholder="Instruction 1|Instruction 2"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Each instruction separated by | will appear as a bullet point
-                  </p>
                 </div>
               </div>
             </div>
 
             <Separator />
 
-            {/* Vendor Notification Emails */}
+            {/* Vendor Approval Email */}
             <div className="space-y-4">
               <h4 className="text-sm font-medium text-foreground">Vendor Approval Email</h4>
-              <p className="text-xs text-muted-foreground">
-                Variables: {'{{vendor_name}}'}, {'{{business_name}}'}
-              </p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="vendorApprovalEmailSubject">Subject Line</Label>
@@ -1240,6 +1296,7 @@ const SiteSettings = () => {
               </div>
             </div>
 
+            {/* Vendor Rejection Email */}
             <div className="space-y-4">
               <h4 className="text-sm font-medium text-foreground">Vendor Rejection Email</h4>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -1267,9 +1324,6 @@ const SiteSettings = () => {
             {/* New Order Email */}
             <div className="space-y-4">
               <h4 className="text-sm font-medium text-foreground">New Order Notification (to Vendor)</h4>
-              <p className="text-xs text-muted-foreground">
-                Variables: {'{{order_id}}'}, {'{{customer_name}}'}, {'{{total_amount}}'}
-              </p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="newOrderEmailSubject">Subject Line</Label>
