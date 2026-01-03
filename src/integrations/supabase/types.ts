@@ -617,6 +617,50 @@ export type Database = {
           },
         ]
       }
+      temple_gallery_images: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number
+          id: string
+          image_url: string
+          is_active: boolean
+          temple_id: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          image_url: string
+          is_active?: boolean
+          temple_id: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          image_url?: string
+          is_active?: boolean
+          temple_id?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "temple_gallery_images_temple_id_fkey"
+            columns: ["temple_id"]
+            isOneToOne: false
+            referencedRelation: "temples"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       temple_reviews: {
         Row: {
           comment: string | null

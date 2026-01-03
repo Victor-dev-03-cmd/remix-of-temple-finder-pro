@@ -24,24 +24,25 @@ const TempleReviewForm = ({ templeId, editingReview, onSuccess }: TempleReviewFo
   const [hoverRating, setHoverRating] = useState(0);
   const [title, setTitle] = useState('');
   const [comment, setComment] = useState('');
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
-  // Handle editing review from parent
+  // Handle editing review from parent - only use for initial load, not after submission
   const reviewToEdit = editingReview || existingReview;
 
   useEffect(() => {
-    if (reviewToEdit) {
+    // Only populate form if user hasn't just submitted and there's a review to edit
+    if (reviewToEdit && !hasSubmitted) {
       setRating(reviewToEdit.rating);
       setTitle(reviewToEdit.title || '');
       setComment(reviewToEdit.comment || '');
-    } else {
-      resetForm();
     }
-  }, [reviewToEdit]);
+  }, [reviewToEdit, hasSubmitted]);
 
   const resetForm = () => {
     setRating(0);
     setTitle('');
     setComment('');
+    setHasSubmitted(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
