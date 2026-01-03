@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import VendorTempleForm from '@/components/vendor/VendorTempleForm';
 import TicketManagement from '@/components/vendor/TicketManagement';
+import TempleGalleryManagement from '@/components/vendor/TempleGalleryManagement';
 
 const VendorTemple = () => {
   const { user } = useAuth();
@@ -125,8 +126,13 @@ const VendorTemple = () => {
           </Card>
         </motion.div>
 
-        {/* Ticket Management */}
+        {/* Gallery Management */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+          <TempleGalleryManagement templeId={temple.id} />
+        </motion.div>
+
+        {/* Ticket Management */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
           <TicketManagement templeId={temple.id} />
         </motion.div>
 

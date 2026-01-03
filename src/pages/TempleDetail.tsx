@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import ProductCard from '@/components/products/ProductCard';
@@ -140,6 +141,23 @@ const TempleDetail = () => {
   const { data: temple, isLoading, error } = useTemple(id || '');
   const { data: reviews = [], isLoading: reviewsLoading, refetch: refetchReviews } = useTempleReviews(id || '');
   const { products, loading: productsLoading } = useTempleProducts(id);
+  
+  // Fetch gallery images from database
+  const { data: galleryImagesData = [] } = useQuery({
+    queryKey: ['temple-gallery', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('temple_gallery_images')
+        .select('*')
+        .eq('temple_id', id)
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isAboutExpanded, setIsAboutExpanded] = useState(false);
@@ -176,8 +194,11 @@ const TempleDetail = () => {
     document.getElementById('review-section')?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Use temple's main image for gallery (gallery_images not in schema)
-  const galleryImages = [temple.image];
+  // Combine main temple image with gallery images
+  const galleryImages = [
+    temple.image,
+    ...galleryImagesData.map((img: any) => img.image_url)
+  ].filter(Boolean);
 
   return (
     <div className="min-h-screen bg-background">
