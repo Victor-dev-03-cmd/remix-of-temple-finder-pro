@@ -10,9 +10,11 @@ import { Link } from 'react-router-dom';
 
 interface TempleReviewFormProps {
   templeId: string;
+  editingReview?: any;
+  onSuccess?: () => void;
 }
 
-const TempleReviewForm = ({ templeId }: TempleReviewFormProps) => {
+const TempleReviewForm = ({ templeId, editingReview, onSuccess }: TempleReviewFormProps) => {
   const { user } = useAuth();
   const { data: existingReview, isLoading: loadingExisting } = useUserReview(templeId);
   const createReview = useCreateReview();
@@ -23,13 +25,18 @@ const TempleReviewForm = ({ templeId }: TempleReviewFormProps) => {
   const [title, setTitle] = useState('');
   const [comment, setComment] = useState('');
 
+  // Handle editing review from parent
+  const reviewToEdit = editingReview || existingReview;
+
   useEffect(() => {
-    if (existingReview) {
-      setRating(existingReview.rating);
-      setTitle(existingReview.title || '');
-      setComment(existingReview.comment || '');
+    if (reviewToEdit) {
+      setRating(reviewToEdit.rating);
+      setTitle(reviewToEdit.title || '');
+      setComment(reviewToEdit.comment || '');
+    } else {
+      resetForm();
     }
-  }, [existingReview]);
+  }, [reviewToEdit]);
 
   const resetForm = () => {
     setRating(0);
@@ -42,17 +49,18 @@ const TempleReviewForm = ({ templeId }: TempleReviewFormProps) => {
 
     if (rating === 0) return;
 
-    if (existingReview) {
+    if (reviewToEdit) {
       updateReview.mutate(
         {
-          id: existingReview.id,
+          id: reviewToEdit.id,
           rating,
           title: title.trim() || undefined,
           comment: comment.trim() || undefined,
         },
         {
           onSuccess: () => {
-            // Form will repopulate from existingReview on next fetch
+            resetForm();
+            onSuccess?.();
           },
         }
       );
@@ -67,6 +75,7 @@ const TempleReviewForm = ({ templeId }: TempleReviewFormProps) => {
         {
           onSuccess: () => {
             resetForm();
+            onSuccess?.();
           },
         }
       );
@@ -100,7 +109,7 @@ const TempleReviewForm = ({ templeId }: TempleReviewFormProps) => {
   return (
     <form onSubmit={handleSubmit} className="rounded-lg border border-border bg-card p-6">
       <h3 className="mb-4 font-semibold text-foreground">
-        {existingReview ? 'Update Your Review' : 'Write a Review'}
+        {reviewToEdit ? 'Update Your Review' : 'Write a Review'}
       </h3>
 
       {/* Rating */}
@@ -172,7 +181,7 @@ const TempleReviewForm = ({ templeId }: TempleReviewFormProps) => {
       <Button type="submit" disabled={rating === 0 || isSubmitting}>
         {isSubmitting
           ? 'Submitting...'
-          : existingReview
+          : reviewToEdit
           ? 'Update Review'
           : 'Submit Review'}
       </Button>

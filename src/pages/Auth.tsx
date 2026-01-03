@@ -217,11 +217,15 @@ const Auth = () => {
             });
           }
         } else {
+          // Sign out after signup to require re-login
+          await supabase.auth.signOut();
           toast({
             title: 'Account Created!',
-            description: 'Welcome to Temple Connect. You are now logged in.',
+            description: 'Your account has been created successfully. Please sign in to continue.',
           });
-          navigate('/');
+          // Switch to login mode and pre-fill email
+          setMode('login');
+          setPassword('');
         }
       }
     } catch (err) {
