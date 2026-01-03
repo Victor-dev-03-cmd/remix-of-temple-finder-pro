@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, Eye, EyeOff, ArrowRight, ArrowLeft, Globe } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, ArrowRight, ArrowLeft, Globe, Loader2 } from 'lucide-react';
 import { z } from 'zod';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -19,6 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
+// Validation Schemas
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
 const nameSchema = z.string().min(2, 'Name must be at least 2 characters');
@@ -55,6 +56,13 @@ const Auth = () => {
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('mode') === 'reset') {
+      setMode('reset-password');
+    }
+  }, []);
+
   const validateForm = () => {
     const newErrors: { email?: string; password?: string; fullName?: string; confirmPassword?: string } = {};
 
@@ -63,21 +71,15 @@ const Auth = () => {
       newErrors.email = emailResult.error.errors[0].message;
     }
 
-    if (mode === 'login' || mode === 'signup') {
+    if (mode === 'login' || mode === 'signup' || mode === 'reset-password') {
       const passwordResult = passwordSchema.safeParse(password);
       if (!passwordResult.success) {
         newErrors.password = passwordResult.error.errors[0].message;
       }
     }
 
-    if (mode === 'reset-password') {
-      const passwordResult = passwordSchema.safeParse(password);
-      if (!passwordResult.success) {
-        newErrors.password = passwordResult.error.errors[0].message;
-      }
-      if (password !== confirmPassword) {
-        newErrors.confirmPassword = 'Passwords do not match';
-      }
+    if (mode === 'reset-password' && password !== confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
     }
 
     if (mode === 'signup') {
@@ -105,24 +107,13 @@ const Auth = () => {
       });
 
       if (error) {
-        toast({
-          title: 'Error',
-          description: error.message,
-          variant: 'destructive',
-        });
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
       } else {
-        toast({
-          title: 'Check your email',
-          description: 'We sent you a password reset link. Please check your inbox.',
-        });
+        toast({ title: 'Check your email', description: 'Reset link sent! Please check your inbox.' });
         setMode('login');
       }
     } catch (err) {
-      toast({
-        title: 'Error',
-        description: 'An unexpected error occurred. Please try again.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Unexpected error occurred.', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -134,26 +125,16 @@ const Auth = () => {
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.updateUser({ password });
-
       if (error) {
-        toast({
-          title: 'Error',
-          description: error.message,
-          variant: 'destructive',
-        });
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
       } else {
-        toast({
-          title: 'Password Updated',
-          description: 'Your password has been successfully reset.',
-        });
-        navigate('/');
+        toast({ title: 'Success', description: 'Password reset successful. Please sign in.' });
+        setMode('login');
+        setPassword('');
+        setConfirmPassword('');
       }
     } catch (err) {
-      toast({
-        title: 'Error',
-        description: 'An unexpected error occurred. Please try again.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Unexpected error occurred.', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -178,106 +159,69 @@ const Auth = () => {
 
     try {
       if (mode === 'login') {
-        const { error } = await signIn(email, password);
+        const { error }: any = await signIn(email, password);
         if (error) {
-          if (error.message.includes('Invalid login credentials')) {
-            toast({
-              title: 'Login Failed',
-              description: 'Invalid email or password. Please try again.',
-              variant: 'destructive',
-            });
-          } else {
-            toast({
-              title: 'Login Failed',
-              description: error.message,
-              variant: 'destructive',
-            });
-          }
-        } else {
           toast({
-            title: 'Welcome back!',
-            description: 'You have successfully logged in.',
+            title: 'Login Failed',
+            description: error.message.includes('Invalid login credentials') 
+              ? 'Invalid email or password.' 
+              : error.message,
+            variant: 'destructive',
           });
+        } else {
+          toast({ title: 'Welcome!', description: 'Logged in successfully.' });
           navigate('/');
         }
       } else if (mode === 'signup') {
-        // 1. பயனரைப் பதிவு செய்தல்
-        const { data, error } = await signUp(email, password, fullName, country);
+        const { error }: any = await signUp(email, password, fullName, country);
         
         if (error) {
-          if (error.message.includes('User already registered')) {
-            toast({
-              title: 'Account Exists',
-              description: 'An account with this email already exists. Please login instead.',
-              variant: 'destructive',
-            });
-          } else {
-            toast({
-              title: 'Sign Up Failed',
-              description: error.message,
-              variant: 'destructive',
-            });
-          }
+          toast({
+            title: 'Sign Up Failed',
+            description: error.message.includes('already registered') 
+              ? 'Email already exists. Try signing in.' 
+              : error.message,
+            variant: 'destructive',
+          });
         } else {
-          // Sign out after signup to require re-login
+          // முக்கியமான பகுதி: Sign Up வெற்றிகரமாக முடிந்ததும் 
+          // 1. Session-ஐ கிளியர் செய்யவும்
           await supabase.auth.signOut();
-          // 2. பதிவு செய்தவுடன் ஆட்டோமேட்டிக்காக லாகின் செய்தல்
-          // ஒருவேளை Session உடனடியாக கிடைக்கவில்லை என்றால், மீண்டும் ஒருமுறை signIn அழைக்கப்படுகிறது.
-          if (!data?.session) {
-            await signIn(email, password);
-          }
           
           toast({
             title: 'Account Created!',
-            description: 'Your account has been created successfully. Please sign in to continue.',
+            description: 'Please sign in with your new account.',
           });
-          // Switch to login mode and pre-fill email
+          
+          // 2. தானாகவே Login Screen-ஐ Pop-up செய்யவும்
           setMode('login');
-          setPassword('');
+          setPassword(''); // பாஸ்வர்டை மட்டும் நீக்கவும் (Email அப்படியே இருக்கும், பயனர் எளிதாக லாகின் செய்ய)
+          setFullName('');
+          setErrors({});
         }
       }
     } catch (err) {
-      toast({
-        title: 'Error',
-        description: 'An unexpected error occurred. Please try again.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'An error occurred.', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Check URL for reset mode
-  useState(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('mode') === 'reset') {
-      setMode('reset-password');
-    }
-  });
-
   const getTitle = () => {
     switch (mode) {
-      case 'login':
-        return 'Welcome Back';
-      case 'signup':
-        return 'Create Account';
-      case 'forgot-password':
-        return 'Reset Password';
-      case 'reset-password':
-        return 'Set New Password';
+      case 'login': return 'Welcome Back';
+      case 'signup': return 'Create Account';
+      case 'forgot-password': return 'Reset Password';
+      case 'reset-password': return 'Set New Password';
     }
   };
 
   const getDescription = () => {
     switch (mode) {
-      case 'login':
-        return 'Sign in to access your Temple Connect account';
-      case 'signup':
-        return 'Join Temple Connect to explore temples and more';
-      case 'forgot-password':
-        return 'Enter your email and we\'ll send you a reset link';
-      case 'reset-password':
-        return 'Enter your new password below';
+      case 'login': return 'Sign in to access your Temple Connect account';
+      case 'signup': return 'Join Temple Connect to explore temples and more';
+      case 'forgot-password': return 'Enter your email for a reset link';
+      case 'reset-password': return 'Enter your new password below';
     }
   };
 
@@ -286,223 +230,208 @@ const Auth = () => {
       <Header />
 
       <main className="flex min-h-[calc(100vh-64px)] items-center justify-center py-12">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md px-4"
-        >
-          <div className="rounded-xl border border-border bg-card p-8 shadow-lg">
-            {/* Header */}
-            <div className="mb-8 text-center">
-              <h1 className="mb-2 font-display text-2xl font-bold text-foreground">
-                {getTitle()}
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                {getDescription()}
-              </p>
-            </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={mode} // Mode மாறும் போது முழு கார்டும் அனிமேட் ஆகும் (Pop-up effect)
+            initial={{ opacity: 0, scale: 0.9, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: -10 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="w-full max-w-md px-4"
+          >
+            <div className="rounded-xl border border-border bg-card p-8 shadow-lg">
+              {/* Header */}
+              <div className="mb-8 text-center">
+                <h1 className="mb-2 font-display text-2xl font-bold text-foreground">
+                  {getTitle()}
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  {getDescription()}
+                </p>
+              </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <AnimatePresence mode="wait">
-                {mode === 'signup' && (
-                  <motion.div
-                    key="fullName"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="space-y-2"
-                  >
-                    <Label htmlFor="fullName">Full Name</Label>
+              {/* Form */}
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <AnimatePresence mode="wait">
+                  {mode === 'signup' && (
+                    <motion.div
+                      key="signup-fields"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="space-y-4 overflow-hidden"
+                    >
+                      <div className="space-y-2">
+                        <Label htmlFor="fullName">Full Name</Label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                          <Input
+                            id="fullName"
+                            placeholder="John Doe"
+                            value={fullName}
+                            onChange={(e) => setFullName(e.target.value)}
+                            className="pl-10"
+                          />
+                        </div>
+                        {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="country">Country</Label>
+                        <Select value={country} onValueChange={setCountry}>
+                          <SelectTrigger className="w-full">
+                            <div className="flex items-center gap-2">
+                              <Globe className="h-4 w-4 text-muted-foreground" />
+                              <SelectValue placeholder="Select Country" />
+                            </div>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {countries.map((c) => (
+                              <SelectItem key={c.code} value={c.code}>
+                                <span className="flex items-center gap-2">
+                                  <span>{c.flag}</span>
+                                  <span>{c.name}</span>
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {(mode !== 'reset-password') && (
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address</Label>
                     <div className="relative">
-                      <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
-                        id="fullName"
-                        type="text"
-                        placeholder="John Doe"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
+                        id="email"
+                        type="email"
+                        placeholder="you@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                         className="pl-10"
                       />
                     </div>
-                    {errors.fullName && (
-                      <p className="text-xs text-destructive">{errors.fullName}</p>
-                    )}
+                    {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+                  </div>
+                )}
 
-                    {/* Country Selector */}
-                    <div className="space-y-2 pt-2">
-                      <Label htmlFor="country">Country</Label>
-                      <Select value={country} onValueChange={setCountry}>
-                        <SelectTrigger className="w-full">
-                          <div className="flex items-center gap-2">
-                            <Globe className="h-4 w-4 text-muted-foreground" />
-                            <SelectValue placeholder="Select your country" />
-                          </div>
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[200px]">
-                          {countries.map((c) => (
-                            <SelectItem key={c.code} value={c.code}>
-                              <span className="flex items-center gap-2">
-                                <span>{c.flag}</span>
-                                <span>{c.name}</span>
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                {(mode === 'login' || mode === 'signup' || mode === 'reset-password') && (
+                  <div className="space-y-2">
+                    <Label htmlFor="password">
+                      {mode === 'reset-password' ? 'New Password' : 'Password'}
+                    </Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="pl-10 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
                     </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {(mode === 'login' || mode === 'signup' || mode === 'forgot-password') && (
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="you@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10"
-                    />
+                    {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
                   </div>
-                  {errors.email && (
-                    <p className="text-xs text-destructive">{errors.email}</p>
-                  )}
-                </div>
-              )}
+                )}
 
-              {(mode === 'login' || mode === 'signup' || mode === 'reset-password') && (
-                <div className="space-y-2">
-                  <Label htmlFor="password">
-                    {mode === 'reset-password' ? 'New Password' : 'Password'}
-                  </Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      id="password"
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10 pr-10"
-                    />
+                {mode === 'reset-password' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        id="confirmPassword"
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        placeholder="••••••••"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="pl-10 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {errors.confirmPassword && <p className="text-xs text-destructive">{errors.confirmPassword}</p>}
+                  </div>
+                )}
+
+                {mode === 'login' && (
+                  <div className="flex justify-end">
                     <button
                       type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => { setMode('forgot-password'); setErrors({}); }}
+                      className="text-sm text-primary hover:underline font-medium"
                     >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      Forgot password?
                     </button>
                   </div>
-                  {errors.password && (
-                    <p className="text-xs text-destructive">{errors.password}</p>
-                  )}
-                </div>
-              )}
+                )}
 
-              {mode === 'reset-password' && (
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      id="confirmPassword"
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="pl-10 pr-10"
-                    />
+                <Button type="submit" className="w-full gap-2 h-11" disabled={isLoading}>
+                  {isLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <>
+                      {mode === 'login' && 'Sign In'}
+                      {mode === 'signup' && 'Create Account'}
+                      {mode === 'forgot-password' && 'Send Reset Link'}
+                      {mode === 'reset-password' && 'Update Password'}
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </form>
+
+              {/* Toggle / Back Links */}
+              <div className="mt-8 text-center text-sm border-t border-border pt-6">
+                {mode === 'forgot-password' && (
+                  <button
+                    type="button"
+                    onClick={() => { setMode('login'); setErrors({}); }}
+                    className="inline-flex items-center gap-2 font-semibold text-primary hover:text-primary/80 transition-colors"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back to sign in
+                  </button>
+                )}
+
+                {(mode === 'login' || mode === 'signup') && (
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-muted-foreground">
+                      {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+                    </span>
                     <button
                       type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        setMode(mode === 'login' ? 'signup' : 'login');
+                        setErrors({});
+                      }}
+                      className="font-bold text-primary hover:underline decoration-2 underline-offset-4"
                     >
-                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {mode === 'login' ? 'Sign up' : 'Sign in'}
                     </button>
                   </div>
-                  {errors.confirmPassword && (
-                    <p className="text-xs text-destructive">{errors.confirmPassword}</p>
-                  )}
-                </div>
-              )}
-
-              {mode === 'login' && (
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode('forgot-password');
-                      setErrors({});
-                    }}
-                    className="text-sm text-primary hover:underline"
-                  >
-                    Forgot password?
-                  </button>
-                </div>
-              )}
-
-              <Button type="submit" className="w-full gap-2" disabled={isLoading}>
-                {isLoading ? (
-                  'Please wait...'
-                ) : (
-                  <>
-                    {mode === 'login' && 'Sign In'}
-                    {mode === 'signup' && 'Create Account'}
-                    {mode === 'forgot-password' && 'Send Reset Link'}
-                    {mode === 'reset-password' && 'Update Password'}
-                    <ArrowRight className="h-4 w-4" />
-                  </>
                 )}
-              </Button>
-            </form>
-
-            {/* Toggle / Back Links */}
-            <div className="mt-6 text-center text-sm">
-              {mode === 'forgot-password' && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('login');
-                    setErrors({});
-                  }}
-                  className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
-                >
-                  <ArrowLeft className="h-3 w-3" />
-                  Back to sign in
-                </button>
-              )}
-
-              {(mode === 'login' || mode === 'signup') && (
-                <>
-                  <span className="text-muted-foreground">
-                    {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode(mode === 'login' ? 'signup' : 'login');
-                      setErrors({});
-                    }}
-                    className="font-medium text-primary hover:underline"
-                  >
-                    {mode === 'login' ? 'Sign up' : 'Sign in'}
-                  </button>
-                </>
-              )}
-
-              {mode === 'reset-password' && (
-                <span className="text-muted-foreground">
-                  Enter your new password above
-                </span>
-              )}
+              </div>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       <Footer />
