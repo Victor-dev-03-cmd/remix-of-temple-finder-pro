@@ -176,7 +176,8 @@ const TempleDetail = () => {
     document.getElementById('review-section')?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const galleryImages = (temple.gallery_images && temple.gallery_images.length > 0) ? temple.gallery_images : [temple.image];
+  // Use temple's main image for gallery (gallery_images not in schema)
+  const galleryImages = [temple.image];
 
   return (
     <div className="min-h-screen bg-background">
@@ -305,7 +306,7 @@ const TempleDetail = () => {
                 <AnimatePresence>
                   {showReviewForm && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }}>
-                      <TempleReviewForm key={formKey} templeId={id!} initialData={editingReview} onSuccess={handleReviewSuccess} />
+                      <TempleReviewForm key={formKey} templeId={id!} editingReview={editingReview} onSuccess={handleReviewSuccess} />
                     </motion.div>
                   )}
                 </AnimatePresence>
