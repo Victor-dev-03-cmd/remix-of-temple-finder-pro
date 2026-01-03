@@ -117,22 +117,39 @@ const UserManagement = () => {
   }, [selectedUser, isEditUserOpen, editForm]);
 
 
+  // --- FETCH LOGIC (திருத்தப்பட்ட பகுதி) ---
   const fetchUsers = async () => {
       setLoading(true);
       try {
-          const { data: profiles, error: profilesError } = await supabase.from('profiles').select('user_id, email, full_name, country, created_at');
+          // 1. Profiles டேபிளில் இருந்து அனைத்து பயனர்களையும் எடுத்தல்
+          // இது Auth-ல் இருந்து Trigger வழியாக டேட்டாபேஸிற்கு வரும் தகவல்களைக் காட்டும்
+          const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('user_id, email, full_name, country, created_at')
+            .order('created_at', { ascending: false });
+
           if (profilesError) throw profilesError;
-          const { data: roles, error: rolesError } = await supabase.from('user_roles').select('user_id, role');
+
+          // 2. Roles டேபிளில் இருந்து ரோல்களை எடுத்தல்
+          const { data: roles, error: rolesError } = await supabase
+            .from('user_roles')
+            .select('user_id, role');
+
           if (rolesError) throw rolesError;
 
+          // 3. இரண்டையும் இணைத்து ஒரே ஆப்ஜெக்ட்டாக மாற்றுதல்
           const usersWithRoles: UserWithRole[] = (profiles || []).map((profile) => {
               const userRole = roles?.find((r) => r.user_id === profile.user_id);
-              return { ...profile, role: (userRole?.role as AppRole) || 'customer' };
+              return { 
+                  ...profile, 
+                  role: (userRole?.role as AppRole) || 'customer' 
+              };
           });
-          setUsers(usersWithRoles.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+
+          setUsers(usersWithRoles);
       } catch (error) {
           console.error('Error fetching users:', error);
-          toast({ title: 'Error', description: 'Failed to fetch users.', variant: 'destructive' });
+          toast({ title: 'Error', description: 'Failed to fetch users from database.', variant: 'destructive' });
       } finally {
           setLoading(false);
       }
@@ -145,14 +162,13 @@ const UserManagement = () => {
   const handleRoleChange = async (userId: string, newRole: AppRole) => {
     setUpdatingUserId(userId);
     try {
-      // Update user role directly in the user_roles table
       const { error } = await supabase
         .from('user_roles')
-        .update({ role: newRole })
-        .eq('user_id', userId);
+        .upsert({ user_id: userId, role: newRole }, { onConflict: 'user_id' });
+        
       if (error) throw error;
       setUsers((prev) => prev.map((user) => user.user_id === userId ? { ...user, role: newRole } : user));
-      toast({ title: 'Role Updated', description: `User role has been successfully changed to ${newRole}.` });
+      toast({ title: 'Role Updated', description: `User role changed to ${newRole}.` });
     } catch (error) {
       console.error('Error updating role:', error);
       toast({ title: 'Error', description: 'Failed to update user role.', variant: 'destructive' });
@@ -162,42 +178,45 @@ const UserManagement = () => {
   };
 
   const handleCreateUser = async (values: z.infer<typeof createUserSchema>) => {
-      try {
-          // Note: Creating users requires admin auth.admin API which isn't available from client
-          // This is a placeholder - in production, use an edge function with service role key
-          toast({ title: 'Info', description: 'User creation requires server-side implementation with admin privileges.', variant: 'default' });
-          setCreateUserOpen(false);
-          createForm.reset();
-      } catch (error) {
-          console.error('Error creating user:', error);
-          toast({ title: 'Error', description: (error as Error).message || 'An unexpected error occurred.', variant: 'destructive' });
-      }
+      // Client-side Supabase SDK மூலம் நேரடியாக Auth பயனர் உருவாக்க முடியாது (Admin Key தேவை)
+      // அதனால் இது ஒரு எட்ஜ் பங்க்ஷன் அல்லது சர்வர் பக்க லாஜிக் தேவைப்படும்
+      toast({ 
+        title: 'Development Mode', 
+        description: 'Creating users requires Supabase Admin API or an Edge Function.', 
+        variant: 'default' 
+      });
+      setCreateUserOpen(false);
   }
 
   const handleUpdateUser = async (values: z.infer<typeof editUserSchema>) => {
     if (!selectedUser) return;
     try {
-        const { error } = await supabase.from('profiles').update({ full_name: values.full_name, country: values.country }).eq('user_id', selectedUser.user_id);
+        const { error } = await supabase
+            .from('profiles')
+            .update({ full_name: values.full_name, country: values.country })
+            .eq('user_id', selectedUser.user_id);
         if (error) throw error;
-        toast({ title: 'User Updated', description: 'User details have been successfully updated.' });
+        toast({ title: 'User Updated', description: 'User details updated successfully.' });
         setEditUserOpen(false);
         fetchUsers();
     } catch (error) {
         console.error('Error updating user:', error);
-        toast({ title: 'Error', description: (error as Error).message || 'Failed to update user.', variant: 'destructive' });
+        toast({ title: 'Error', description: 'Failed to update user.', variant: 'destructive' });
     }
   };
 
   const handleDeleteUser = async () => {
     if (!selectedUser) return;
     try {
-      // Note: Deleting users requires admin auth.admin API which isn't available from client
-      // This is a placeholder - in production, use an edge function with service role key
-      toast({ title: 'Info', description: 'User deletion requires server-side implementation with admin privileges.', variant: 'default' });
+      // Profile நீக்குதல் (Auth User-ஐ நீக்க Admin API தேவை)
+      const { error } = await supabase.from('profiles').delete().eq('user_id', selectedUser.user_id);
+      if (error) throw error;
+      toast({ title: 'User Removed', description: 'Profile removed from database.' });
       setDeleteAlertOpen(false);
+      fetchUsers();
     } catch (error) {
       console.error('Error deleting user:', error);
-      toast({ title: 'Error', description: (error as Error).message || 'Failed to delete user.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Failed to delete user profile.', variant: 'destructive' });
     }
   };
 
