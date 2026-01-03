@@ -328,7 +328,6 @@ const SiteSettings = () => {
     setSettings({ ...settings, primaryColor: preset.primary, accentColor: preset.accent });
   };
   
-  
   if (loading) {
     return (
       <div className="space-y-6">
