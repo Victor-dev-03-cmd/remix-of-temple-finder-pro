@@ -21,6 +21,7 @@ export interface SiteSettings {
   heroCtaLink: string;
   commissionRate: number;
   defaultCountry: string;
+  maintenanceMode: boolean;
 }
 
 const defaultSettings: SiteSettings = {
@@ -43,12 +44,13 @@ const defaultSettings: SiteSettings = {
   heroCtaLink: '/become-vendor',
   commissionRate: 10,
   defaultCountry: 'LK',
+  maintenanceMode: false,
 };
 
 async function fetchSiteSettings(): Promise<SiteSettings> {
   const { data, error }: any = await supabase
     .from('site_settings')
-    .select('site_name, logo_url, primary_color, accent_color, primary_font, display_font, footer_tagline, social_facebook, social_instagram, social_twitter, social_linkedin, social_youtube, hero_title, hero_subtitle, hero_image_url, hero_cta_text, hero_cta_link, commission_rate, default_country')
+    .select('site_name, logo_url, primary_color, accent_color, primary_font, display_font, footer_tagline, social_facebook, social_instagram, social_twitter, social_linkedin, social_youtube, hero_title, hero_subtitle, hero_image_url, hero_cta_text, hero_cta_link, commission_rate, default_country, maintenance_mode')
     .limit(1)
     .maybeSingle();
 
@@ -76,6 +78,7 @@ async function fetchSiteSettings(): Promise<SiteSettings> {
     heroCtaLink: data.hero_cta_link || defaultSettings.heroCtaLink,
     commissionRate: data.commission_rate || defaultSettings.commissionRate,
     defaultCountry: data.default_country || defaultSettings.defaultCountry,
+    maintenanceMode: data.maintenance_mode ?? defaultSettings.maintenanceMode,
   };
 }
 

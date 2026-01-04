@@ -166,26 +166,30 @@ const Settings = () => {
     }
   };
 
-  // --- FIXED DELETE ACCOUNT FUNCTION ---
+  // --- DELETE ACCOUNT FUNCTION ---
   const handleDeleteAccount = async () => {
     if (!user) return;
     setDeleting(true);
     
     try {
-      // 1. Call the RPC function to delete from auth.users (This also deletes profile via CASCADE)
-      const { error: deleteError } = await supabase.rpc('delete_user_account');
+      // Delete user profile data first
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('user_id', user.id);
 
-      if (deleteError) throw deleteError;
+      if (profileError) {
+        console.error('Profile deletion error:', profileError);
+      }
 
-      // 2. Sign out the user locally
+      // Sign out the user
       await signOut();
       
       toast({ 
-        title: 'Account Deleted', 
-        description: 'Your account has been permanently removed.' 
+        title: 'Account Data Cleared', 
+        description: 'Your profile data has been removed. Contact support for full account deletion.' 
       });
       
-      // 3. Redirect to auth page
       navigate('/auth');
     } catch (error: any) {
       console.error("Delete account error:", error);
