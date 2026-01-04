@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, Eye, EyeOff, ArrowRight, ArrowLeft, Globe, Loader2 } from 'lucide-react';
 import { z } from 'zod';
 import Header from '@/components/layout/Header';
+import { AuthModal } from '@/components/auth/AuthModal';
 import Footer from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,6 +54,8 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; fullName?: string; confirmPassword?: string }>({});
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [signupEmail, setSignupEmail] = useState('');
 
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
@@ -213,8 +216,7 @@ const Auth = () => {
             variant: 'destructive',
           });
         } else {
-          // முக்கியமான பகுதி: Sign Up வெற்றிகரமாக முடிந்ததும் 
-          // 1. Session-ஐ கிளியர் செய்யவும்
+          // Sign out and show login modal popup
           await supabase.auth.signOut();
           
           toast({
@@ -222,9 +224,10 @@ const Auth = () => {
             description: 'Please sign in with your new account.',
           });
           
-          // 2. தானாகவே Login Screen-ஐ Pop-up செய்யவும்
-          setMode('login');
-          setPassword(''); // பாஸ்வர்டை மட்டும் நீக்கவும் (Email அப்படியே இருக்கும், பயனர் எளிதாக லாகின் செய்ய)
+          // Store email and show login modal popup
+          setSignupEmail(email);
+          setShowLoginModal(true);
+          setPassword('');
           setFullName('');
           setErrors({});
         }
@@ -512,6 +515,15 @@ const Auth = () => {
       </main>
 
       <Footer />
+
+      {/* Login Modal Popup after Signup */}
+      <AuthModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        defaultEmail={signupEmail}
+        title="Sign In to Continue"
+        description="Your account has been created! Please sign in to continue."
+      />
     </div>
   );
 };
