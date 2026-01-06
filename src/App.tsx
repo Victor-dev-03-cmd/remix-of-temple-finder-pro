@@ -44,7 +44,7 @@ import SiteSettingsPage from "./pages/admin/SiteSettingsPage";
 import TempleManagementPage from "./pages/admin/TempleManagementPage";
 import BookingManagementPage from "./pages/admin/BookingManagementPage";
 import VendorBalancesPage from "./pages/admin/VendorBalancesPage";
-import AdminCountryManagement from "./components/admin/AdminCountryManagement";
+import CountriesPage from "./pages/admin/CountriesPage";
 import BookingLookup from "./pages/BookingLookup";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -144,7 +144,7 @@ const AppRoutes = () => {
         <Route path="/admin/temples" element={<ProtectedRoute allowedRoles={['admin']}><TempleManagementPage /></ProtectedRoute>} />
         <Route path="/admin/bookings" element={<ProtectedRoute allowedRoles={['admin']}><BookingManagementPage /></ProtectedRoute>} />
         <Route path="/admin/vendor-balances" element={<ProtectedRoute allowedRoles={['admin']}><VendorBalancesPage /></ProtectedRoute>} />
-        <Route path="/admin/countries" element={<ProtectedRoute allowedRoles={['admin']}><AdminCountryManagement /></ProtectedRoute>} />
+        <Route path="/admin/countries" element={<ProtectedRoute allowedRoles={['admin']}><CountriesPage /></ProtectedRoute>} />
 
         <Route path="/settings" element={<ProtectedRoute allowedRoles={['admin', 'vendor', 'customer']}><Settings /></ProtectedRoute>} />
 
