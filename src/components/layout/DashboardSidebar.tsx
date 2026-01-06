@@ -9,7 +9,6 @@ import {
   FileCheck,
   Store,
   TrendingUp,
-  Home,
   Shield,
   LogOut,
   Settings,
@@ -18,9 +17,9 @@ import {
   Building,
   ClipboardList, 
   FilePlus,
-  Globe // புதிதாக சேர்க்கப்பட்ட ஐகான்
+  Globe,
+  GalleryHorizontal
 } from 'lucide-react';
-import CountrySelector from '@/components/admin/CountrySelector';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVendorTemple } from '@/hooks/useVendorTemple';
 import {
@@ -43,11 +42,15 @@ const adminMenuItems = [
   { title: 'Dashboard', url: '/admin', icon: LayoutDashboard },
   { title: 'Temples', url: '/admin/temples', icon: MapPin },
   { title: 'Bookings', url: '/admin/bookings', icon: Ticket },
-  { title: 'Countries', url: '/admin/countries', icon: Globe }, // புதிய மெனு இங்கே சேர்க்கப்பட்டுள்ளது
+  { title: 'Countries', url: '/admin/countries', icon: Globe },
   { title: 'Vendor Applications', url: '/admin/vendor-applications', icon: FileCheck },
   { title: 'User Management', url: '/admin/users', icon: Users },
-  { title: 'Site Settings', url: '/admin/settings', icon: Settings },
 ];
+
+const adminSettingsMenuItems = [
+    { title: 'General', url: '/admin/settings/general', icon: Settings },
+    { title: 'Home Gallery', url: '/admin/settings/home-gallery', icon: GalleryHorizontal }
+]
 
 const vendorMenuItems = [
   { title: 'Dashboard', url: '/vendor', icon: LayoutDashboard },
@@ -67,14 +70,9 @@ const customerMenuItems = [
   { title: 'Profile', url: '/dashboard/profile', icon: User },
 ];
 
-const commonLinks = [
-  { title: 'Home', url: '/', icon: Home },
-  { title: 'Become a Vendor', url: '/become-vendor', icon: Store },
-];
-
 const DashboardSidebar = () => {
   const { isAdmin, isVendor, user, signOut } = useAuth();
-  const { temple, application } = useVendorTemple(user?.id);
+  const { temple } = useVendorTemple(user?.id);
   const location = useLocation();
   const { state } = useSidebar();
   const isCollapsed = state === 'collapsed';
@@ -110,7 +108,6 @@ const DashboardSidebar = () => {
           )}
         </div>
         
-        {/* Vendor Temple Info */}
         {isVendor && temple && !isCollapsed && (
           <div className="mt-3 rounded-lg bg-primary/5 p-2.5 border border-primary/10">
             <div className="flex items-center gap-2">
@@ -149,37 +146,28 @@ const DashboardSidebar = () => {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {commonLinks.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive(item.url)}
-                    tooltip={item.title}
-                  >
-                    <Link to={item.url}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
         {isAdmin && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Region</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <div className="px-2">
-                <CountrySelector />
-              </div>
-            </SidebarGroupContent>
-          </SidebarGroup>
+            <SidebarGroup>
+                <SidebarGroupLabel>Settings</SidebarGroupLabel>
+                <SidebarGroupContent>
+                    <SidebarMenu>
+                        {adminSettingsMenuItems.map((item) => (
+                            <SidebarMenuItem key={item.title}>
+                                <SidebarMenuButton
+                                    asChild
+                                    isActive={isActive(item.url)}
+                                    tooltip={item.title}
+                                >
+                                    <Link to={item.url}>
+                                        <item.icon className="h-4 w-4" />
+                                        <span>{item.title}</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        ))}
+                    </SidebarMenu>
+                </SidebarGroupContent>
+            </SidebarGroup>
         )}
       </SidebarContent>
 
