@@ -13,6 +13,9 @@ import { SiteSettingsProvider } from "./contexts/SiteSettingsContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import CartSheet from "./components/cart/CartSheet";
 import ChatWidget from "./components/chat/ChatWidget";
+import { supabase } from "@/integrations/supabase/client";
+
+// Pages
 import Index from "./pages/Index";
 import Products from "./pages/Products";
 import ProductDetail from "./pages/ProductDetail";
@@ -51,50 +54,45 @@ const queryClient = new QueryClient();
 const GlobalLoadingSkeleton = () => (
   <div className="flex flex-col items-center justify-center min-h-screen bg-background w-full">
     <div className="relative flex flex-col items-center gap-6">
-      
-      {/* Temple Icon Container with Spinner */}
       <div className="relative">
-        <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10 ">
+        <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10">
           <span className="text-4xl text-primary">ૐ</span>
         </div>
-        
-        {/* Spinner around the Icon */}
         <div className="absolute -inset-2 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
       </div>
-
-      {/* Loading Text */}
       <div className="flex flex-col items-center gap-2">
-        <h2 className="text-xl font-semibold text-primary animate-pulse">
-          Temple Info
-        </h2>
+        <h2 className="text-xl font-semibold text-primary animate-pulse">Temple Info</h2>
         <p className="text-sm text-muted-foreground">Loading your experience...</p>
       </div>
-
-      {/* 3 Seconds Progress Bar */}
       <div className="w-48 h-1 bg-muted rounded-full overflow-hidden">
-        <div 
-          className="h-full bg-primary" 
-          style={{
-            animation: 'progress 1.5s linear forwards'
-          }} 
-        />
+        <div className="h-full bg-primary" style={{ animation: 'progress 1.5s linear forwards' }} />
       </div>
     </div>
+    <style>{`@keyframes progress { 0% { width: 0%; } 100% { width: 100%; } }`}</style>
+  </div>
+);
 
-    {/* Custom Animation Style */}
-    <style>{`
-      @keyframes progress {
-        0% { width: 0%; }
-        100% { width: 100%; }
-      }
-    `}</style>
+// --- ACCESS DENIED UI FOR BLOCKED COUNTRIES ---
+const AccessDenied = () => (
+  <div className="h-screen w-screen flex flex-col items-center justify-center bg-background p-6 text-center">
+    <div className="max-w-md p-10 bg-card rounded-3xl shadow-2xl border border-destructive/20">
+      <div className="h-24 w-24 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mx-auto mb-6">
+        <span className="text-5xl font-bold">!</span>
+      </div>
+      <h1 className="text-3xl font-display font-bold text-foreground mb-4">Access Restricted</h1>
+      <p className="text-muted-foreground leading-relaxed">
+        We apologize, but Temple Info services are currently not available in your region due to local policy or administrative restrictions.
+      </p>
+      <div className="mt-8 pt-6 border-t border-muted text-xs text-muted-foreground">
+        Your IP location: <span className="font-mono font-bold uppercase tracking-wider">Restricted</span> | Error Code: REGION_BLOCKED
+      </div>
+    </div>
   </div>
 );
 
 // Redirect authenticated users away from auth page
 const AuthRoute = () => {
   const { user, loading } = useAuth();
-  
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -102,11 +100,7 @@ const AuthRoute = () => {
       </div>
     );
   }
-  
-  if (user) {
-    return <Navigate to="/" replace />;
-  }
-  
+  if (user) return <Navigate to="/" replace />;
   return <Auth />;
 };
 
@@ -128,166 +122,29 @@ const AppRoutes = () => {
         <Route path="/cart" element={<CartPage />} />
 
         {/* Protected routes */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute allowedRoles={['customer']}>
-              <CustomerDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard/orders"
-          element={
-            <ProtectedRoute allowedRoles={['customer']}>
-              <CustomerOrders />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard/favorites"
-          element={
-            <ProtectedRoute allowedRoles={['customer']}>
-              <CustomerFavoritesPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard/profile"
-          element={
-            <ProtectedRoute allowedRoles={['customer']}>
-              <CustomerProfilePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/vendor"
-          element={
-            <ProtectedRoute allowedRoles={['vendor']}>
-              <VendorDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/vendor/temple"
-          element={
-            <ProtectedRoute allowedRoles={['vendor']}>
-              <VendorTemple />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/vendor/products"
-          element={
-            <ProtectedRoute allowedRoles={['vendor']}>
-              <VendorProducts />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/vendor/orders"
-          element={
-            <ProtectedRoute allowedRoles={['vendor']}>
-              <VendorOrders />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/vendor/analytics"
-          element={
-            <ProtectedRoute allowedRoles={['vendor']}>
-              <VendorAnalyticsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/vendor/bookings"
-          element={
-            <ProtectedRoute allowedRoles={['vendor']}>
-              <VendorBookingsPage />
-            </ProtectedRoute>
-          }
-        />
-         <Route
-          path="/vendor/inventory"
-          element={
-            <ProtectedRoute allowedRoles={['vendor']}>
-              <InventoryManagementPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/vendor/invoices"
-          element={
-            <ProtectedRoute allowedRoles={['vendor']}>
-              <InvoiceCreationPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <AdminDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/vendor-applications"
-          element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <VendorApplications />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/users"
-          element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <UserManagementPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/settings"
-          element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <SiteSettingsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/temples"
-          element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <TempleManagementPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/bookings"
-          element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <BookingManagementPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/vendor-balances"
-          element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <VendorBalancesPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <ProtectedRoute allowedRoles={['admin', 'vendor', 'customer']}>
-              <Settings />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['customer']}><CustomerDashboard /></ProtectedRoute>} />
+        <Route path="/dashboard/orders" element={<ProtectedRoute allowedRoles={['customer']}><CustomerOrders /></ProtectedRoute>} />
+        <Route path="/dashboard/favorites" element={<ProtectedRoute allowedRoles={['customer']}><CustomerFavoritesPage /></ProtectedRoute>} />
+        <Route path="/dashboard/profile" element={<ProtectedRoute allowedRoles={['customer']}><CustomerProfilePage /></ProtectedRoute>} />
+        
+        <Route path="/vendor" element={<ProtectedRoute allowedRoles={['vendor']}><VendorDashboard /></ProtectedRoute>} />
+        <Route path="/vendor/temple" element={<ProtectedRoute allowedRoles={['vendor']}><VendorTemple /></ProtectedRoute>} />
+        <Route path="/vendor/products" element={<ProtectedRoute allowedRoles={['vendor']}><VendorProducts /></ProtectedRoute>} />
+        <Route path="/vendor/orders" element={<ProtectedRoute allowedRoles={['vendor']}><VendorOrders /></ProtectedRoute>} />
+        <Route path="/vendor/analytics" element={<ProtectedRoute allowedRoles={['vendor']}><VendorAnalyticsPage /></ProtectedRoute>} />
+        <Route path="/vendor/bookings" element={<ProtectedRoute allowedRoles={['vendor']}><VendorBookingsPage /></ProtectedRoute>} />
+        <Route path="/vendor/inventory" element={<ProtectedRoute allowedRoles={['vendor']}><InventoryManagementPage /></ProtectedRoute>} />
+        <Route path="/vendor/invoices" element={<ProtectedRoute allowedRoles={['vendor']}><InvoiceCreationPage /></ProtectedRoute>} />
+
+        <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/vendor-applications" element={<ProtectedRoute allowedRoles={['admin']}><VendorApplications /></ProtectedRoute>} />
+        <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><UserManagementPage /></ProtectedRoute>} />
+        <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><SiteSettingsPage /></ProtectedRoute>} />
+        <Route path="/admin/temples" element={<ProtectedRoute allowedRoles={['admin']}><TempleManagementPage /></ProtectedRoute>} />
+        <Route path="/admin/bookings" element={<ProtectedRoute allowedRoles={['admin']}><BookingManagementPage /></ProtectedRoute>} />
+        <Route path="/admin/vendor-balances" element={<ProtectedRoute allowedRoles={['admin']}><VendorBalancesPage /></ProtectedRoute>} />
+
+        <Route path="/settings" element={<ProtectedRoute allowedRoles={['admin', 'vendor', 'customer']}><Settings /></ProtectedRoute>} />
 
         {/* Catch-all */}
         <Route path="*" element={<NotFound />} />
@@ -298,15 +155,44 @@ const AppRoutes = () => {
 
 const App = () => {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isGeoBlocked, setIsGeoBlocked] = useState(false);
 
   useEffect(() => {
-    // 3 seconds delay for the loader
-    const timer = setTimeout(() => {
-      setIsInitialLoading(false);
-    }, 3000);
+    const initializeApp = async () => {
+      try {
+        // 1. Check IP and Country
+        const geoRes = await fetch('https://ipapi.co/json/');
+        const geoData = await geoRes.json();
+        const userCountry = geoData.country_code;
 
-    return () => clearTimeout(timer);
+        // 2. Check Database for Blocked Status
+        const { data } = await supabase
+          .from('countries_config')
+          .select('is_blocked')
+          .eq('country_code', userCountry)
+          .maybeSingle();
+
+        if (data?.is_blocked) {
+          setIsGeoBlocked(true);
+        }
+      } catch (err) {
+        console.error("Geo-blocking check failed:", err);
+        // If API fails, we proceed by default
+      } finally {
+        // Minimum loading time for the animation
+        setTimeout(() => {
+          setIsInitialLoading(false);
+        }, 3000);
+      }
+    };
+
+    initializeApp();
   }, []);
+
+  // If the country is blocked, show ONLY the AccessDenied screen
+  if (!isInitialLoading && isGeoBlocked) {
+    return <AccessDenied />;
+  }
 
   return (
     <HelmetProvider>

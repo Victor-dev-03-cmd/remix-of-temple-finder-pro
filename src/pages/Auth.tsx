@@ -27,20 +27,11 @@ const nameSchema = z.string().min(2, 'Name must be at least 2 characters');
 
 type AuthMode = 'login' | 'signup' | 'forgot-password' | 'reset-password';
 
-const countries = [
-  { code: 'LK', name: 'Sri Lanka', flag: '🇱🇰' },
-  { code: 'MY', name: 'Malaysia', flag: '🇲🇾' },
-  { code: 'IN', name: 'India', flag: '🇮🇳' },
-  { code: 'TH', name: 'Thailand', flag: '🇹🇭' },
-  { code: 'SG', name: 'Singapore', flag: '🇸🇬' },
-  { code: 'ID', name: 'Indonesia', flag: '🇮🇩' },
-  { code: 'PH', name: 'Philippines', flag: '🇵🇭' },
-  { code: 'VN', name: 'Vietnam', flag: '🇻🇳' },
-  { code: 'MM', name: 'Myanmar', flag: '🇲🇲' },
-  { code: 'NP', name: 'Nepal', flag: '🇳🇵' },
-  { code: 'BD', name: 'Bangladesh', flag: '🇧🇩' },
-  { code: 'PK', name: 'Pakistan', flag: '🇵🇰' },
-];
+// Type for Country from Database
+interface CountryConfig {
+  country_code: string;
+  country_name: string;
+}
 
 const Auth = () => {
   const [mode, setMode] = useState<AuthMode>('login');
@@ -48,19 +39,35 @@ const Auth = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [country, setCountry] = useState('LK');
+  const [country, setCountry] = useState(''); // Default empty, loaded from DB
+  const [dbCountries, setDbCountries] = useState<CountryConfig[]>([]);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; fullName?: string; confirmPassword?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; fullName?: string; confirmPassword?: string; country?: string }>({});
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [signupEmail, setSignupEmail] = useState('');
 
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
 
+  // 1. Fetch active countries from countries_config table
   useEffect(() => {
+    const fetchCountries = async () => {
+      const { data, error } = await supabase
+        .from('countries_config')
+        .select('country_code, country_name')
+        .eq('is_blocked', false)
+        .order('country_name', { ascending: true });
+      
+      if (!error && data) {
+        setDbCountries(data);
+        if (data.length > 0) setCountry(data[0].country_code); // Set first country as default
+      }
+    };
+    fetchCountries();
+
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('mode') === 'reset') {
       setMode('reset-password');
@@ -96,7 +103,7 @@ const Auth = () => {
   };
 
   const validateForm = () => {
-    const newErrors: { email?: string; password?: string; fullName?: string; confirmPassword?: string } = {};
+    const newErrors: any = {};
 
     const emailResult = emailSchema.safeParse(email);
     if (!emailResult.success) {
@@ -118,6 +125,9 @@ const Auth = () => {
       const nameResult = nameSchema.safeParse(fullName);
       if (!nameResult.success) {
         newErrors.fullName = nameResult.error.errors[0].message;
+      }
+      if (!country) {
+        newErrors.country = 'Please select a country';
       }
     }
 
@@ -205,7 +215,8 @@ const Auth = () => {
           navigate('/');
         }
       } else if (mode === 'signup') {
-        const { error }: any = await signUp(email, password, fullName, country);
+        // 2. Sign Up User
+        const { data, error }: any = await signUp(email, password, fullName);
         
         if (error) {
           toast({
@@ -216,7 +227,14 @@ const Auth = () => {
             variant: 'destructive',
           });
         } else {
-          // Sign out and show login modal popup
+          // 3. IMPORTANT: Update Profile with Country after Signup
+          if (data?.user) {
+            await supabase
+              .from('profiles')
+              .update({ country_code: country })
+              .eq('id', data.user.id);
+          }
+
           await supabase.auth.signOut();
           
           toast({
@@ -224,7 +242,6 @@ const Auth = () => {
             description: 'Please sign in with your new account.',
           });
           
-          // Store email and show login modal popup
           setSignupEmail(email);
           setShowLoginModal(true);
           setPassword('');
@@ -264,7 +281,7 @@ const Auth = () => {
       <main className="flex min-h-[calc(100vh-64px)] items-center justify-center py-12">
         <AnimatePresence mode="wait">
           <motion.div
-            key={mode} // Mode மாறும் போது முழு கார்டும் அனிமேட் ஆகும் (Pop-up effect)
+            key={mode}
             initial={{ opacity: 0, scale: 0.9, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: -10 }}
@@ -272,7 +289,6 @@ const Auth = () => {
             className="w-full max-w-md px-4"
           >
             <div className="rounded-xl border border-border bg-card p-8 shadow-lg">
-              {/* Header */}
               <div className="mb-8 text-center">
                 <h1 className="mb-2 font-display text-2xl font-bold text-foreground">
                   {getTitle()}
@@ -282,7 +298,6 @@ const Auth = () => {
                 </p>
               </div>
 
-              {/* Form */}
               <form onSubmit={handleSubmit} className="space-y-5">
                 <AnimatePresence mode="wait">
                   {mode === 'signup' && (
@@ -318,16 +333,16 @@ const Auth = () => {
                             </div>
                           </SelectTrigger>
                           <SelectContent>
-                            {countries.map((c) => (
-                              <SelectItem key={c.code} value={c.code}>
+                            {dbCountries.map((c) => (
+                              <SelectItem key={c.country_code} value={c.country_code}>
                                 <span className="flex items-center gap-2">
-                                  <span>{c.flag}</span>
-                                  <span>{c.name}</span>
+                                  <span>{c.country_name}</span>
                                 </span>
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
+                        {errors.country && <p className="text-xs text-destructive">{errors.country}</p>}
                       </div>
                     </motion.div>
                   )}
@@ -429,7 +444,6 @@ const Auth = () => {
                   )}
                 </Button>
 
-                {/* Google OAuth - Only show for login and signup */}
                 {(mode === 'login' || mode === 'signup') && (
                   <>
                     <div className="relative my-4">
@@ -453,22 +467,10 @@ const Auth = () => {
                       ) : (
                         <>
                           <svg className="h-5 w-5" viewBox="0 0 24 24">
-                            <path
-                              fill="#4285F4"
-                              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                            />
-                            <path
-                              fill="#34A853"
-                              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                            />
-                            <path
-                              fill="#FBBC05"
-                              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                            />
-                            <path
-                              fill="#EA4335"
-                              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                            />
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                           </svg>
                           Continue with Google
                         </>
@@ -478,7 +480,6 @@ const Auth = () => {
                 )}
               </form>
 
-              {/* Toggle / Back Links */}
               <div className="mt-8 text-center text-sm border-t border-border pt-6">
                 {mode === 'forgot-password' && (
                   <button
@@ -516,7 +517,6 @@ const Auth = () => {
 
       <Footer />
 
-      {/* Login Modal Popup after Signup */}
       <AuthModal
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
