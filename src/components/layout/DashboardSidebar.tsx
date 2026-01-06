@@ -17,7 +17,8 @@ import {
   Ticket,
   Building,
   ClipboardList, 
-  FilePlus
+  FilePlus,
+  Globe // புதிதாக சேர்க்கப்பட்ட ஐகான்
 } from 'lucide-react';
 import CountrySelector from '@/components/admin/CountrySelector';
 import { useAuth } from '@/contexts/AuthContext';
@@ -42,6 +43,7 @@ const adminMenuItems = [
   { title: 'Dashboard', url: '/admin', icon: LayoutDashboard },
   { title: 'Temples', url: '/admin/temples', icon: MapPin },
   { title: 'Bookings', url: '/admin/bookings', icon: Ticket },
+  { title: 'Countries', url: '/admin/countries', icon: Globe }, // புதிய மெனு இங்கே சேர்க்கப்பட்டுள்ளது
   { title: 'Vendor Applications', url: '/admin/vendor-applications', icon: FileCheck },
   { title: 'User Management', url: '/admin/users', icon: Users },
   { title: 'Site Settings', url: '/admin/settings', icon: Settings },
