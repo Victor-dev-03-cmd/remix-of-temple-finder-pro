@@ -459,6 +459,18 @@ export type Database = {
           order_alerts: boolean
           primary_color: string
           primary_font: string
+          service_1_description: string | null
+          service_1_title: string | null
+          service_2_description: string | null
+          service_2_title: string | null
+          service_3_description: string | null
+          service_3_title: string | null
+          service_4_description: string | null
+          service_4_title: string | null
+          service_5_description: string | null
+          service_5_title: string | null
+          service_6_description: string | null
+          service_6_title: string | null
           site_name: string
           social_facebook: string | null
           social_instagram: string | null
@@ -503,6 +515,18 @@ export type Database = {
           order_alerts?: boolean
           primary_color?: string
           primary_font?: string
+          service_1_description?: string | null
+          service_1_title?: string | null
+          service_2_description?: string | null
+          service_2_title?: string | null
+          service_3_description?: string | null
+          service_3_title?: string | null
+          service_4_description?: string | null
+          service_4_title?: string | null
+          service_5_description?: string | null
+          service_5_title?: string | null
+          service_6_description?: string | null
+          service_6_title?: string | null
           site_name?: string
           social_facebook?: string | null
           social_instagram?: string | null
@@ -547,6 +571,18 @@ export type Database = {
           order_alerts?: boolean
           primary_color?: string
           primary_font?: string
+          service_1_description?: string | null
+          service_1_title?: string | null
+          service_2_description?: string | null
+          service_2_title?: string | null
+          service_3_description?: string | null
+          service_3_title?: string | null
+          service_4_description?: string | null
+          service_4_title?: string | null
+          service_5_description?: string | null
+          service_5_title?: string | null
+          service_6_description?: string | null
+          service_6_title?: string | null
           site_name?: string
           social_facebook?: string | null
           social_instagram?: string | null
