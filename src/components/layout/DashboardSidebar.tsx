@@ -18,7 +18,8 @@ import {
   ClipboardList, 
   FilePlus,
   Globe,
-  GalleryHorizontal
+  GalleryHorizontal,
+  Layers
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVendorTemple } from '@/hooks/useVendorTemple';
@@ -49,7 +50,8 @@ const adminMenuItems = [
 
 const adminSettingsMenuItems = [
     { title: 'General', url: '/admin/settings/general', icon: Settings },
-    { title: 'Home Gallery', url: '/admin/settings/home-gallery', icon: GalleryHorizontal }
+    { title: 'Home Gallery', url: '/admin/settings/home-gallery', icon: GalleryHorizontal },
+    { title: 'Services', url: '/admin/settings/services', icon: Layers }
 ]
 
 const vendorMenuItems = [

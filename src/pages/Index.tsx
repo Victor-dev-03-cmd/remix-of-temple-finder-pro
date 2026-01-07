@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Loader2 } from 'lucide-react';
+import { ArrowRight, Loader2, Search, ShoppingCart, Ticket, Shield, Globe, HeartHandshake } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import TempleSearch from '@/components/temples/TempleSearch';
@@ -10,7 +10,8 @@ import { Button } from '@/components/ui/button';
 import { useTemples } from '@/hooks/useTemples';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { useAuth } from '@/contexts/AuthContext';
-import heroImage from '@/assets/hero-temple.jpg';
+
+const serviceIcons = [Search, ShoppingCart, Ticket, Shield, Globe, HeartHandshake];
 
 const Index = () => {
   const navigate = useNavigate();
@@ -22,8 +23,17 @@ const Index = () => {
   const heroSubtitle = settings?.heroSubtitle || 'Find your spiritual journey by exploring temples, services, and community events';
   const heroCtaText = settings?.heroCtaText || 'Become a Temple Vendor';
   const heroCtaLink = settings?.heroCtaLink || '/become-vendor';
-  const heroImageUrl = settings?.heroImageUrl || heroImage;
   const defaultCountry = settings?.defaultCountry || 'LK';
+
+  // Services from settings
+  const services = [
+    { title: settings?.service1Title || 'Search Worldwide Temples', description: settings?.service1Description || 'Explore and discover temple information from around the globe.' },
+    { title: settings?.service2Title || 'Temple E-Commerce', description: settings?.service2Description || 'Buy temple products with secure e-commerce support.' },
+    { title: settings?.service3Title || 'Booking & Rooms', description: settings?.service3Description || 'Book temple tickets and reserve nearby accommodations.' },
+    { title: settings?.service4Title || 'Full Security', description: settings?.service4Description || 'Your data is protected with enterprise-grade security.' },
+    { title: settings?.service5Title || 'Global Community', description: settings?.service5Description || 'Connect with devotees and temples worldwide.' },
+    { title: settings?.service6Title || 'Dedicated Support', description: settings?.service6Description || '24/7 support to assist you on your spiritual journey.' },
+  ];
 
   const handleSearch = (filters: { query: string; province: string; district: string; country: string }) => {
     const params = new URLSearchParams();
@@ -38,18 +48,8 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      {/* Hero Section */}
-      <section className="relative h-[70vh] sm:h-[85vh] min-h-[500px] sm:min-h-[600px] overflow-hidden">
-        {/* Background Image */}
-        <div className="absolute inset-0">
-          <img
-            src={heroImageUrl}
-            alt="Hindu Temple"
-            className="h-full w-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-hero" />
-        </div>
-
+      {/* Hero Section - Gradient Background, No Image */}
+      <section className="relative h-[50vh] sm:h-[60vh] min-h-[350px] sm:min-h-[400px] overflow-hidden bg-gradient-to-br from-primary via-primary/80 to-accent">
         {/* Content */}
         <div className="container relative flex h-full flex-col items-center justify-center text-center px-4">
           <motion.h1
@@ -83,13 +83,54 @@ const Index = () => {
               className="mt-4 sm:mt-6"
             >
               <Link to={heroCtaLink}>
-                <Button size="lg" className="gap-2 text-sm sm:text-base">
+                <Button size="lg" variant="secondary" className="gap-2 text-sm sm:text-base">
                   {heroCtaText}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
             </motion.div>
           )}
+        </div>
+      </section>
+
+      {/* Services Section */}
+      <section className="py-12 sm:py-16 lg:py-20 bg-muted/30">
+        <div className="container px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mb-8 sm:mb-12 text-center"
+          >
+            <h2 className="mb-2 sm:mb-3 font-display text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground">
+              Our Services
+            </h2>
+            <p className="mx-auto max-w-2xl text-sm sm:text-base text-muted-foreground">
+              Discover what Temple Connect offers to enhance your spiritual journey.
+            </p>
+          </motion.div>
+
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {services.map((service, index) => {
+              const Icon = serviceIcons[index];
+              return (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                  className="group rounded-xl border border-border bg-card p-6 shadow-sm transition-all hover:shadow-md hover:border-primary/30"
+                >
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                    <Icon className="h-6 w-6" />
+                  </div>
+                  <h3 className="mb-2 font-semibold text-lg text-foreground">{service.title}</h3>
+                  <p className="text-sm text-muted-foreground">{service.description}</p>
+                </motion.div>
+              );
+            })}
+          </div>
         </div>
       </section>
 

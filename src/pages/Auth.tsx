@@ -55,15 +55,15 @@ const Auth = () => {
   // 1. Fetch active countries from countries_config table
   useEffect(() => {
     const fetchCountries = async () => {
-      const { data, error } = await supabase
-        .from('countries_config')
+      const { data, error } = await (supabase
+        .from('countries_config' as any)
         .select('country_code, country_name')
         .eq('is_blocked', false)
-        .order('country_name', { ascending: true });
+        .order('country_name', { ascending: true }) as any);
       
       if (!error && data) {
-        setDbCountries(data);
-        if (data.length > 0) setCountry(data[0].country_code); // Set first country as default
+        setDbCountries(data as CountryConfig[]);
+        if (data.length > 0) setCountry((data as CountryConfig[])[0].country_code); // Set first country as default
       }
     };
     fetchCountries();
@@ -229,10 +229,10 @@ const Auth = () => {
         } else {
           // 3. IMPORTANT: Update Profile with Country after Signup
           if (data?.user) {
-            await supabase
+            await (supabase
               .from('profiles')
-              .update({ country_code: country })
-              .eq('id', data.user.id);
+              .update({ country: country } as any)
+              .eq('user_id', data.user.id) as any);
           }
 
           await supabase.auth.signOut();

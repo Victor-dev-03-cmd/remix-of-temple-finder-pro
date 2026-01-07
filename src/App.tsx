@@ -46,6 +46,7 @@ import VendorBalancesPage from "./pages/admin/VendorBalancesPage";
 import CountriesPage from "./pages/admin/CountriesPage";
 import GeneralSettingsPage from "./pages/admin/GeneralSettingsPage";
 import HomeGalleryPage from "./pages/admin/HomeGalleryPage";
+import ServiceSettingsPage from "./pages/admin/ServiceSettingsPage";
 import BookingLookup from "./pages/BookingLookup";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -147,6 +148,7 @@ const AppRoutes = () => {
         <Route path="/admin/countries" element={<ProtectedRoute allowedRoles={['admin']}><CountriesPage /></ProtectedRoute>} />
         <Route path="/admin/settings/general" element={<ProtectedRoute allowedRoles={['admin']}><GeneralSettingsPage /></ProtectedRoute>} />
         <Route path="/admin/settings/home-gallery" element={<ProtectedRoute allowedRoles={['admin']}><HomeGalleryPage /></ProtectedRoute>} />
+        <Route path="/admin/settings/services" element={<ProtectedRoute allowedRoles={['admin']}><ServiceSettingsPage /></ProtectedRoute>} />
 
         <Route path="/settings" element={<ProtectedRoute allowedRoles={['admin', 'vendor', 'customer']}><Settings /></ProtectedRoute>} />
 
@@ -170,11 +172,11 @@ const App = () => {
         const userCountry = geoData.country_code;
 
         // 2. Check Database for Blocked Status
-        const { data } = await supabase
-          .from('countries_config')
+        const { data } = await (supabase
+          .from('countries_config' as any)
           .select('is_blocked')
           .eq('country_code', userCountry)
-          .maybeSingle();
+          .maybeSingle() as any);
 
         if (data?.is_blocked) {
           setIsGeoBlocked(true);
