@@ -63,6 +63,7 @@ const vendorMenuItems = [
   { title: 'Analytics', url: '/vendor/analytics', icon: TrendingUp },
   { title: 'Inventory', url: '/vendor/inventory', icon: ClipboardList },
   { title: 'Invoices', url: '/vendor/invoices', icon: FilePlus },
+  { title: 'Post Upload', url: '/vendor/postupload', icon: FileCheck },
 ];
 
 const customerMenuItems = [

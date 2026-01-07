@@ -127,6 +127,7 @@ const Header = () => {
     { href: '/', label: t('nav.home') },
     { href: '/temples', label: t('nav.temples') },
     { href: '/products', label: t('nav.products') },
+    { href: '/social-feed', label: 'Posts' },
     ...(user ? [{ href: '/booking', label: t('nav.myBooking') }] : []),
   ];
 
