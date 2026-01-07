@@ -14,11 +14,11 @@ export const useGeoBlock = () => {
         const userCountry = geoData.country_code; // எ.கா: 'IN', 'FR', 'LK'
 
         // 2. Supabase-ல் அந்த நாடு பிளாக் செய்யப்பட்டுள்ளதா எனப் பார்த்தல்
-        const { data, error } = await supabase
-          .from('countries_config')
+        const { data, error } = await (supabase
+          .from('countries_config' as any)
           .select('is_blocked')
           .eq('country_code', userCountry)
-          .maybeSingle();
+          .maybeSingle() as any);
 
         if (data?.is_blocked) {
           setIsBlocked(true);
