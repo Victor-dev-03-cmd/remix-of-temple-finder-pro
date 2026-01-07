@@ -48,8 +48,10 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      {/* Hero Section - Gradient Background, No Image */}
+      {/* Hero Section - Gradient Background with Dark Overlay */}
       <section className="relative h-[50vh] sm:h-[60vh] min-h-[350px] sm:min-h-[400px] overflow-hidden bg-gradient-to-br from-primary via-primary/80 to-accent">
+        {/* Dark Overlay */}
+        <div className="absolute inset-0 bg-black/30" />
         {/* Content */}
         <div className="container relative flex h-full flex-col items-center justify-center text-center px-4">
           <motion.h1
