@@ -60,6 +60,7 @@ import ServiceSettingsPage from "./pages/admin/ServiceSettingsPage";
 import BookingLookup from "./pages/BookingLookup";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import CustomCursor from "./components/ui/CustomCursor";
 
 const queryClient = new QueryClient();
 
@@ -120,6 +121,7 @@ const AuthRoute = () => {
 const AppRoutes = () => {
   return (
     <>
+     <CustomCursor />
       <CartSheet />
       <Routes>
         {/* Public routes */}

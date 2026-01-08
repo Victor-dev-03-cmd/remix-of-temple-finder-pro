@@ -223,3 +223,14 @@
     transform: scale(1);
   }
 }
+/* டெக்ஸ்ட் செலக்ட் செய்யும்போது வரும் நிறம் */
+::selection {
+  background-color: hsl(var(--primary)); /* உங்கள் பிராண்ட் பிரைமரி கலர் */
+  color: hsl(var(--primary-foreground)); /* எழுத்துக்கள் தெளிவாகத் தெரிய வெள்ளை அல்லது கருப்பு */
+}
+
+/* இது பழைய ப்ரௌசர்களுக்காக (Firefox) */
+::-moz-selection {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
