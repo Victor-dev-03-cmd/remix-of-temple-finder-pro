@@ -49,7 +49,7 @@ const Index = () => {
       <Header />
 
       {/* Hero Section - Gradient Background with Dark Overlay */}
-      <section className="relative h-[50vh] sm:h-[60vh] min-h-[350px] sm:min-h-[400px] overflow-hidden bg-gradient-to-br from-primary via-primary/80 to-accent">
+      <section className="relative h-[60vh] sm:h-[70vh] min-h-[350px] sm:min-h-[400px] overflow-hidden bg-gradient-to-br from-primary via-primary/80 to-accent">
         {/* Dark Overlay */}
         <div className="absolute inset-0 bg-black/30" />
         {/* Content */}

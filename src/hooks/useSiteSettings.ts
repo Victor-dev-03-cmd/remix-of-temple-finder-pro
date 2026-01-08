@@ -38,7 +38,7 @@ export interface SiteSettings {
 }
 
 const defaultSettings: SiteSettings = {
-  siteName: 'Temple Connect',
+  siteName: 'Asroz Info',
   logoUrl: null,
   primaryColor: '217 91% 60%',
   accentColor: '43 96% 56%',

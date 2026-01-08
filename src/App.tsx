@@ -68,13 +68,13 @@ const GlobalLoadingSkeleton = () => (
   <div className="flex flex-col items-center justify-center min-h-screen bg-background w-full">
     <div className="relative flex flex-col items-center gap-6">
       <div className="relative">
-        <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10">
+        <div className="flex h-20 w-20 items-center justify-center rounded-[50%] bg-primary/10">
           <span className="text-4xl text-primary">ૐ</span>
         </div>
         <div className="absolute -inset-2 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
       </div>
       <div className="flex flex-col items-center gap-2">
-        <h2 className="text-xl font-semibold text-primary animate-pulse">Temple Info</h2>
+        <h2 className="text-xl font-semibold text-primary animate-pulse">Asroz Info</h2>
         <p className="text-sm text-muted-foreground">Loading your experience...</p>
       </div>
       <div className="w-48 h-1 bg-muted rounded-full overflow-hidden">
