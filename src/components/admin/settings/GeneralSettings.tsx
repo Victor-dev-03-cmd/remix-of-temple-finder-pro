@@ -358,21 +358,35 @@ const GeneralSettings = () => {
 
             {/* Logo Size Slider */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label>Logo Size</Label>
-                <span className="text-sm text-muted-foreground">{settings.logoSize}px</span>
-              </div>
-              <Slider
-                value={[settings.logoSize]}
-                onValueChange={(value) => setSettings({ ...settings, logoSize: value[0] })}
-                min={24}
-                max={80}
-                step={2}
-                className="w-full"
-              />
-              <p className="text-xs text-muted-foreground">
-                Adjust the display size of your site logo (24px - 80px)
-              </p>
+                <div className="flex items-center justify-between">
+                    <Label>Logo Size</Label>
+                    <span className="text-sm text-muted-foreground">{settings.logoSize}px</span>
+                </div>
+                <div className="flex items-center gap-4">
+                    <Slider
+                    value={[settings.logoSize]}
+                    onValueChange={(value) => setSettings({ ...settings, logoSize: value[0] })}
+                    min={24}
+                    max={80}
+                    step={2}
+                    className="flex-grow"
+                    />
+                    <div className="flex-shrink-0 w-24 h-16 flex items-center justify-center bg-muted rounded-md overflow-hidden">
+                    {(settings.logoUrl || settings.logoDarkUrl) ? (
+                        <img 
+                        src={settings.logoDarkUrl!} 
+                        alt="Dark Logo Preview" 
+                        className="object-contain dark:block hidden"
+                        style={{ height: `${settings.logoSize}px` }}
+                        />
+                    ) : (
+                        <Image className="h-8 w-8 text-muted-foreground" />
+                    )}
+                    </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                    Adjust the display size of your site logo (24px - 80px)
+                </p>
             </div>
           </CardContent>
         </Card>
