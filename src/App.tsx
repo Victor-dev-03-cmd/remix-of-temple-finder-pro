@@ -47,7 +47,15 @@ import BookingManagementPage from "./pages/admin/BookingManagementPage";
 import VendorBalancesPage from "./pages/admin/VendorBalancesPage";
 import CountriesPage from "./pages/admin/CountriesPage";
 import GeneralSettingsPage from "./pages/admin/GeneralSettingsPage";
-import HomeGalleryPage from "./pages/admin/HomeGalleryPage";
+import NotificationSettingsPage from './pages/admin/NotificationSettingsPage';
+import SecuritySettingsPage from './pages/admin/SecuritySettingsPage';
+import AppearanceSettingsPage from './pages/admin/AppearanceSettingsPage';
+import ColorSettingsPage from './pages/admin/ColorSettingsPage';
+import TypographySettingsPage from './pages/admin/TypographySettingsPage';
+import HeroSettingsPage from './pages/admin/HeroSettingsPage';
+import FooterSettingsPage from './pages/admin/FooterSettingsPage';
+import EmailTemplateSettingsPage from './pages/admin/EmailTemplateSettingsPage';
+import HomeGallerySettingsPage from './pages/admin/HomeGallerySettingsPage';
 import ServiceSettingsPage from "./pages/admin/ServiceSettingsPage";
 import BookingLookup from "./pages/BookingLookup";
 import Settings from "./pages/Settings";
@@ -151,7 +159,15 @@ const AppRoutes = () => {
         <Route path="/admin/vendor-balances" element={<ProtectedRoute allowedRoles={['admin']}><VendorBalancesPage /></ProtectedRoute>} />
         <Route path="/admin/countries" element={<ProtectedRoute allowedRoles={['admin']}><CountriesPage /></ProtectedRoute>} />
         <Route path="/admin/settings/general" element={<ProtectedRoute allowedRoles={['admin']}><GeneralSettingsPage /></ProtectedRoute>} />
-        <Route path="/admin/settings/home-gallery" element={<ProtectedRoute allowedRoles={['admin']}><HomeGalleryPage /></ProtectedRoute>} />
+        <Route path="/admin/settings/notifications" element={<ProtectedRoute allowedRoles={['admin']}><NotificationSettingsPage /></ProtectedRoute>} />
+        <Route path="/admin/settings/security" element={<ProtectedRoute allowedRoles={['admin']}><SecuritySettingsPage /></ProtectedRoute>} />
+        <Route path="/admin/settings/appearance" element={<ProtectedRoute allowedRoles={['admin']}><AppearanceSettingsPage /></ProtectedRoute>} />
+        <Route path="/admin/settings/colors" element={<ProtectedRoute allowedRoles={['admin']}><ColorSettingsPage /></ProtectedRoute>} />
+        <Route path="/admin/settings/typography" element={<ProtectedRoute allowedRoles={['admin']}><TypographySettingsPage /></ProtectedRoute>} />
+        <Route path="/admin/settings/hero" element={<ProtectedRoute allowedRoles={['admin']}><HeroSettingsPage /></ProtectedRoute>} />
+        <Route path="/admin/settings/footer" element={<ProtectedRoute allowedRoles={['admin']}><FooterSettingsPage /></ProtectedRoute>} />
+        <Route path="/admin/settings/email-templates" element={<ProtectedRoute allowedRoles={['admin']}><EmailTemplateSettingsPage /></ProtectedRoute>} />
+        <Route path="/admin/settings/home-gallery" element={<ProtectedRoute allowedRoles={['admin']}><HomeGallerySettingsPage /></ProtectedRoute>} />
         <Route path="/admin/settings/services" element={<ProtectedRoute allowedRoles={['admin']}><ServiceSettingsPage /></ProtectedRoute>} />
 
         <Route path="/settings" element={<ProtectedRoute allowedRoles={['admin', 'vendor', 'customer']}><Settings /></ProtectedRoute>} />
