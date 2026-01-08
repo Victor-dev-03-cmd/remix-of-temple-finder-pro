@@ -25,7 +25,6 @@ const Index = () => {
   const heroCtaLink = settings?.heroCtaLink || '/become-vendor';
   const defaultCountry = settings?.defaultCountry || 'LK';
 
-  // Services from settings
   const services = [
     { title: settings?.service1Title || 'Search Worldwide Temples', description: settings?.service1Description || 'Explore and discover temple information from around the globe.' },
     { title: settings?.service2Title || 'Temple E-Commerce', description: settings?.service2Description || 'Buy temple products with secure e-commerce support.' },
@@ -48,17 +47,41 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      {/* Hero Section - Gradient Background with Dark Overlay */}
-      <section className="relative h-[65vh] sm:h-[70vh] min-h-[350px] sm:min-h-[400px] overflow-hidden bg-gradient-to-br from-primary via-primary/80 to-accent">
-        {/* Dark Overlay */}
-        <div className="absolute inset-0 bg-black/30" />
+      {/* Hero Section - Updated with Animated Floating Orb */}
+      <section className="relative h-[65vh] sm:h-[70vh] min-h-[350px] sm:min-h-[400px] overflow-hidden bg-[#0A192F]">
+        
+        {/* Animated Golden Orb (Yellow move effect) */}
+        <motion.div
+          className="absolute w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] rounded-full blur-[80px] sm:blur-[120px] opacity-40 pointer-events-none"
+          style={{
+            background: "radial-gradient(circle, rgba(255,191,0,1) 0%, rgba(255,154,0,0) 70%)",
+          }}
+          animate={{
+            x: [-100, 200, 0, -150],
+            y: [-50, 100, 200, -50],
+            scale: [1, 1.1, 0.9, 1],
+          }}
+          transition={{
+            duration: 15,
+            repeat: Infinity,
+            repeatType: "mirror",
+            ease: "easeInOut",
+          }}
+        />
+
+        {/* Static Background Gradient (for depth) */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/40 via-transparent to-accent/20" />
+        
+        {/* Subtle Dark Overlay */}
+        <div className="absolute inset-0 bg-black/20" />
+
         {/* Content */}
-        <div className="container relative flex h-full flex-col items-center justify-center text-center px-4">
+        <div className="container relative flex h-full flex-col items-center justify-center text-center px-4 z-10">
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7 }}
-            className="mb-3 sm:mb-4 max-w-4xl font-display text-2xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold text-primary-foreground drop-shadow-lg"
+            className="mb-3 sm:mb-4 max-w-4xl font-display text-2xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold text-white drop-shadow-xl"
           >
             {heroTitle}
           </motion.h1>
@@ -66,7 +89,7 @@ const Index = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.6 }}
-            className="mb-6 sm:mb-8 max-w-2xl text-sm sm:text-lg text-primary-foreground/90 drop-shadow px-4"
+            className="mb-6 sm:mb-8 max-w-2xl text-sm sm:text-lg text-white/90 drop-shadow px-4 font-medium"
           >
             {heroSubtitle}
           </motion.p>
@@ -76,7 +99,6 @@ const Index = () => {
             <TempleSearch countryCode={defaultCountry} onSearch={handleSearch} />
           </div>
 
-          {/* CTA Button - Only show for non-admin and non-vendor users */}
           {!isAdmin && !isVendor && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -85,7 +107,7 @@ const Index = () => {
               className="mt-4 sm:mt-6"
             >
               <Link to={heroCtaLink}>
-                <Button size="lg" variant="secondary" className="gap-2 text-sm sm:text-base">
+                <Button size="lg" variant="secondary" className="gap-2 text-sm sm:text-base font-semibold shadow-lg hover:shadow-primary/20">
                   {heroCtaText}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -170,7 +192,7 @@ const Index = () => {
         </div>
       </section>
 
-      {/* CTA Section - Only show for non-admin and non-vendor users */}
+      {/* CTA Section */}
       {!isAdmin && !isVendor && (
         <section className="bg-muted/50 py-12 sm:py-16 lg:py-20">
           <div className="container px-4">
