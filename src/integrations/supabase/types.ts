@@ -451,6 +451,8 @@ export type Database = {
           hero_subtitle: string | null
           hero_title: string | null
           id: string
+          logo_dark_url: string | null
+          logo_size: number | null
           logo_url: string | null
           maintenance_mode: boolean
           new_order_email_message: string | null
@@ -507,6 +509,8 @@ export type Database = {
           hero_subtitle?: string | null
           hero_title?: string | null
           id?: string
+          logo_dark_url?: string | null
+          logo_size?: number | null
           logo_url?: string | null
           maintenance_mode?: boolean
           new_order_email_message?: string | null
@@ -563,6 +567,8 @@ export type Database = {
           hero_subtitle?: string | null
           hero_title?: string | null
           id?: string
+          logo_dark_url?: string | null
+          logo_size?: number | null
           logo_url?: string | null
           maintenance_mode?: boolean
           new_order_email_message?: string | null
