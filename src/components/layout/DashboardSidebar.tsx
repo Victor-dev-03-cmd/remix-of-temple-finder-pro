@@ -19,7 +19,13 @@ import {
   FilePlus,
   Globe,
   GalleryHorizontal,
-  Layers
+  Layers,
+  Bell,
+  Palette,
+  Paintbrush,
+  Type,
+  Layout,
+  Mail
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVendorTemple } from '@/hooks/useVendorTemple';
@@ -50,6 +56,14 @@ const adminMenuItems = [
 
 const adminSettingsMenuItems = [
     { title: 'General', url: '/admin/settings/general', icon: Settings },
+    { title: 'Notifications', url: '/admin/settings/notifications', icon: Bell },
+    { title: 'Security', url: '/admin/settings/security', icon: Shield },
+    { title: 'Appearance', url: '/admin/settings/appearance', icon: Palette },
+    { title: 'Colors', url: '/admin/settings/colors', icon: Paintbrush },
+    { title: 'Typography', url: '/admin/settings/typography', icon: Type },
+    { title: 'Hero Section', url: '/admin/settings/hero', icon: Layout },
+    { title: 'Footer', url: '/admin/settings/footer', icon: Globe },
+    { title: 'Email Templates', url: '/admin/settings/email-templates', icon: Mail },
     { title: 'Home Gallery', url: '/admin/settings/home-gallery', icon: GalleryHorizontal },
     { title: 'Services', url: '/admin/settings/services', icon: Layers }
 ]
