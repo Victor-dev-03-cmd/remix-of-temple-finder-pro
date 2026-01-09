@@ -61,8 +61,9 @@ const adminMenuItems = [
 
 const adminSettingsMenuItems = [
     { title: 'General', url: '/admin/settings/general', icon: Settings },
-    { title: 'Notifications', url: '/admin/settings/notifications', icon: Bell },
+    { title: 'Layout', url: '/admin/settings/layout', icon: Layout },
     { title: 'Security', url: '/admin/settings/security', icon: Shield },
+    { title: 'Notifications', url: '/admin/settings/notifications', icon: Bell },
     { title: 'Appearance', url: '/admin/settings/appearance', icon: Palette },
     { title: 'Colors', url: '/admin/settings/colors', icon: Paintbrush },
     { title: 'Typography', url: '/admin/settings/typography', icon: Type },

@@ -1,6 +1,16 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Loader2, Search, ShoppingCart, Ticket, Shield, Globe, HeartHandshake } from 'lucide-react';
+import { 
+  ArrowRight, 
+  Loader2, 
+  Search, 
+  ShoppingCart, 
+  Ticket, 
+  Shield, 
+  Globe, 
+  HeartHandshake 
+} from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import TempleSearch from '@/components/temples/TempleSearch';
@@ -10,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { useTemples } from '@/hooks/useTemples';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const serviceIcons = [Search, ShoppingCart, Ticket, Shield, Globe, HeartHandshake];
 
@@ -19,6 +30,32 @@ const Index = () => {
   const { data: temples = [], isLoading: templesLoading } = useTemples();
   const { isAdmin, isVendor } = useAuth();
   
+  const [activeLayout, setActiveLayout] = useState('style_1');
+
+  useEffect(() => {
+    const fetchLayout = async () => {
+      const { data } = await (supabase.from('site_layouts' as any)
+        .select('active_layout')
+        .eq('section_name', 'hero')
+        .maybeSingle() as any);
+      if (data) setActiveLayout(data.active_layout);
+    };
+    fetchLayout();
+
+    const channel = supabase.channel('hero-layout-sync')
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'site_layouts', 
+        filter: 'section_name=eq.hero' 
+      }, (payload) => {
+        setActiveLayout(payload.new.active_layout);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   const heroTitle = settings?.heroTitle || 'Discover Sacred Hindu Temples Across Sri Lanka';
   const heroSubtitle = settings?.heroSubtitle || 'Find your spiritual journey by exploring temples, services, and community events';
   const heroCtaText = settings?.heroCtaText || 'Become a Temple Vendor';
@@ -47,143 +84,116 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      {/* Hero Section - Updated with Animated Floating Orb */}
-      <section className="relative h-[65vh] sm:h-[70vh] min-h-[350px] sm:min-h-[400px] overflow-hidden bg-[#0A192F]">
+      {/* --- HERO SECTION --- */}
+      <section className="relative min-h-[600px] sm:min-h-[600px] overflow-hidden bg-[#0A192F] flex items-center py-12">
         
-        {/* Animated Golden Orb (Yellow move effect) */}
         <motion.div
           className="absolute w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] rounded-full blur-[80px] sm:blur-[120px] opacity-40 pointer-events-none"
-          style={{
-            background: "radial-gradient(circle, rgba(255,191,0,1) 0%, rgba(255,154,0,0) 70%)",
-          }}
-          animate={{
-            x: [-100, 200, 0, -150],
-            y: [-50, 100, 200, -50],
-            scale: [1, 1.1, 0.9, 1],
-          }}
-          transition={{
-            duration: 15,
-            repeat: Infinity,
-            repeatType: "mirror",
-            ease: "easeInOut",
-          }}
+          style={{ background: "radial-gradient(circle, rgba(255,191,0,1) 0%, rgba(255,154,0,0) 70%)" }}
+          animate={{ x: [-100, 200, 0, -150], y: [-50, 100, 200, -50], scale: [1, 1.1, 0.9, 1] }}
+          transition={{ duration: 15, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" }}
         />
-
-        {/* Static Background Gradient (for depth) */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/40 via-transparent to-accent/20" />
-        
-        {/* Subtle Dark Overlay */}
         <div className="absolute inset-0 bg-black/20" />
 
-        {/* Content */}
-        <div className="container relative flex h-full flex-col items-center justify-center text-center px-4 z-10">
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
-            className="mb-3 sm:mb-4 max-w-4xl font-display text-2xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold text-white drop-shadow-xl"
-          >
-            {heroTitle}
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.6 }}
-            className="mb-6 sm:mb-8 max-w-2xl text-sm sm:text-lg text-white/90 drop-shadow px-4 font-medium"
-          >
-            {heroSubtitle}
-          </motion.p>
-
-          {/* Search */}
-          <div className="w-full max-w-3xl px-4">
-            <TempleSearch countryCode={defaultCountry} onSearch={handleSearch} />
-          </div>
-
-          {!isAdmin && !isVendor && (
-            <motion.div
+        <div className={`container relative z-10 px-4 flex flex-col gap-12 transition-all duration-500 ${
+          activeLayout === 'style_1' ? 'lg:flex-row text-left items-center' : 
+          activeLayout === 'style_2' ? 'lg:flex-row-reverse text-left items-center' : 
+          'items-center text-center'
+        }`}>
+          
+          <div className={`flex-1 ${activeLayout === 'style_3' ? 'max-w-4xl' : 'w-full'}`}>
+            <motion.h1
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7 }}
+              className="mb-4 font-display text-3xl sm:text-5xl lg:text-6xl font-bold text-white drop-shadow-xl"
+            >
+              {heroTitle}
+            </motion.h1>
+            <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-              className="mt-4 sm:mt-6"
+              transition={{ delay: 0.2, duration: 0.6 }}
+              className={`mb-8 text-sm sm:text-lg text-white/90 font-medium ${activeLayout === 'style_3' ? 'mx-auto' : ''} max-w-2xl`}
             >
-              <Link to={heroCtaLink}>
-                <Button size="lg" variant="secondary" className="gap-2 text-sm sm:text-base font-semibold shadow-lg hover:shadow-primary/20">
-                  {heroCtaText}
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
+              {heroSubtitle}
+            </motion.p>
+
+            {activeLayout !== 'style_3' && !isAdmin && !isVendor && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
+                <Link to={heroCtaLink}>
+                  <Button size="lg" variant="secondary" className="gap-2 font-semibold shadow-lg">
+                    {heroCtaText} <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </motion.div>
+            )}
+          </div>
+
+          {/* நீங்கள் கேட்ட மாற்றம் இங்கே: 
+              L or R Layout-ல் கார்டு Line by Line வர 'lg:max-w-md' கொடுத்துள்ளேன்.
+              Style 3-ல் மட்டும் பழையபடி பெரியதாக இருக்கும்.
+          */}
+          <div className={`w-full ${activeLayout === 'style_3' ? 'max-w-3xl' : 'lg:max-w-md'}`}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.3 }}
+            >
+              <TempleSearch countryCode={defaultCountry} onSearch={handleSearch} />
             </motion.div>
-          )}
+
+            {activeLayout === 'style_3' && !isAdmin && !isVendor && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="mt-8">
+                <Link to={heroCtaLink}>
+                  <Button size="lg" variant="secondary" className="gap-2 font-semibold shadow-lg">
+                    {heroCtaText} <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </motion.div>
+            )}
+          </div>
         </div>
       </section>
 
-      {/* Services Section */}
-      <section className="py-12 sm:py-16 lg:py-20 bg-muted/30">
+      {/* --- SERVICES SECTION --- */}
+      <section className="py-16 lg:py-24 bg-muted/30">
         <div className="container px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="mb-8 sm:mb-12 text-center"
-          >
-            <h2 className="mb-2 sm:mb-3 font-display text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground">
-              Our Services
-            </h2>
-            <p className="mx-auto max-w-2xl text-sm sm:text-base text-muted-foreground">
-              Discover what Temple Connect offers to enhance your spiritual journey.
-            </p>
-          </motion.div>
-
-          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mb-12 text-center">
+            <h2 className="mb-3 font-display text-3xl lg:text-4xl font-bold text-foreground">Our Services</h2>
+            <p className="mx-auto max-w-2xl text-muted-foreground">Discover what Temple Connect offers to enhance your spiritual journey.</p>
+          </div>
+          <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {services.map((service, index) => {
               const Icon = serviceIcons[index];
               return (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.1 }}
-                  className="group rounded-xl border border-border bg-card p-6 shadow-sm transition-all hover:shadow-md hover:border-primary/30"
-                >
+                <div key={index} className="group rounded-xl border border-border bg-card p-6 shadow-sm hover:shadow-md transition-all">
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                     <Icon className="h-6 w-6" />
                   </div>
-                  <h3 className="mb-2 font-semibold text-lg text-foreground">{service.title}</h3>
+                  <h3 className="mb-2 font-semibold text-lg">{service.title}</h3>
                   <p className="text-sm text-muted-foreground">{service.description}</p>
-                </motion.div>
+                </div>
               );
             })}
           </div>
         </div>
       </section>
 
-      {/* Bento Gallery Section */}
       <BentoGallery />
 
-      {/* Featured Temples Section */}
-      <section className="py-12 sm:py-16 lg:py-24">
+      {/* --- FEATURED TEMPLES --- */}
+      <section className="py-16 lg:py-24">
         <div className="container px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="mb-8 sm:mb-12 text-center"
-          >
-            <h2 className="mb-2 sm:mb-3 font-display text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground">
-              Featured Temples
-            </h2>
-            <p className="mx-auto max-w-2xl text-sm sm:text-base text-muted-foreground">
-              Explore some of the most revered and beautiful temples in our network.
-            </p>
-          </motion.div>
-
+          <div className="mb-12 text-center">
+            <h2 className="text-3xl lg:text-4xl font-bold">Featured Temples</h2>
+            <p className="text-muted-foreground mt-2">Explore the most revered temples in our network.</p>
+          </div>
           {templesLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
+            <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
           ) : (
-            <div className="grid gap-4 sm:gap-6 grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
               {temples.slice(0, 4).map((temple, index) => (
                 <TempleCard key={temple.id} temple={temple} index={index} />
               ))}
@@ -192,30 +202,16 @@ const Index = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
       {!isAdmin && !isVendor && (
-        <section className="bg-muted/50 py-12 sm:py-16 lg:py-20">
-          <div className="container px-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              className="mx-auto max-w-3xl rounded-xl sm:rounded-2xl bg-card p-6 sm:p-8 lg:p-12 text-center shadow-lg"
-            >
-              <h2 className="mb-3 sm:mb-4 font-display text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">
-                Own a Temple? Become a Temple Connect Vendor!
-              </h2>
-              <p className="mb-6 sm:mb-8 text-sm sm:text-base text-muted-foreground">
-                Showcase your temple to a wider audience, manage services, and connect with devotees.
-                Join our growing community.
-              </p>
+        <section className="bg-muted/50 py-16">
+          <div className="container px-4 text-center">
+            <div className="mx-auto max-w-3xl rounded-2xl bg-card p-8 lg:p-12 shadow-lg border border-border/50">
+              <h2 className="mb-4 text-2xl lg:text-3xl font-bold italic">Own a Temple? Join Us Today!</h2>
+              <p className="mb-8 text-muted-foreground">Showcase your temple to a global audience and manage your services efficiently.</p>
               <Link to="/become-vendor">
-                <Button size="lg" className="gap-2 text-sm sm:text-base">
-                  Register Your Temple Today
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
+                <Button size="lg" className="gap-2">Register Now <ArrowRight className="h-4 w-4" /></Button>
               </Link>
-            </motion.div>
+            </div>
           </div>
         </section>
       )}

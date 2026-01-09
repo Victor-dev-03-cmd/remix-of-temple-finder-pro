@@ -60,6 +60,7 @@ import FooterSettingsPage from './pages/admin/FooterSettingsPage';
 import EmailTemplateSettingsPage from './pages/admin/EmailTemplateSettingsPage';
 import HomeGallerySettingsPage from './pages/admin/HomeGallerySettingsPage';
 import ServiceSettingsPage from "./pages/admin/ServiceSettingsPage";
+import LayoutManagerPage from "./pages/admin/settings/LayoutManagerPage";
 import BookingLookup from "./pages/BookingLookup";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -177,6 +178,7 @@ const AppRoutes = () => {
         <Route path="/admin/settings/email-templates" element={<ProtectedRoute allowedRoles={['admin']}><EmailTemplateSettingsPage /></ProtectedRoute>} />
         <Route path="/admin/settings/home-gallery" element={<ProtectedRoute allowedRoles={['admin']}><HomeGallerySettingsPage /></ProtectedRoute>} />
         <Route path="/admin/settings/services" element={<ProtectedRoute allowedRoles={['admin']}><ServiceSettingsPage /></ProtectedRoute>} />
+        <Route path="/admin/settings/layout" element={<ProtectedRoute allowedRoles={['admin']}><LayoutManagerPage /></ProtectedRoute>} />
 
         <Route path="/settings" element={<ProtectedRoute allowedRoles={['admin', 'vendor', 'customer']}><Settings /></ProtectedRoute>} />
 
