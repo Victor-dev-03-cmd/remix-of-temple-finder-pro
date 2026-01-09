@@ -33,6 +33,7 @@ import VendorDashboard from "./pages/dashboards/VendorDashboard";
 import VendorProducts from "./pages/vendor/VendorProducts";
 import VendorOrders from "./pages/vendor/VendorOrders";
 import VendorTemple from "./pages/vendor/VendorTemple";
+import MyEarningsPage from "./pages/vendor/MyEarningsPage";
 import VendorBookingsPage from "./pages/vendor/VendorBookingsPage";
 import VendorAnalyticsPage from "./pages/vendor/VendorAnalyticsPage";
 import InventoryManagementPage from "./pages/vendor/InventoryManagement";
@@ -149,6 +150,7 @@ const AppRoutes = () => {
         <Route path="/vendor/temple" element={<ProtectedRoute allowedRoles={['vendor']}><VendorTemple /></ProtectedRoute>} />
         <Route path="/vendor/products" element={<ProtectedRoute allowedRoles={['vendor']}><VendorProducts /></ProtectedRoute>} />
         <Route path="/vendor/orders" element={<ProtectedRoute allowedRoles={['vendor']}><VendorOrders /></ProtectedRoute>} />
+        <Route path="/vendor/earnings" element={<ProtectedRoute allowedRoles={['vendor']}><MyEarningsPage /></ProtectedRoute>} />
         <Route path="/vendor/analytics" element={<ProtectedRoute allowedRoles={['vendor']}><VendorAnalyticsPage /></ProtectedRoute>} />
         <Route path="/vendor/bookings" element={<ProtectedRoute allowedRoles={['vendor']}><VendorBookingsPage /></ProtectedRoute>} />
         <Route path="/vendor/inventory" element={<ProtectedRoute allowedRoles={['vendor']}><InventoryManagementPage /></ProtectedRoute>} />

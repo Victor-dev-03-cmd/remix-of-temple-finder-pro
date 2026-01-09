@@ -10,6 +10,10 @@ import {
   Wallet,
   Percent,
   CalendarDays,
+  History,
+  CheckCircle2,
+  XCircle,
+  AlertCircle
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,6 +30,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
 
 interface VendorBalance {
   total_earnings: number;
@@ -38,7 +43,7 @@ interface VendorBalance {
 interface WithdrawalRequest {
   id: string;
   amount: number;
-  status: string;
+  status: 'pending' | 'approved' | 'rejected';
   created_at: string;
 }
 
@@ -61,390 +66,237 @@ const VendorEarningsCard = () => {
     }
   }, [user]);
 
-  // Real-time subscription for balance updates
   useEffect(() => {
     if (!user) return;
-
     const channel = supabase
       .channel('vendor-balance-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'vendor_balances',
-          filter: `vendor_id=eq.${user.id}`,
-        },
-        (payload) => {
-          if (payload.new) {
-            setBalance(payload.new as VendorBalance);
-            toast({
-              title: 'Balance Updated',
-              description: 'Your earnings have been updated.',
-            });
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'withdrawal_requests',
-          filter: `vendor_id=eq.${user.id}`,
-        },
-        () => {
-          fetchBalanceData();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'withdrawal_requests',
-          filter: `vendor_id=eq.${user.id}`,
-        },
-        (payload) => {
-          const updated = payload.new as WithdrawalRequest;
-          setWithdrawals(prev => 
-            prev.map(w => w.id === updated.id ? updated : w)
-          );
-          if (updated.status === 'approved') {
-            toast({
-              title: 'Withdrawal Approved!',
-              description: `Your withdrawal of $${updated.amount.toFixed(2)} has been approved.`,
-            });
-          } else if (updated.status === 'rejected') {
-            toast({
-              title: 'Withdrawal Rejected',
-              description: 'Your withdrawal request was not approved.',
-              variant: 'destructive',
-            });
-          }
-          fetchBalanceData();
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendor_balances', filter: `vendor_id=eq.${user.id}` }, 
+      (payload) => {
+        if (payload.new) setBalance(payload.new as VendorBalance);
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawal_requests', filter: `vendor_id=eq.${user.id}` }, 
+      () => {
+        fetchBalanceData();
+      })
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [user]);
 
   const fetchCommissionRate = async () => {
-    const { data } = await supabase
-      .from('site_settings')
-      .select('commission_rate')
-      .limit(1)
-      .maybeSingle();
-    
-    if (data?.commission_rate) {
-      setCommissionRate(data.commission_rate);
-    }
+    const { data } = await supabase.from('site_settings').select('commission_rate').limit(1).maybeSingle();
+    if (data?.commission_rate) setCommissionRate(data.commission_rate);
   };
 
   const fetchBalanceData = async () => {
     if (!user) return;
     try {
-      const { data: balanceData } = await supabase
-        .from('vendor_balances')
-        .select('*')
-        .eq('vendor_id', user.id)
-        .maybeSingle();
-
+      const { data: balanceData } = await supabase.from('vendor_balances').select('*').eq('vendor_id', user.id).maybeSingle();
       if (balanceData) setBalance(balanceData);
-
+      
       const { data: withdrawalData } = await supabase
         .from('withdrawal_requests')
         .select('*')
         .eq('vendor_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(3);
+        .limit(100);
 
-      setWithdrawals(withdrawalData || []);
-    } finally {
-      setLoading(false);
-    }
+      setWithdrawals((withdrawalData as WithdrawalRequest[]) || []);
+    } finally { setLoading(false); }
   };
+
+  const totalEarnings = balance?.total_earnings || 0;
+  const withdrawnTotal = balance?.withdrawn_amount || 0;
+  const commissionDeduction = (totalEarnings * commissionRate) / 100;
+  const netEarnings = totalEarnings - commissionDeduction;
+  const calculatedAvailable = Math.max(0, netEarnings - withdrawnTotal);
 
   const handleWithdrawRequest = async () => {
     if (!user || !balance) return;
-
     const amount = parseFloat(withdrawAmount);
 
-    if (isNaN(amount) || amount < MIN_WITHDRAWAL) {
-      toast({
-        title: 'Invalid Amount',
-        description: `Minimum withdrawal is $${MIN_WITHDRAWAL}`,
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (amount > balance.available_balance) {
-      toast({
-        title: 'Insufficient Balance',
-        description: 'Amount exceeds available balance.',
-        variant: 'destructive',
-      });
+    if (isNaN(amount) || amount < MIN_WITHDRAWAL || amount > calculatedAvailable) {
+      toast({ title: 'Invalid Request', description: 'Please check the amount.', variant: 'destructive' });
       return;
     }
 
     setSubmitting(true);
     try {
-      await supabase.from('withdrawal_requests').insert({
-        vendor_id: user.id,
-        amount,
-        status: 'pending',
-      });
-
-      await supabase
-        .from('vendor_balances')
-        .update({
-          available_balance: balance.available_balance - amount,
-          pending_balance: balance.pending_balance + amount,
-        })
-        .eq('vendor_id', user.id);
-
-      toast({
-        title: 'Withdrawal Requested',
-        description: `Withdrawal of $${amount.toFixed(2)} submitted.`,
-      });
-
+      await supabase.from('withdrawal_requests').insert({ vendor_id: user.id, amount, status: 'pending' });
+      toast({ title: 'Success', description: 'Withdrawal requested successfully.' });
       setWithdrawAmount('');
       setShowWithdrawDialog(false);
       fetchBalanceData();
-    } finally {
-      setSubmitting(false);
-    }
+    } finally { setSubmitting(false); }
   };
 
-  const progress =
-    balance ? Math.min((balance.available_balance / MIN_WITHDRAWAL) * 100, 100) : 0;
+  const progress = Math.min((calculatedAvailable / MIN_WITHDRAWAL) * 100, 100);
 
-  const canWithdraw = balance && balance.available_balance >= MIN_WITHDRAWAL;
-
-  if (loading) {
-    return (
-      <div className="rounded-xl border bg-card p-8 flex justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  if (loading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin" /></div>;
 
   return (
-    <>
+    <div className="space-y-6">
       <motion.div
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         className="relative rounded-2xl border-2 border-primary/20 bg-gradient-to-br from-card via-card to-primary/5 overflow-hidden shadow-lg"
       >
-        {/* ATM Card Header Design */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary/5 rounded-full translate-y-1/2 -translate-x-1/2" />
-        
         <div className="relative p-4 sm:p-6 space-y-5">
-          {/* Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <CreditCard className="text-primary" />
               </div>
               <div>
-                <h3 className="font-semibold text-base sm:text-lg">Vendor Earnings</h3>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  Balance & withdrawals
-                </p>
+                <h3 className="font-semibold">Vendor Earnings</h3>
+                <p className="text-xs text-muted-foreground">Balance Management</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="hidden sm:flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
-                <Percent className="h-3 w-3" />
-                <span>{100 - commissionRate}% earnings</span>
-              </div>
-              <div className="hidden md:flex items-center gap-1 text-xs text-muted-foreground">
-                <TrendingUp className="h-3 w-3" />
-                <span>Live</span>
-              </div>
-            </div>
+            <Badge variant="secondary" className="bg-primary/10 text-primary border-none">
+              {100 - commissionRate}% Payout Rate
+            </Badge>
           </div>
 
-          {/* Desktop: Horizontal Layout | Mobile: Stacked */}
-          <div className="flex flex-col lg:flex-row lg:items-stretch gap-4">
-            {/* Available Balance - Hero Section */}
-            <div className="flex-1 bg-gradient-to-r from-primary/10 to-transparent rounded-xl p-4 sm:p-5 flex flex-col justify-center">
-              <p className="text-xs sm:text-sm text-muted-foreground mb-1">Available Balance</p>
-              <p className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground">
-                ${balance?.available_balance?.toFixed(2) || '0.00'}
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1 bg-gradient-to-r from-primary/10 to-transparent rounded-xl p-6 flex flex-col justify-center">
+              <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-bold">Available for Withdrawal</p>
+              <p className="text-4xl sm:text-5xl font-bold text-foreground">
+                ${calculatedAvailable.toFixed(2)}
               </p>
             </div>
 
-            {/* Stats Grid - Horizontal on Desktop */}
-            <div className="flex flex-col sm:flex-row lg:flex-row gap-3 lg:gap-2">
-              <StatCard
-                title="Total Earned"
-                value={balance?.total_earnings}
-                icon={<DollarSign className="h-4 w-4 text-emerald-500" />}
-                bg="bg-emerald-500/10"
-                border="border-emerald-500/30"
-              />
-              <StatCard
-                title="Pending"
-                value={balance?.pending_balance}
-                icon={<Clock className="h-4 w-4 text-amber-500" />}
-                bg="bg-amber-500/10"
-                border="border-amber-500/30"
-              />
-              <StatCard
-                title="Withdrawn"
-                value={balance?.withdrawn_amount}
-                icon={<Wallet className="h-4 w-4 text-blue-500" />}
-                bg="bg-blue-500/10"
-                border="border-blue-500/30"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-3 lg:flex gap-3">
+              <StatCard title="Total Earned" value={totalEarnings} icon={<DollarSign className="text-emerald-500" />} />
+              <StatCard title="Commission" value={commissionDeduction} icon={<Percent className="text-destructive" />} />
+              <StatCard title="Total Withdrawn" value={withdrawnTotal} icon={<Wallet className="text-blue-500" />} />
             </div>
           </div>
 
-          {/* Total Monthly Revenue Section */}
-          <div className="bg-muted/40 rounded-xl p-4 border border-border/50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <CalendarDays className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Total Monthly Revenue</p>
-                  <p className="text-xl sm:text-2xl font-bold text-foreground">
-                    ${balance?.total_earnings?.toFixed(2) || '0.00'}
-                  </p>
-                </div>
+          <div className="bg-muted/40 rounded-xl p-4 border border-border/50 flex flex-wrap justify-between items-center gap-4">
+            <div className="flex items-center gap-3">
+              <CalendarDays className="h-5 w-5 text-primary" />
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">Your Net Share (After Fee)</p>
+                <p className="text-xl font-bold">${netEarnings.toFixed(2)}</p>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-muted-foreground">Commission ({commissionRate}%)</p>
-                <p className="text-base sm:text-lg font-semibold text-destructive">
-                  -${((balance?.total_earnings || 0) * commissionRate / 100).toFixed(2)}
-                </p>
+            </div>
+            <div className="h-10 border-l border-border hidden sm:block" />
+            <div className="flex items-center gap-3">
+              <Clock className="h-5 w-5 text-amber-500" />
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">Pending in Admin</p>
+                <p className="text-xl font-bold text-amber-600">${balance?.pending_balance?.toFixed(2) || '0.00'}</p>
               </div>
             </div>
           </div>
 
-          {/* Progress to minimum withdrawal */}
           <div className="space-y-2">
-            <div className="flex justify-between text-xs sm:text-sm">
-              <span className="text-muted-foreground">
-                Progress to ${MIN_WITHDRAWAL} minimum
-              </span>
-              <span className="font-medium text-primary">{progress.toFixed(0)}%</span>
+            <div className="flex justify-between text-xs font-bold">
+              <span className="text-muted-foreground uppercase">Progress to Min Payout (${MIN_WITHDRAWAL})</span>
+              <span className="text-primary">{progress.toFixed(0)}%</span>
             </div>
-            <Progress value={progress} className="h-2 sm:h-3" />
+            <Progress value={progress} className="h-2" />
           </div>
 
-          {/* Withdraw Button */}
           <Button
-            className="w-full h-11 sm:h-12 text-sm sm:text-base font-medium"
-            disabled={!canWithdraw}
+            className="w-full h-12 font-bold"
+            disabled={calculatedAvailable < MIN_WITHDRAWAL}
             onClick={() => setShowWithdrawDialog(true)}
           >
             <ArrowDownToLine className="mr-2 h-4 w-4" />
-            {canWithdraw ? 'Request Withdrawal' : `Earn $${MIN_WITHDRAWAL} to Withdraw`}
+            {calculatedAvailable >= MIN_WITHDRAWAL ? 'Request Withdrawal' : `Need $${(MIN_WITHDRAWAL - calculatedAvailable).toFixed(2)} more`}
           </Button>
         </div>
 
-        {/* Recent Withdrawals */}
-        {withdrawals.length > 0 && (
-          <div className="border-t border-border/50 px-4 sm:px-6 py-4 bg-muted/30">
-            <p className="text-xs sm:text-sm font-medium mb-3">Recent Withdrawals</p>
-            <div className="space-y-2">
-              {withdrawals.map((w) => (
-                <div key={w.id} className="flex justify-between items-center text-xs sm:text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className={`h-2 w-2 rounded-full ${
-                      w.status === 'approved' ? 'bg-emerald-500' : 
-                      w.status === 'rejected' ? 'bg-destructive' : 'bg-amber-500'
-                    }`} />
-                    <span className="text-muted-foreground">
-                      {new Date(w.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <span className="font-semibold">${w.amount.toFixed(2)}</span>
-                </div>
-              ))}
+        <div className="border-t border-border/50 bg-muted/20">
+          <div className="p-4 sm:p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <History className="h-4 w-4 text-primary" />
+              <h4 className="font-bold text-sm">Withdrawal History & Status</h4>
             </div>
+
+            {withdrawals.length > 0 ? (
+              <div className="space-y-3">
+                {withdrawals.map((w) => (
+                  <div key={w.id} className="flex items-center justify-between p-3 rounded-lg bg-background border border-border/50 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="hidden sm:block">
+                        {w.status === 'approved' && <CheckCircle2 className="h-5 w-5 text-emerald-500" />}
+                        {w.status === 'pending' && <AlertCircle className="h-5 w-5 text-amber-500" />}
+                        {w.status === 'rejected' && <XCircle className="h-5 w-5 text-destructive" />}
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold">${w.amount.toFixed(2)}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase">
+                          {new Date(w.created_at).toLocaleDateString()} at {new Date(w.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <Badge 
+                      className={`
+                        uppercase text-[10px] font-bold border-none
+                        ${w.status === 'approved' ? 'bg-emerald-500/10 text-emerald-600' : ''}
+                        ${w.status === 'pending' ? 'bg-amber-500/10 text-amber-600' : ''}
+                        ${w.status === 'rejected' ? 'bg-destructive/10 text-destructive' : ''}
+                      `}
+                    >
+                      {w.status}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 border border-dashed rounded-lg">
+                <p className="text-xs text-muted-foreground">No withdrawal requests found.</p>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </motion.div>
 
-      {/* Withdraw Dialog */}
       <Dialog open={showWithdrawDialog} onOpenChange={setShowWithdrawDialog}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Request Withdrawal</DialogTitle>
-            <DialogDescription>
-              Minimum withdrawal amount: ${MIN_WITHDRAWAL}
-            </DialogDescription>
+            <DialogTitle>Withdraw Funds</DialogTitle>
+            <DialogDescription>Min. limit: ${MIN_WITHDRAWAL}</DialogDescription>
           </DialogHeader>
-
           <div className="space-y-4 py-4">
-            <div>
-              <Label>Available Balance</Label>
-              <p className="text-2xl font-bold text-primary">
-                ${balance?.available_balance.toFixed(2)}
-              </p>
+            <div className="bg-primary/5 p-4 rounded-xl border border-primary/10">
+              <Label className="text-xs text-muted-foreground uppercase font-bold">Max Available</Label>
+              <p className="text-3xl font-bold text-primary">${calculatedAvailable.toFixed(2)}</p>
             </div>
-
-            <div>
-              <Label htmlFor="amount">Withdrawal Amount</Label>
+            <div className="space-y-2">
+              <Label htmlFor="amount">Amount to Withdraw</Label>
               <Input
                 id="amount"
                 type="number"
-                min={MIN_WITHDRAWAL}
+                placeholder="0.00"
                 value={withdrawAmount}
                 onChange={(e) => setWithdrawAmount(e.target.value)}
+                className="text-lg font-bold"
               />
             </div>
           </div>
-
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowWithdrawDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleWithdrawRequest} disabled={submitting}>
+            <Button variant="outline" onClick={() => setShowWithdrawDialog(false)}>Cancel</Button>
+            <Button onClick={handleWithdrawRequest} disabled={submitting || !withdrawAmount} className="font-bold">
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Submit
+              Confirm Request
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 };
 
-/* ---------- Stat Card Component ---------- */
-
-const StatCard = ({
-  title,
-  value,
-  icon,
-  bg,
-  border,
-}: {
-  title: string;
-  value?: number;
-  icon: React.ReactNode;
-  bg: string;
-  border: string;
-}) => (
-  <div className={`rounded-xl border ${border} ${bg} p-3 sm:p-4 min-w-[120px] lg:min-w-[140px]`}>
-    <div className="flex items-center gap-2 mb-1.5">
+const StatCard = ({ title, value, icon }: { title: string; value: number; icon: React.ReactNode }) => (
+  <div className="rounded-xl border border-border/50 bg-background/50 p-4 min-w-[140px] flex-1">
+    <div className="flex items-center gap-2 mb-1">
       {icon}
-      <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
-        {title}
-      </span>
+      <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-tight">{title}</span>
     </div>
-    <p className="text-lg sm:text-xl font-bold">
-      ${value?.toFixed(2) || '0.00'}
-    </p>
+    <p className="text-lg font-bold">${value.toFixed(2)}</p>
   </div>
 );
 

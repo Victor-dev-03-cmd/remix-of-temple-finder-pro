@@ -66,11 +66,7 @@ const AdminDashboard = () => {
         {/* Support Chat */}
         <AdminChatPanel />
 
-        {/* Vendor Approval Queue */}
-        <VendorApprovalQueue />
 
-        {/* User Management */}
-        <UserManagement />
       </motion.div>
     </DashboardLayout>
   );

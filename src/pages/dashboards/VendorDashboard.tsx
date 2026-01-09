@@ -1,9 +1,8 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Building, ExternalLink, Package } from 'lucide-react';
+import { Building, ExternalLink, Package, ShoppingCart } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import VendorAnalytics from '@/components/vendor/VendorAnalytics';
-import VendorEarningsCard from '@/components/vendor/VendorEarningsCard';
 import ProductManagement from '@/components/vendor/ProductManagement';
 import OrderManagement from '@/components/vendor/OrderManagement';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,44 +26,71 @@ const VendorDashboard = () => {
 
   return (
     <DashboardLayout>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="mb-1 font-display text-2xl sm:text-3xl font-bold text-foreground">Vendor Dashboard</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Manage your temple listing, products, and orders.</p>
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }} 
+        animate={{ opacity: 1, y: 0 }} 
+        className="space-y-8"
+      >
+        {/* Header Section */}
+        <div className="flex flex-col gap-1">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+            Vendor Dashboard
+          </h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
+            Manage your temple listing, products, and incoming orders in real-time.
+          </p>
         </div>
 
-        {/* Temple Card */}
+        {/* Temple Status Card - Full Width */}
         {temple && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-            <Card className="overflow-hidden bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
-              <CardContent className="p-4">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                  <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-lg bg-primary/10 border border-primary/20 overflow-hidden">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ delay: 0.1 }}
+          >
+            <Card className="overflow-hidden bg-gradient-to-br from-primary/5 via-transparent to-primary/10 border-primary/20 shadow-sm">
+              <CardContent className="p-5 sm:p-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+                  {/* Image/Icon Container */}
+                  <div className="flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center rounded-2xl bg-background border shadow-sm overflow-hidden">
                     {temple.image_url ? (
                       <img src={temple.image_url} alt={temple.name} className="h-full w-full object-cover" />
                     ) : (
-                      <Building className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
+                      <Building className="h-8 w-8 text-primary/60" />
                     )}
                   </div>
+
+                  {/* Details */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-foreground truncate">{temple.name}</h3>
-                      <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success shrink-0">Active</span>
+                    <div className="flex flex-wrap items-center gap-3 mb-2">
+                      <h3 className="font-bold text-xl sm:text-2xl text-foreground truncate">{temple.name}</h3>
+                      <div className="flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1 text-xs font-bold text-success border border-success/20">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
+                        </span>
+                        Active
+                      </div>
                     </div>
-                    <p className="text-sm text-muted-foreground truncate">{temple.district}, {temple.province} • {application?.business_name}</p>
+                    <p className="text-sm sm:text-base text-muted-foreground flex items-center gap-2">
+                      <span className="font-medium text-foreground/80">{temple.district}, {temple.province}</span>
+                      <span className="hidden sm:inline opacity-30">•</span>
+                      <span className="truncate">{application?.business_name}</span>
+                    </p>
                   </div>
-                  <div className="flex gap-2 w-full sm:w-auto">
-                    <Link to="/vendor/temple" className="flex-1 sm:flex-none">
-                      <Button variant="outline" size="sm" className="w-full gap-2">
+
+                  {/* Actions */}
+                  <div className="flex flex-row sm:flex-col lg:flex-row gap-3 w-full sm:w-auto">
+                    <Link to="/vendor/temple" className="flex-1">
+                      <Button variant="outline" className="w-full gap-2 font-semibold">
                         <Package className="h-4 w-4" />
-                        <span className="hidden xs:inline">Manage</span>
+                        Manage Listing
                       </Button>
                     </Link>
-                    <Link to={`/temples/${temple.id}`} className="flex-1 sm:flex-none">
-                      <Button variant="ghost" size="sm" className="w-full gap-2">
+                    <Link to={`/temples/${temple.id}`} className="flex-1">
+                      <Button variant="secondary" className="w-full gap-2 font-semibold">
                         <ExternalLink className="h-4 w-4" />
-                        <span className="hidden xs:inline">View</span>
+                        View Live
                       </Button>
                     </Link>
                   </div>
@@ -74,20 +100,36 @@ const VendorDashboard = () => {
           </motion.div>
         )}
 
-        {/* Stats Grid */}
-        <div className="grid gap-4 lg:gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <VendorAnalytics />
-          </div>
-          <div>
-            <VendorEarningsCard />
-          </div>
+        {/* Analytics Section - Full Width */}
+        <div className="w-full">
+          <Card className="border-border shadow-sm">
+             <VendorAnalytics />
+          </Card>
         </div>
 
-        {/* Products & Orders */}
-        <div className="space-y-6">
-          <ProductManagement />
-          <OrderManagement />
+        {/* Management Sections */}
+        <div className="grid grid-cols-1 gap-10">
+          <section className="space-y-4">
+            <div className="flex items-center justify-between px-1">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Package className="h-5 w-5 text-primary" /> Product Inventory
+              </h2>
+            </div>
+            <div className="rounded-xl border bg-card/50">
+              <ProductManagement />
+            </div>
+          </section>
+
+          <section className="space-y-4">
+             <div className="flex items-center justify-between px-1">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5 text-primary" /> Recent Orders
+              </h2>
+            </div>
+            <div className="rounded-xl border bg-card/50">
+              <OrderManagement />
+            </div>
+          </section>
         </div>
       </motion.div>
     </DashboardLayout>
