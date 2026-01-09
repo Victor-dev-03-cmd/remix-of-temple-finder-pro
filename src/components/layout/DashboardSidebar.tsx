@@ -26,7 +26,8 @@ import {
   Type,
   Layout,
   Mail,
-  CreditCard
+  Building2,
+  CreditCard,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVendorTemple } from '@/hooks/useVendorTemple';
