@@ -52,6 +52,7 @@ const adminMenuItems = [
   { title: 'Temples', url: '/admin/temples', icon: MapPin },
   { title: 'Bookings', url: '/admin/bookings', icon: Ticket },
   { title: 'Countries', url: '/admin/countries', icon: Globe },
+  { title: 'Vendor Management', url: '/admin/vendors', icon: Store },
   { title: 'Vendor Applications', url: '/admin/vendor-applications', icon: FileCheck },
   { title: 'User Management', url: '/admin/users', icon: Users },
   { title: 'Vendor Balances', url: '/admin/vendor-balances', icon: CreditCard },
@@ -95,7 +96,7 @@ const DashboardSidebar = () => {
   const { isAdmin, isVendor, user, signOut } = useAuth();
   const { temple } = useVendorTemple(user?.id);
   const location = useLocation();
-  const { state } = useSidebar();
+  const { state, setOpenMobile } = useSidebar();
   const isCollapsed = state === 'collapsed';
 
   const getMenuItems = () => {
@@ -112,16 +113,24 @@ const DashboardSidebar = () => {
     await signOut();
   };
 
+  /**
+   * லிங்க் கிளிக் செய்யும் போது மொபைல் வியூவில் மட்டும் சைட்பாரை மூட வேண்டும்.
+   * டெஸ்க்டாப் வியூவில் 'state' மாறாது, எனவே collapsed நிலையில் இருந்தால் அப்படியே இருக்கும்.
+   */
+  const handleItemClick = () => {
+    setOpenMobile(false);
+  };
+
   return (
     <Sidebar collapsible="icon" className="border-r border-border">
-      <SidebarHeader className="border-b border-border p-3">
-        <div className="flex items-center gap-4">
-          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+      <SidebarHeader className="border-b border-border p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
             <RoleIcon className="h-5 w-5 text-primary" />
           </div>
           {!isCollapsed && (
-            <div className="flex flex-col overflow-hidden">
-              <span className="font-semibold text-foreground">{label}</span>
+            <div className="flex flex-col overflow-hidden animate-in fade-in duration-300">
+              <span className="font-semibold text-foreground truncate">{label}</span>
               <span className="text-xs text-muted-foreground truncate">
                 {user?.email}
               </span>
@@ -130,7 +139,7 @@ const DashboardSidebar = () => {
         </div>
         
         {isVendor && temple && !isCollapsed && (
-          <div className="mt-3 rounded-lg bg-primary/5 p-2.5 border border-primary/10">
+          <div className="mt-3 rounded-lg bg-primary/5 p-2.5 border border-primary/10 animate-in slide-in-from-top-1">
             <div className="flex items-center gap-2">
               <Building className="h-4 w-4 text-primary shrink-0" />
               <div className="overflow-hidden">
@@ -156,8 +165,8 @@ const DashboardSidebar = () => {
                     isActive={isActive(item.url)}
                     tooltip={item.title}
                   >
-                    <Link to={item.url}>
-                      <item.icon className="h-4 w-4" />
+                    <Link to={item.url} onClick={handleItemClick}>
+                      <item.icon className="h-4 w-4 shrink-0" />
                       <span>{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
@@ -179,8 +188,8 @@ const DashboardSidebar = () => {
                                     isActive={isActive(item.url)}
                                     tooltip={item.title}
                                 >
-                                    <Link to={item.url}>
-                                        <item.icon className="h-4 w-4" />
+                                    <Link to={item.url} onClick={handleItemClick}>
+                                        <item.icon className="h-4 w-4 shrink-0" />
                                         <span>{item.title}</span>
                                     </Link>
                                 </SidebarMenuButton>
@@ -193,17 +202,31 @@ const DashboardSidebar = () => {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-border p-2">
-        <div className="flex items-center gap-2">
-          <SidebarTrigger className="h-8 w-8" />
-          {!isCollapsed && (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <SidebarTrigger className="h-8 w-8 shrink-0" />
+            {!isCollapsed && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSignOut}
+                className="flex-1 justify-start gap-2 text-muted-foreground hover:text-destructive overflow-hidden"
+              >
+                <LogOut className="h-4 w-4 shrink-0" />
+                <span className="truncate">Sign Out</span>
+              </Button>
+            )}
+          </div>
+          {/* Collapse ஆக இருக்கும் போது Sign Out ஐகான் மட்டும் தெரிய */}
+          {isCollapsed && (
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               onClick={handleSignOut}
-              className="flex-1 justify-start gap-2 text-muted-foreground hover:text-destructive"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+              title="Sign Out"
             >
               <LogOut className="h-4 w-4" />
-              Sign Out
             </Button>
           )}
         </div>
