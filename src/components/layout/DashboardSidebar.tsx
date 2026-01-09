@@ -25,7 +25,8 @@ import {
   Paintbrush,
   Type,
   Layout,
-  Mail
+  Mail,
+  CreditCard
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVendorTemple } from '@/hooks/useVendorTemple';
@@ -52,6 +53,7 @@ const adminMenuItems = [
   { title: 'Countries', url: '/admin/countries', icon: Globe },
   { title: 'Vendor Applications', url: '/admin/vendor-applications', icon: FileCheck },
   { title: 'User Management', url: '/admin/users', icon: Users },
+  { title: 'Vendor Balances', url: '/admin/vendor-balances', icon: CreditCard },
 ];
 
 const adminSettingsMenuItems = [
