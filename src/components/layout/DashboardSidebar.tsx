@@ -114,9 +114,9 @@ const DashboardSidebar = () => {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border">
-      <SidebarHeader className="border-b border-border p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+      <SidebarHeader className="border-b border-border p-3">
+        <div className="flex items-center gap-4">
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/10">
             <RoleIcon className="h-5 w-5 text-primary" />
           </div>
           {!isCollapsed && (

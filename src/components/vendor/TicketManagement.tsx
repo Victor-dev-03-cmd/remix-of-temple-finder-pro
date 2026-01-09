@@ -163,7 +163,7 @@ export default function TicketManagement({ templeId }: TicketManagementProps) {
                       <FormItem>
                         <FormLabel>Ticket Name *</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g. Adult, Child, Senior" {...field} />
+                          <Input placeholder="e.g. Type of ticket" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -177,7 +177,7 @@ export default function TicketManagement({ templeId }: TicketManagementProps) {
                         <FormLabel>Description</FormLabel>
                         <FormControl>
                           <Textarea
-                            placeholder="e.g. Ages 18-59"
+                            placeholder="e.g. Infomation of ticket"
                             className="resize-none"
                             rows={2}
                             {...field}
