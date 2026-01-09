@@ -40,6 +40,7 @@ import InvoiceCreationPage from "./pages/vendor/InvoiceCreation";
 import PostUploadPage from './pages/vendor/PostUploadPage';
 import SocialFeed from './pages/SocialFeed';
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
+import AdminChatPage from "./pages/admin/AdminChatPage";
 import VendorApplications from "./pages/admin/VendorApplications";
 import UserManagementPage from "./pages/admin/UserManagementPage";
 import TempleManagementPage from "./pages/admin/TempleManagementPage";
@@ -154,6 +155,7 @@ const AppRoutes = () => {
         <Route path="/vendor/postupload" element={<ProtectedRoute allowedRoles={['vendor']}><PostUploadPage /></ProtectedRoute>} />
 
         <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/chat" element={<ProtectedRoute allowedRoles={['admin']}><AdminChatPage /></ProtectedRoute>} />
         <Route path="/admin/vendor-applications" element={<ProtectedRoute allowedRoles={['admin']}><VendorApplications /></ProtectedRoute>} />
         <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><UserManagementPage /></ProtectedRoute>} />
         <Route path="/admin/temples" element={<ProtectedRoute allowedRoles={['admin']}><TempleManagementPage /></ProtectedRoute>} />

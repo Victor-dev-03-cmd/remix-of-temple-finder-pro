@@ -26,8 +26,8 @@ import {
   Type,
   Layout,
   Mail,
-  Building2,
   CreditCard,
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVendorTemple } from '@/hooks/useVendorTemple';
@@ -55,6 +55,7 @@ const adminMenuItems = [
   { title: 'Vendor Applications', url: '/admin/vendor-applications', icon: FileCheck },
   { title: 'User Management', url: '/admin/users', icon: Users },
   { title: 'Vendor Balances', url: '/admin/vendor-balances', icon: CreditCard },
+  { title: 'Support Chat', url: '/admin/chat', icon: MessageSquare },
 ];
 
 const adminSettingsMenuItems = [
