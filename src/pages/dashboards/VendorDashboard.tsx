@@ -112,7 +112,7 @@ const VendorDashboard = () => {
           <section className="space-y-4">
             <div className="flex items-center justify-between px-1">
               <h2 className="text-xl font-bold flex items-center gap-2">
-                <Package className="h-5 w-5 text-primary" /> Product Inventory
+                <Package className="h-5 w-5 text-primary" /> Products
               </h2>
             </div>
             <div className="rounded-xl border bg-card/50">
