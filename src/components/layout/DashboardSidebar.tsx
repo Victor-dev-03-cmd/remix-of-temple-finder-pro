@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Package,
@@ -106,6 +106,7 @@ const DashboardSidebar = () => {
   const { isAdmin, isVendor, user, signOut } = useAuth();
   const { temple } = useVendorTemple(user?.id);
   const location = useLocation();
+  const navigate = useNavigate();
   const { state, setOpenMobile } = useSidebar();
   const isCollapsed = state === 'collapsed';
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -122,6 +123,7 @@ const DashboardSidebar = () => {
 
   const handleSignOut = async () => {
     await signOut();
+    navigate('/', { replace: true });
   };
 
   /**
