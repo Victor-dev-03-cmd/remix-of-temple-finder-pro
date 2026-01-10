@@ -99,7 +99,7 @@ const Index = () => {
       <Header />
 
       {/* --- HERO SECTION --- */}
-      <section className="relative min-h-[600px] sm:min-h-[700px] overflow-hidden bg-[#0A192F] flex items-center py-12">
+      <section className="relative min-h-[600px] sm:min-h-[600px] overflow-hidden bg-[#0A192F] flex items-center py-12">
         
         {/* லோடிங் ஆகும் போது வெறும் Background மட்டும் காட்டி Flicker-ஐ தவிர்க்கிறோம் */}
         {isLayoutLoading ? (
@@ -117,12 +117,11 @@ const Index = () => {
             <div className="absolute inset-0 bg-gradient-to-br from-primary/40 via-transparent to-accent/20" />
             <div className="absolute inset-0 bg-black/20" />
 
-            <div className={`container relative z-10 px-4 flex flex-col gap-12 transition-all duration-500 ${
-              activeLayout === 'style_1' ? 'lg:flex-row text-left items-center' : 
-              activeLayout === 'style_2' ? 'lg:flex-row-reverse text-left items-center' : 
-              'items-center text-center'
-            }`}>
-              
+            <div className={`container relative z-10 px-4 flex flex-col transition-all duration-500 ${
+              activeLayout === 'style_3' ? 'gap-4 items-center text-center' : 
+              activeLayout === 'style_1' ? 'lg:flex-row text-left items-center gap-12' : 
+              'lg:flex-row-reverse text-left items-center gap-12'
+            }`}>              
               <div className={`flex-1 ${activeLayout === 'style_3' ? 'max-w-4xl' : 'w-full'}`}>
                 <motion.h1
                   initial={{ opacity: 0, y: 30 }}
