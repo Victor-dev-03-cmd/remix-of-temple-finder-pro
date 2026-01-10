@@ -16,6 +16,13 @@ import TempleBookingForm from '@/components/temples/TempleBookingForm';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 import { useTemple } from '@/hooks/useTemples';
 import { useTempleProducts } from '@/hooks/useTempleProducts';
 import { useTempleReviews } from '@/hooks/useTempleReviews';
@@ -33,23 +40,20 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-// --- Review Card Component with Mutual Exclusion ---
-const ExpandableReviewCard = ({ 
+// --- Review Card Component ---
+const ReviewCard = ({ 
   review, 
-  onUpdate, 
-  isExpanded, 
-  onToggle,
-  onEdit 
+  onUpdate,
+  onEdit,
+  onViewFull
 }: { 
   review: any, 
   onUpdate: () => void, 
-  isExpanded: boolean, 
-  onToggle: () => void,
-  onEdit: (review: any) => void
+  onEdit: (review: any) => void,
+  onViewFull: (review: any) => void
 }) => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const textLimit = 130; 
-  const shouldTruncate = review.comment?.length > textLimit;
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -74,14 +78,16 @@ const ExpandableReviewCard = ({
   return (
     <motion.div 
       layout
-      className={`flex flex-col rounded-xl border bg-card p-5 shadow-sm transition-all duration-300 ${isExpanded ? 'ring-2 ring-primary/40 shadow-md bg-primary/5' : ''}`}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="flex flex-col rounded-xl border bg-card p-5 shadow-sm transition-all duration-300 hover:shadow-md"
     >
       <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center font-semibold text-primary shrink-0 border border-primary/20">
             {displayName.charAt(0).toUpperCase()}
           </div>
-          <div className="overflow-hidden">
+          <div className="overflow-hidden min-w-0">
             <h4 className="font-semibold text-sm truncate text-foreground">{displayName}</h4>
             <div className="flex gap-0.5">
               {[...Array(5)].map((_, i) => (
@@ -90,17 +96,15 @@ const ExpandableReviewCard = ({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0 ml-2">
           {isOwner && (
             <button onClick={() => onEdit(review)} className="text-muted-foreground hover:text-primary p-1.5 hover:bg-primary/10 rounded-md transition-colors">
               <Edit3 size={16} />
             </button>
           )}
-          {shouldTruncate && (
-            <button onClick={onToggle} className="text-muted-foreground hover:text-primary p-1.5 hover:bg-muted rounded-md transition-colors">
-              {isExpanded ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-          )}
+          <button onClick={() => onViewFull(review)} className="text-muted-foreground hover:text-primary p-1.5 hover:bg-muted rounded-md transition-colors">
+            <Eye size={18} />
+          </button>
           {isOwner && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -123,16 +127,128 @@ const ExpandableReviewCard = ({
         </div>
       </div>
       
-      <motion.div initial={false} animate={{ height: isExpanded ? 'auto' : '60px' }} className="overflow-hidden">
+      <div className="line-clamp-3">
         <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{review.comment}</p>
-      </motion.div>
-      
-      {!isExpanded && shouldTruncate && (
-        <button className="text-primary text-[11px] font-bold mt-2 text-left hover:underline" onClick={onToggle}>
-          Read more...
-        </button>
-      )}
+      </div>
     </motion.div>
+  );
+};
+
+// --- Review Detail Drawer Component ---
+const ReviewDetailDrawer = ({
+  review,
+  open,
+  onOpenChange,
+  onUpdate,
+  onEdit
+}: {
+  review: any | null,
+  open: boolean,
+  onOpenChange: (open: boolean) => void,
+  onUpdate: () => void,
+  onEdit: (review: any) => void
+}) => {
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) setCurrentUserId(data.user.id);
+    });
+  }, []);
+
+  if (!review) return null;
+
+  const displayName = review.profile?.full_name || review.user_name || 'Anonymous Devotee';
+  const isOwner = currentUserId === review.user_id;
+
+  const handleDelete = async () => {
+    try {
+      const { error } = await supabase.from('temple_reviews').delete().eq('id', review.id);
+      if (error) throw error;
+      toast.success("Review deleted successfully");
+      onUpdate();
+      onOpenChange(false);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete review");
+    }
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:w-96">
+        <SheetHeader className="mb-6">
+          <SheetTitle>Full Review</SheetTitle>
+        </SheetHeader>
+
+        <div className="space-y-6">
+          {/* Reviewer Info */}
+          <div className="flex items-center gap-4">
+            <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center font-semibold text-primary border border-primary/20 text-lg">
+              {displayName.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground">{displayName}</h3>
+              <div className="flex gap-0.5 mt-1">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} size={14} className={i < review.rating ? "fill-yellow-500 text-yellow-500" : "text-muted-foreground/30"} />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="h-px bg-border" />
+
+          {/* Full Review Text */}
+          <div>
+            <h4 className="font-semibold text-sm text-muted-foreground mb-3 uppercase">Review</h4>
+            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+              {review.comment}
+            </p>
+          </div>
+
+          {/* Divider */}
+          <div className="h-px bg-border" />
+
+          {/* Action Buttons */}
+          <div className="flex gap-2 pt-4">
+            {isOwner && (
+              <>
+                <Button
+                  onClick={() => {
+                    onEdit(review);
+                    onOpenChange(false);
+                  }}
+                  variant="outline"
+                  className="flex-1 gap-2"
+                >
+                  <Edit3 size={16} />
+                  Edit
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" className="flex-1 gap-2">
+                      <Trash2 size={16} />
+                      Delete
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                      <AlertDialogDescription>This will permanently delete your review.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} className="bg-destructive text-white hover:bg-destructive/90">Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            )}
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 };
 
@@ -161,7 +277,8 @@ const TempleDetail = () => {
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isAboutExpanded, setIsAboutExpanded] = useState(false);
-  const [expandedReviewId, setExpandedReviewId] = useState<string | null>(null);
+  const [selectedReview, setSelectedReview] = useState<any | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(true);
   const [editingReview, setEditingReview] = useState<any>(null);
   const [formKey, setFormKey] = useState(0);
@@ -172,9 +289,14 @@ const TempleDetail = () => {
   }, []);
 
   useEffect(() => {
-    if (currentUserId && reviews.length > 0) {
+    if (currentUserId) {
       const userHasReviewed = reviews.some((r: any) => r.user_id === currentUserId);
-      if (userHasReviewed && !editingReview) setShowReviewForm(false);
+      if (userHasReviewed && !editingReview) {
+        setShowReviewForm(false);
+      } else if (!userHasReviewed && editingReview) {
+        // If user no longer has a review but we were editing one, reset edit mode
+        setEditingReview(null);
+      }
     }
   }, [currentUserId, reviews, editingReview]);
 
@@ -252,23 +374,83 @@ const TempleDetail = () => {
               {/* 4. Temple Gallery (Order 4 Mobile) */}
               <div className="space-y-6 order-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-display text-2xl font-semibold flex items-center gap-2"><ImageIcon className="text-primary" size={24} /> Temple Gallery</h3>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => setCurrentImageIndex(prev => (prev - 1 + galleryImages.length) % galleryImages.length)}><ChevronLeft size={18}/></Button>
-                    <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => setCurrentImageIndex(prev => (prev + 1) % galleryImages.length)}><ChevronRight size={18}/></Button>
+                  <h3 className="font-display text-2xl font-semibold flex items-center gap-2">
+                    <ImageIcon className="text-primary" size={24} /> Temple Gallery
+                  </h3>
+                  <div className="text-sm text-muted-foreground font-medium">
+                    {currentImageIndex + 1} / {galleryImages.length}
                   </div>
                 </div>
-                <div className="relative h-[300px] sm:h-[400px] w-full flex items-center justify-center">
-                    <AnimatePresence mode="popLayout">
+
+                {/* Main Gallery Carousel */}
+                <div className="relative group">
+                  {/* Main Image Container */}
+                  <div className="relative h-[300px] sm:h-[450px] w-full overflow-hidden rounded-3xl shadow-2xl bg-muted">
+                    <AnimatePresence mode="wait">
                       {galleryImages.map((img, idx) => {
                         if (idx !== currentImageIndex) return null;
                         return (
-                          <motion.div key={img} initial={{ x: 100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -100, opacity: 0 }} transition={{ type: "spring", stiffness: 200, damping: 25 }} className="absolute w-full h-full rounded-3xl overflow-hidden border-4 border-white shadow-2xl">
-                            <img src={img} className="w-full h-full object-cover" alt="Temple" />
+                          <motion.div
+                            key={img}
+                            initial={{ opacity: 0, scale: 1.05 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ duration: 0.5, ease: "easeInOut" }}
+                            className="absolute inset-0 w-full h-full"
+                          >
+                            <img
+                              src={img}
+                              alt={`Temple gallery ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                            {/* Overlay Gradient */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
                           </motion.div>
                         );
                       })}
                     </AnimatePresence>
+
+                    {/* Navigation Buttons */}
+                    <motion.button
+                      onClick={() => setCurrentImageIndex(prev => (prev - 1 + galleryImages.length) % galleryImages.length)}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60 text-white rounded-full p-2 transition-all backdrop-blur-sm group-hover:bg-black/50"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <ChevronLeft size={24} />
+                    </motion.button>
+                    <motion.button
+                      onClick={() => setCurrentImageIndex(prev => (prev + 1) % galleryImages.length)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60 text-white rounded-full p-2 transition-all backdrop-blur-sm group-hover:bg-black/50"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <ChevronRight size={24} />
+                    </motion.button>
+                  </div>
+
+                  {/* Image Indicators/Dots */}
+                  {galleryImages.length > 1 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-center justify-center gap-2 mt-6"
+                    >
+                      {galleryImages.map((_, idx) => (
+                        <motion.button
+                          key={idx}
+                          onClick={() => setCurrentImageIndex(idx)}
+                          className={`rounded-full transition-all ${
+                            idx === currentImageIndex
+                              ? 'bg-primary w-8 h-2'
+                              : 'bg-muted-foreground/30 hover:bg-muted-foreground/50 w-2 h-2'
+                          }`}
+                          whileHover={{ scale: 1.2 }}
+                          whileTap={{ scale: 0.9 }}
+                        />
+                      ))}
+                    </motion.div>
+                  )}
                 </div>
               </div>
 
@@ -280,11 +462,15 @@ const TempleDetail = () => {
                 </div>
                 <div className="grid gap-6 sm:grid-cols-2">
                     {reviews.map((review: any) => (
-                      <ExpandableReviewCard 
-                        key={review.id} review={review} onUpdate={refetchReviews} 
-                        isExpanded={expandedReviewId === review.id} 
-                        onToggle={() => setExpandedReviewId(expandedReviewId === review.id ? null : review.id)}
+                      <ReviewCard 
+                        key={review.id} 
+                        review={review} 
+                        onUpdate={refetchReviews} 
                         onEdit={handleEditReview}
+                        onViewFull={(review) => {
+                          setSelectedReview(review);
+                          setIsDrawerOpen(true);
+                        }}
                       />
                     ))}
                 </div>
@@ -327,7 +513,13 @@ const TempleDetail = () => {
                 <AnimatePresence>
                   {showReviewForm && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }}>
-                      <TempleReviewForm key={formKey} templeId={id!} editingReview={editingReview} onSuccess={handleReviewSuccess} />
+                      <TempleReviewForm 
+                        key={formKey} 
+                        templeId={id!} 
+                        editingReview={editingReview} 
+                        onSuccess={handleReviewSuccess}
+                        onCancel={() => setEditingReview(null)}
+                      />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -346,6 +538,15 @@ const TempleDetail = () => {
           </div>
         </div>
       </section>
+
+      {/* Review Detail Drawer */}
+      <ReviewDetailDrawer 
+        review={selectedReview}
+        open={isDrawerOpen}
+        onOpenChange={setIsDrawerOpen}
+        onUpdate={refetchReviews}
+        onEdit={handleEditReview}
+      />
 
       <Footer />
     </div>

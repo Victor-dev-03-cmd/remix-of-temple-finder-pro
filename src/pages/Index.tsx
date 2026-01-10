@@ -15,9 +15,11 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import TempleSearch from '@/components/temples/TempleSearch';
 import TempleCard from '@/components/temples/TempleCard';
+import ProductCard from '@/components/products/ProductCard';
 import BentoGallery from '@/components/home/BentoGallery';
 import { Button } from '@/components/ui/button';
 import { useTemples } from '@/hooks/useTemples';
+import { useProducts } from '@/hooks/useProducts';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,6 +30,7 @@ const Index = () => {
   const navigate = useNavigate();
   const { data: settings } = useSiteSettings();
   const { data: temples = [], isLoading: templesLoading } = useTemples();
+  const { products, loading: productsLoading } = useProducts({ limit: 4, status: 'approved' });
   const { isAdmin, isVendor } = useAuth();
   
   // மாற்றம்: ஆரம்பத்தில் null மற்றும் Loading state
@@ -215,6 +218,28 @@ const Index = () => {
               {temples.slice(0, 4).map((temple, index) => (
                 <TempleCard key={temple.id} temple={temple} index={index} />
               ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="py-16 lg:py-24 bg-muted/30">
+        <div className="container px-4">
+          <div className="mb-12 text-center">
+            <h2 className="text-3xl lg:text-4xl font-bold">Featured Products</h2>
+            <p className="text-muted-foreground mt-2">Discover sacred items and merchandise from our vendors.</p>
+          </div>
+          {productsLoading ? (
+            <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+          ) : products.length > 0 ? (
+            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+              {products.map((product, index) => (
+                <ProductCard key={product.id} product={product} index={index} />
+              ))}
+            </div>
+          ) : (
+            <div className="flex justify-center py-12">
+              <p className="text-muted-foreground">No products available at the moment.</p>
             </div>
           )}
         </div>

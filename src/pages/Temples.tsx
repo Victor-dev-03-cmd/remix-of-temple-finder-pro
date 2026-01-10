@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, MapPin, Sparkles, Building2, LayoutGrid, Map, Loader2 } from 'lucide-react';
+import { Search, Filter, MapPin, Sparkles, Building2, LayoutGrid, Map, Loader2, List, Star } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '@/components/layout/Header';
@@ -44,7 +44,7 @@ const Temples = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { data: temples = [], isLoading, error } = useTemples();
-  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'map'>('grid');
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [selectedProvince, setSelectedProvince] = useState(searchParams.get('province') || 'all');
   const [selectedDistrict, setSelectedDistrict] = useState(searchParams.get('district') || 'all');
@@ -280,11 +280,15 @@ const Temples = () => {
                 <ToggleGroup
                   type="single"
                   value={viewMode}
-                  onValueChange={(value) => value && setViewMode(value as 'list' | 'map')}
+                  onValueChange={(value) => value && setViewMode(value as 'grid' | 'list' | 'map')}
                   className="bg-muted/50 p-1 rounded-lg"
                 >
-                  <ToggleGroupItem value="list" aria-label="List view" className="gap-2">
+                  <ToggleGroupItem value="grid" aria-label="Grid view" className="gap-2">
                     <LayoutGrid className="h-4 w-4" />
+                    <span className="hidden sm:inline">Grid</span>
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="list" aria-label="List view" className="gap-2">
+                    <List className="h-4 w-4" />
                     <span className="hidden sm:inline">List</span>
                   </ToggleGroupItem>
                   <ToggleGroupItem value="map" aria-label="Map view" className="gap-2">
@@ -312,11 +316,78 @@ const Temples = () => {
               ) : viewMode === 'map' ? (
                 <TempleMap temples={filteredTemples} onTempleClick={handleTempleClick} />
               ) : filteredTemples.length > 0 ? (
-                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {filteredTemples.map((temple, index) => (
-                    <TempleCard key={temple.id} temple={temple} index={index} />
-                  ))}
-                </div>
+                viewMode === 'grid' ? (
+                  <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {filteredTemples.map((temple, index) => (
+                      <TempleCard key={temple.id} temple={temple} index={index} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {filteredTemples.map((temple, index) => (
+                      <motion.div
+                        key={temple.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        onClick={() => handleTempleClick(temple)}
+                        className="group flex gap-4 rounded-lg border border-border bg-card p-4 shadow-sm transition-all hover:shadow-md hover:border-primary/50 cursor-pointer"
+                      >
+                        {/* Image */}
+                        <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-muted">
+                          {temple.image_url ? (
+                            <img
+                              src={temple.image_url}
+                              alt={temple.name}
+                              className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center">
+                              <Building2 className="h-8 w-8 text-muted-foreground" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="mb-2 flex items-start justify-between gap-4">
+                            <div className="min-w-0 flex-1">
+                              <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                                {temple.name}
+                              </h3>
+                              {temple.deity && (
+                                <p className="text-sm text-muted-foreground">{temple.deity}</p>
+                              )}
+                            </div>
+                            {temple.rating && (
+                              <div className="flex flex-shrink-0 items-center gap-1 rounded-lg bg-yellow-50 dark:bg-yellow-950 px-2 py-1">
+                                <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" />
+                                <span className="text-sm font-medium text-yellow-700 dark:text-yellow-300">
+                                  {temple.rating.toFixed(1)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Description */}
+                          {temple.description && (
+                            <p className="mb-3 line-clamp-2 text-sm text-muted-foreground">
+                              {temple.description}
+                            </p>
+                          )}
+
+                          {/* Location */}
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <MapPin className="h-4 w-4 flex-shrink-0" />
+                            <span className="truncate">
+                              {temple.district}, {temple.province}
+                            </span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )
               ) : (
                 <motion.div
                   initial={{ opacity: 0 }}

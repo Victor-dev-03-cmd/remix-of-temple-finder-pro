@@ -12,9 +12,10 @@ interface TempleReviewFormProps {
   templeId: string;
   editingReview?: any;
   onSuccess?: () => void;
+  onCancel?: () => void;
 }
 
-const TempleReviewForm = ({ templeId, editingReview, onSuccess }: TempleReviewFormProps) => {
+const TempleReviewForm = ({ templeId, editingReview, onSuccess, onCancel }: TempleReviewFormProps) => {
   const { user } = useAuth();
   const { data: existingReview, isLoading: loadingExisting } = useUserReview(templeId);
   const createReview = useCreateReview();
@@ -30,11 +31,18 @@ const TempleReviewForm = ({ templeId, editingReview, onSuccess }: TempleReviewFo
   const reviewToEdit = editingReview || existingReview;
 
   useEffect(() => {
-    // Only populate form if user hasn't just submitted and there's a review to edit
-    if (reviewToEdit && !hasSubmitted) {
-      setRating(reviewToEdit.rating);
-      setTitle(reviewToEdit.title || '');
-      setComment(reviewToEdit.comment || '');
+    // Only populate form if user hasn't just submitted
+    if (!hasSubmitted) {
+      if (reviewToEdit) {
+        setRating(reviewToEdit.rating);
+        setTitle(reviewToEdit.title || '');
+        setComment(reviewToEdit.comment || '');
+      } else {
+        // Clear form if no review to edit (e.g., after deletion or switching to create mode)
+        setRating(0);
+        setTitle('');
+        setComment('');
+      }
     }
   }, [reviewToEdit, hasSubmitted]);
 
@@ -179,13 +187,20 @@ const TempleReviewForm = ({ templeId, editingReview, onSuccess }: TempleReviewFo
         </p>
       </div>
 
-      <Button type="submit" disabled={rating === 0 || isSubmitting}>
-        {isSubmitting
-          ? 'Submitting...'
-          : reviewToEdit
-          ? 'Update Review'
-          : 'Submit Review'}
-      </Button>
+      <div className="flex gap-2">
+        <Button type="submit" disabled={rating === 0 || isSubmitting}>
+          {isSubmitting
+            ? 'Submitting...'
+            : reviewToEdit
+            ? 'Update Review'
+            : 'Submit Review'}
+        </Button>
+        {editingReview && (
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancel Edit
+          </Button>
+        )}
+      </div>
     </form>
   );
 };
