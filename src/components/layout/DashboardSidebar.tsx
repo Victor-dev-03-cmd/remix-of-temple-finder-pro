@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -27,7 +28,9 @@ import {
   Layout,
   Mail,
   CreditCard,
-  MessageSquare
+  MessageSquare,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVendorTemple } from '@/hooks/useVendorTemple';
@@ -45,6 +48,11 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
 
 const adminMenuItems = [
@@ -100,6 +108,7 @@ const DashboardSidebar = () => {
   const location = useLocation();
   const { state, setOpenMobile } = useSidebar();
   const isCollapsed = state === 'collapsed';
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const getMenuItems = () => {
     if (isAdmin) return { items: adminMenuItems, label: 'Admin Panel', icon: Shield };
@@ -179,27 +188,45 @@ const DashboardSidebar = () => {
         </SidebarGroup>
 
         {isAdmin && (
-            <SidebarGroup>
-                <SidebarGroupLabel>Settings</SidebarGroupLabel>
+          <SidebarGroup>
+            <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen}>
+              <CollapsibleTrigger className="w-full">
+                <SidebarGroupLabel className="flex items-center justify-between cursor-pointer hover:bg-muted/50 rounded-md px-2 py-1.5 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <Settings className="h-4 w-4" />
+                    {!isCollapsed && <span>Settings</span>}
+                  </div>
+                  {!isCollapsed && (
+                    settingsOpen ? (
+                      <ChevronDown className="h-4 w-4 transition-transform" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 transition-transform" />
+                    )
+                  )}
+                </SidebarGroupLabel>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
                 <SidebarGroupContent>
-                    <SidebarMenu>
-                        {adminSettingsMenuItems.map((item) => (
-                            <SidebarMenuItem key={item.title}>
-                                <SidebarMenuButton
-                                    asChild
-                                    isActive={isActive(item.url)}
-                                    tooltip={item.title}
-                                >
-                                    <Link to={item.url} onClick={handleItemClick}>
-                                        <item.icon className="h-4 w-4 shrink-0" />
-                                        <span>{item.title}</span>
-                                    </Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                        ))}
-                    </SidebarMenu>
+                  <SidebarMenu>
+                    {adminSettingsMenuItems.map((item) => (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive(item.url)}
+                          tooltip={item.title}
+                        >
+                          <Link to={item.url} onClick={handleItemClick}>
+                            <item.icon className="h-4 w-4 shrink-0" />
+                            <span>{item.title}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
                 </SidebarGroupContent>
-            </SidebarGroup>
+              </CollapsibleContent>
+            </Collapsible>
+          </SidebarGroup>
         )}
       </SidebarContent>
 
