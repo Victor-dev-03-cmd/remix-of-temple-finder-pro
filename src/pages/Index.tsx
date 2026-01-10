@@ -30,15 +30,29 @@ const Index = () => {
   const { data: temples = [], isLoading: templesLoading } = useTemples();
   const { isAdmin, isVendor } = useAuth();
   
-  const [activeLayout, setActiveLayout] = useState('style_1');
+  // மாற்றம்: ஆரம்பத்தில் null மற்றும் Loading state
+  const [activeLayout, setActiveLayout] = useState<string | null>(null);
+  const [isLayoutLoading, setIsLayoutLoading] = useState(true);
 
   useEffect(() => {
     const fetchLayout = async () => {
-      const { data } = await (supabase.from('site_layouts' as any)
-        .select('active_layout')
-        .eq('section_name', 'hero')
-        .maybeSingle() as any);
-      if (data) setActiveLayout(data.active_layout);
+      setIsLayoutLoading(true); // லோடிங் தொடக்கம்
+      try {
+        const { data } = await (supabase.from('site_layouts' as any)
+          .select('active_layout')
+          .eq('section_name', 'hero')
+          .maybeSingle() as any);
+        
+        if (data) {
+          setActiveLayout(data.active_layout);
+        } else {
+          setActiveLayout('style_1'); // தரவு இல்லை என்றால் மட்டும் default
+        }
+      } catch (err) {
+        setActiveLayout('style_1');
+      } finally {
+        setIsLayoutLoading(false); // லோடிங் முடிவு
+      }
     };
     fetchLayout();
 
@@ -85,76 +99,82 @@ const Index = () => {
       <Header />
 
       {/* --- HERO SECTION --- */}
-      <section className="relative min-h-[600px] sm:min-h-[600px] overflow-hidden bg-[#0A192F] flex items-center py-12">
+      <section className="relative min-h-[600px] sm:min-h-[700px] overflow-hidden bg-[#0A192F] flex items-center py-12">
         
-        <motion.div
-          className="absolute w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] rounded-full blur-[80px] sm:blur-[120px] opacity-40 pointer-events-none"
-          style={{ background: "radial-gradient(circle, rgba(255,191,0,1) 0%, rgba(255,154,0,0) 70%)" }}
-          animate={{ x: [-100, 200, 0, -150], y: [-50, 100, 200, -50], scale: [1, 1.1, 0.9, 1] }}
-          transition={{ duration: 15, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/40 via-transparent to-accent/20" />
-        <div className="absolute inset-0 bg-black/20" />
-
-        <div className={`container relative z-10 px-4 flex flex-col gap-12 transition-all duration-500 ${
-          activeLayout === 'style_1' ? 'lg:flex-row text-left items-center' : 
-          activeLayout === 'style_2' ? 'lg:flex-row-reverse text-left items-center' : 
-          'items-center text-center'
-        }`}>
-          
-          <div className={`flex-1 ${activeLayout === 'style_3' ? 'max-w-4xl' : 'w-full'}`}>
-            <motion.h1
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7 }}
-              className="mb-4 font-display text-3xl sm:text-5xl lg:text-6xl font-bold text-white drop-shadow-xl"
-            >
-              {heroTitle}
-            </motion.h1>
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.6 }}
-              className={`mb-8 text-sm sm:text-lg text-white/90 font-medium ${activeLayout === 'style_3' ? 'mx-auto' : ''} max-w-2xl`}
-            >
-              {heroSubtitle}
-            </motion.p>
-
-            {activeLayout !== 'style_3' && !isAdmin && !isVendor && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
-                <Link to={heroCtaLink}>
-                  <Button size="lg" variant="secondary" className="gap-2 font-semibold shadow-lg">
-                    {heroCtaText} <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </Link>
-              </motion.div>
-            )}
+        {/* லோடிங் ஆகும் போது வெறும் Background மட்டும் காட்டி Flicker-ஐ தவிர்க்கிறோம் */}
+        {isLayoutLoading ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Loader2 className="h-10 w-10 animate-spin text-primary/30" />
           </div>
-
-          {/* நீங்கள் கேட்ட மாற்றம் இங்கே: 
-              L or R Layout-ல் கார்டு Line by Line வர 'lg:max-w-md' கொடுத்துள்ளேன்.
-              Style 3-ல் மட்டும் பழையபடி பெரியதாக இருக்கும்.
-          */}
-          <div className={`w-full ${activeLayout === 'style_3' ? 'max-w-3xl' : 'lg:max-w-md'}`}>
+        ) : (
+          <>
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.3 }}
-            >
-              <TempleSearch countryCode={defaultCountry} onSearch={handleSearch} />
-            </motion.div>
+              className="absolute w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] rounded-full blur-[80px] sm:blur-[120px] opacity-40 pointer-events-none"
+              style={{ background: "radial-gradient(circle, rgba(255,191,0,1) 0%, rgba(255,154,0,0) 70%)" }}
+              animate={{ x: [-100, 200, 0, -150], y: [-50, 100, 200, -50], scale: [1, 1.1, 0.9, 1] }}
+              transition={{ duration: 15, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/40 via-transparent to-accent/20" />
+            <div className="absolute inset-0 bg-black/20" />
 
-            {activeLayout === 'style_3' && !isAdmin && !isVendor && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="mt-8">
-                <Link to={heroCtaLink}>
-                  <Button size="lg" variant="secondary" className="gap-2 font-semibold shadow-lg">
-                    {heroCtaText} <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </Link>
-              </motion.div>
-            )}
-          </div>
-        </div>
+            <div className={`container relative z-10 px-4 flex flex-col gap-12 transition-all duration-500 ${
+              activeLayout === 'style_1' ? 'lg:flex-row text-left items-center' : 
+              activeLayout === 'style_2' ? 'lg:flex-row-reverse text-left items-center' : 
+              'items-center text-center'
+            }`}>
+              
+              <div className={`flex-1 ${activeLayout === 'style_3' ? 'max-w-4xl' : 'w-full'}`}>
+                <motion.h1
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.7 }}
+                  className="mb-4 font-display text-3xl sm:text-5xl lg:text-6xl font-bold text-white drop-shadow-xl"
+                >
+                  {heroTitle}
+                </motion.h1>
+                <motion.p
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2, duration: 0.6 }}
+                  className={`mb-8 text-sm sm:text-lg text-white/90 font-medium ${activeLayout === 'style_3' ? 'mx-auto' : ''} max-w-2xl`}
+                >
+                  {heroSubtitle}
+                </motion.p>
+
+                {activeLayout !== 'style_3' && !isAdmin && !isVendor && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
+                    <Link to={heroCtaLink}>
+                      <Button size="lg" variant="secondary" className="gap-2 font-semibold shadow-lg">
+                        {heroCtaText} <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </motion.div>
+                )}
+              </div>
+
+              {/* Line by Line மாற்றம்: lg:max-w-md என்பது கார்டை வரிசையாக அடுக்க உதவும் */}
+              <div className={`w-full ${activeLayout === 'style_3' ? 'max-w-3xl' : 'lg:max-w-md'}`}>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <TempleSearch countryCode={defaultCountry} onSearch={handleSearch} />
+                </motion.div>
+
+                {activeLayout === 'style_3' && !isAdmin && !isVendor && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="mt-8">
+                    <Link to={heroCtaLink}>
+                      <Button size="lg" variant="secondary" className="gap-2 font-semibold shadow-lg">
+                        {heroCtaText} <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </motion.div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
       </section>
 
       {/* --- SERVICES SECTION --- */}
@@ -183,7 +203,6 @@ const Index = () => {
 
       <BentoGallery />
 
-      {/* --- FEATURED TEMPLES --- */}
       <section className="py-16 lg:py-24">
         <div className="container px-4">
           <div className="mb-12 text-center">
@@ -201,20 +220,6 @@ const Index = () => {
           )}
         </div>
       </section>
-
-      {!isAdmin && !isVendor && (
-        <section className="bg-muted/50 py-16">
-          <div className="container px-4 text-center">
-            <div className="mx-auto max-w-3xl rounded-2xl bg-card p-8 lg:p-12 shadow-lg border border-border/50">
-              <h2 className="mb-4 text-2xl lg:text-3xl font-bold italic">Own a Temple? Join Us Today!</h2>
-              <p className="mb-8 text-muted-foreground">Showcase your temple to a global audience and manage your services efficiently.</p>
-              <Link to="/become-vendor">
-                <Button size="lg" className="gap-2">Register Now <ArrowRight className="h-4 w-4" /></Button>
-              </Link>
-            </div>
-          </div>
-        </section>
-      )}
 
       <Footer />
     </div>
