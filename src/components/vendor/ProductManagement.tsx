@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Package, Plus, Edit, Trash2, Check, Clock, X, RefreshCw, GitCommitHorizontal } from 'lucide-react';
+import { Package, Plus, Edit, Trash2, Check, Clock, X, RefreshCw, GitCommitHorizontal, Palette, Ruler } from 'lucide-react';
 import { z } from 'zod';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import {
   Form,
@@ -465,6 +466,95 @@ const ProductManagement = () => {
                         <Plus className='mr-2 h-3 w-3' /> Add Variant
                      </Button>
                   </div>
+
+                  {/* Quick Add Variant Presets */}
+                  <div className="space-y-3 rounded-md border border-dashed p-3 bg-muted/30">
+                    <p className="text-sm font-medium text-muted-foreground">Quick Add Variants:</p>
+                    
+                    {/* Size Variants */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Ruler className="h-4 w-4 text-primary" />
+                        <span className="font-medium">Sizes:</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {['Small', 'Medium', 'Large', 'XL', 'XXL'].map((size) => (
+                          <Button
+                            key={size}
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            onClick={() => {
+                              append({ name: size, price: 0, stock: 0, sku: '' });
+                              scrollToVariants();
+                            }}
+                          >
+                            {size}
+                          </Button>
+                        ))}
+                      </div>
+                      {/* Size Units */}
+                      <div className="flex items-center gap-4 mt-2">
+                        <span className="text-xs text-muted-foreground">With unit:</span>
+                        {['cm', 'mm', 'inch'].map((unit) => (
+                          <div key={unit} className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 text-xs px-2"
+                              onClick={() => {
+                                ['Small', 'Medium', 'Large', 'XL'].forEach((size) => {
+                                  append({ name: `${size} (${unit})`, price: 0, stock: 0, sku: '' });
+                                });
+                                scrollToVariants();
+                              }}
+                            >
+                              Add all in {unit}
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Color Variants */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Palette className="h-4 w-4 text-primary" />
+                        <span className="font-medium">Colors:</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { name: 'Red', color: 'bg-red-500' },
+                          { name: 'Blue', color: 'bg-blue-500' },
+                          { name: 'Green', color: 'bg-green-500' },
+                          { name: 'Yellow', color: 'bg-yellow-500' },
+                          { name: 'Black', color: 'bg-black' },
+                          { name: 'White', color: 'bg-white border' },
+                          { name: 'Gold', color: 'bg-amber-400' },
+                          { name: 'Silver', color: 'bg-gray-300' },
+                        ].map((colorOption) => (
+                          <Button
+                            key={colorOption.name}
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs gap-1.5"
+                            onClick={() => {
+                              append({ name: colorOption.name, price: 0, stock: 0, sku: '' });
+                              scrollToVariants();
+                            }}
+                          >
+                            <span className={`h-3 w-3 rounded-full ${colorOption.color}`} />
+                            {colorOption.name}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Variant List */}
                   {fields.map((field, index) => (
                     <motion.div 
                       key={field.id} 

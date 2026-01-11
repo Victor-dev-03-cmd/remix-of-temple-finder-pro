@@ -55,7 +55,7 @@ const BookingLookup = () => {
     const fetchRecentBookings = async () => {
       if (!user?.email) return;
       const { data } = await supabase
-        .from('bookings')
+        .from('temple_bookings')
         .select('*, temples(name, district, province, address, image_url)')
         .eq('customer_email', user.email)
         .order('visit_date', { ascending: false })

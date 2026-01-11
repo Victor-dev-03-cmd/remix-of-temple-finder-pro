@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Send, MoreVertical, ShieldAlert, ChevronLeft, Search, Phone, Video, Info } from 'lucide-react';
+import { Send, MoreVertical, ShieldAlert, ChevronLeft, Search, Phone, Video, Info, MessageCircle } from 'lucide-react';
 import Header from "@/components/layout/Header";
 import { toast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
