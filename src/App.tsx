@@ -40,6 +40,8 @@ import InventoryManagementPage from "./pages/vendor/InventoryManagement";
 import InvoiceCreationPage from "./pages/vendor/InvoiceCreation";
 import PostUploadPage from './pages/vendor/PostUploadPage';
 import SocialFeed from './pages/SocialFeed';
+import Profile from './pages/Profile';
+import VendorChat from './pages/VendorChat';
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import AdminChatPage from "./pages/admin/AdminChatPage";
 import VendorManagementPage from "./pages/admin/VendorManagementPage";
@@ -133,6 +135,8 @@ const AppRoutes = () => {
         <Route path="/temples" element={<Temples />} />
         <Route path="/products" element={<Products />} />
         <Route path="/social-feed" element={<SocialFeed />} />
+        <Route path="/profile" element={<ProtectedRoute allowedRoles={['vendor', 'customer']}><Profile /></ProtectedRoute>} />
+        <Route path="/vendor-chat" element={<ProtectedRoute allowedRoles={['vendor']}><VendorChat /></ProtectedRoute>} />
         <Route path="/product/:id" element={<ProductDetail />} />
         <Route path="/temples/:id" element={<TempleDetail />} />
         <Route path="/become-vendor" element={<BecomeVendor />} />

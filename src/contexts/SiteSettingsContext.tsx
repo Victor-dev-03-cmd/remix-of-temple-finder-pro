@@ -133,7 +133,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
       // Metadata & Favicon
       if (settings.siteName) document.title = settings.siteName;
       if (settings.logoUrl) {
-        let favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
+        const favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
         if (favicon) favicon.href = settings.logoUrl;
       }
     }
