@@ -34,6 +34,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { getCategoryLabel } from '@/lib/categories';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { ProductVariantSelector } from '@/components/products/ProductVariantSelector';
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -54,6 +55,7 @@ const ProductDetail = () => {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isVariantSelectorOpen, setIsVariantSelectorOpen] = useState(false);
   const [reviewForm, setReviewForm] = useState({
     rating: 5,
     title: '',
@@ -78,7 +80,11 @@ const ProductDetail = () => {
   };
 
   const getCurrentPrice = () => selectedVariant ? selectedVariant.price : (product?.price || 0);
-  const getCurrentStock = () => selectedVariant ? selectedVariant.stock : (product?.stock || 0);
+  const getCurrentStock = () => {
+    if (selectedVariant) return selectedVariant.stock;
+    if (variants.length > 0) return variants[0].stock;
+    return product?.stock || 0;
+  };
   const getCurrentSKU = () => (selectedVariant && selectedVariant.sku) ? selectedVariant.sku : "N/A";
 
   const handleAddToCart = () => {
@@ -87,11 +93,6 @@ const ProductDetail = () => {
       return;
     }
     if (!product) return;
-    const currentStock = getCurrentStock();
-    if (currentStock === 0) {
-      toast({ title: 'Out of Stock', variant: 'destructive' });
-      return;
-    }
     
     addToCart({
       id: product.id,
@@ -99,7 +100,7 @@ const ProductDetail = () => {
       price: getCurrentPrice(),
       image_url: product.image_url || undefined,
       vendor_id: product.vendor_id,
-      stock: currentStock,
+      stock: getCurrentStock(),
       quantity: quantity,
       category: product.category,
       variant_id: selectedVariant?.id,
@@ -188,19 +189,19 @@ const ProductDetail = () => {
             {variants.length > 0 && (
               <div ref={variantSectionRef} className="space-y-3">
                 <h3 className="font-medium text-foreground flex items-center gap-2"><Tag className="h-4 w-4" />Select Variant</h3>
-                <div className="flex flex-wrap gap-2"> 
+                <div className="grid grid-cols-3 gap-2"> 
                   {variants.map((variant) => (
                     <button
                       key={variant.id}
                       onClick={() => handleVariantSelect(variant)}
-                      className={`relative w-fit rounded-lg border-2 p-2 pr-8 text-left transition-all ${
+                      className={`relative flex flex-col items-center justify-center rounded-lg border-2 p-2 transition-all text-center ${
                         selectedVariant?.id === variant.id ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-border'
                       } ${variant.stock === 0 ? 'opacity-50' : ''}`}
                       disabled={variant.stock === 0}
                     >
-                      <p className="font-medium text-sm">{variant.name}</p>
-                      <p className="text-xs font-semibold text-primary">LKR {variant.price.toLocaleString()}</p>
-                      {selectedVariant?.id === variant.id && ( <Check className="absolute top-1/2 -translate-y-1/2 right-2 h-3.5 w-3.5 text-primary" /> )}
+                      <p className="font-bold text-xs line-clamp-1">{variant.name}</p>
+                      <p className="text-[10px] font-black text-primary mt-1">LKR {variant.price.toLocaleString()}</p>
+                      {selectedVariant?.id === variant.id && ( <Check className="absolute top-1 right-1 h-3 w-3 text-primary" /> )}
                     </button>
                   ))}
                 </div>
@@ -345,6 +346,11 @@ const ProductDetail = () => {
         )}
       </main>
       <Footer />
+      <ProductVariantSelector 
+        product={product} 
+        isOpen={isVariantSelectorOpen} 
+        onClose={() => setIsVariantSelectorOpen(false)} 
+      />
     </div>
   );
 };

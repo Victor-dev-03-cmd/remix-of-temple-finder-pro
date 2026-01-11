@@ -3,52 +3,46 @@ description: Repository Information Overview
 alwaysApply: true
 ---
 
-# Temple Finder Pro Information
+# asroz Information
 
 ## Summary
-A modern web application for finding and booking temples, featuring a vendor dashboard, customer reviews, and a social feed. Built with React, TypeScript, and Vite, it utilizes Supabase for its backend, database, and edge functions.
+A modern social commerce platform designed for temple discovery and product sales. The application features an Instagram-style social feed, vendor-to-vendor real-time chat, and a robust e-commerce system with variant selection and cart management. Built using React, Vite, and Supabase.
 
 ## Structure
-- **src/**: Main application source code.
-    - **components/**: Modular UI components organized by feature (auth, cart, temples, etc.).
-    - **contexts/**: React context providers for authentication, shopping cart, and site settings.
-    - **hooks/**: Custom React hooks for data fetching and business logic.
-    - **pages/**: Route-level components for different views (Admin, Vendor, Customer, etc.).
-    - **integrations/supabase/**: Supabase client configuration and database types.
-- **supabase/**: Backend configuration, including database migrations and Edge Functions.
-- **public/**: Static assets and icons.
+- **src/components**: Reusable UI components including layout, auth, products, and shadcn/ui components.
+- **src/pages**: Main application views such as SocialFeed, Profile, ProductDetail, and VendorChat.
+- **src/contexts**: Global state management for Authentication and Shopping Cart.
+- **src/hooks**: Custom hooks for Supabase data fetching (products, variants, reviews, social features).
+- **src/integrations**: Supabase client configuration and auto-generated types.
+- **src/lib**: Utility functions and shared logic (e.g., category labels, formatting).
+- **supabase**: Contains edge functions and database migrations for the Supabase backend.
 
 ## Language & Runtime
 **Language**: TypeScript  
-**Version**: ^5.8.3  
-**Build System**: Vite (v5.4.19)  
-**Package Manager**: npm (v11.7.0) (Bun also supported via `bun.lockb`)
+**Runtime**: Node.js (Vite-based development)  
+**Build System**: Vite  
+**Package Manager**: npm
 
 ## Dependencies
 **Main Dependencies**:
-- **@supabase/supabase-js**: Backend interaction and authentication.
-- **@tanstack/react-query**: Server state management and caching.
-- **react-router-dom**: Client-side routing.
-- **framer-motion**: Animation and interactive UI elements.
-- **lucide-react**: Icon library.
-- **mapbox-gl**: Interactive map integration.
-- **recharts**: Data visualization for dashboards.
-- **zod**: Schema validation for forms and data.
-- **shadcn-ui**: Reusable UI component library based on Radix UI.
+- `@supabase/supabase-js`: Backend-as-a-Service integration
+- `react`, `react-router-dom`: Frontend framework and routing
+- `@radix-ui/*`: Unstyled, accessible UI primitives
+- `framer-motion`: Animation library
+- `lucide-react`: Icon set
+- `tailwindcss`, `class-variance-authority`: Styling and component variants
+- `zod`, `react-hook-form`: Schema validation and form management
 
 **Development Dependencies**:
-- **typescript**: Language support.
-- **vite**: Development server and build tool.
-- **jest / ts-jest**: Testing framework.
-- **eslint**: Code linting.
-- **tailwindcss**: Utility-first CSS framework.
+- `vite`, `typescript`, `eslint`: Build and linting tools
+- `jest`, `ts-jest`: Testing framework
 
 ## Build & Installation
 ```bash
 # Install dependencies
 npm install
 
-# Start development server
+# Run development server
 npm run dev
 
 # Build for production
@@ -56,13 +50,17 @@ npm run build
 ```
 
 ## Testing
-**Framework**: Jest with `ts-jest` and `jsdom`
-**Test Location**: Configured for `src/` directory
-**Naming Convention**: Typically `*.test.ts` or `*.spec.ts` (none found currently)
-**Configuration**: `jest.config.js`, `src/setupTests.ts`
+**Framework**: Jest
+**Test Location**: `src/` (indicated by `setupTests.ts`)
+**Naming Convention**: `*.test.tsx`, `*.spec.ts`
+**Configuration**: `jest.config.js`
 
 **Run Command**:
 ```bash
-# Run tests (manual command as script is not in package.json)
-npx jest
+npm test
 ```
+
+## Main Files & Resources
+- **Entry Points**: `src/main.tsx` (frontend), `supabase/functions/` (edge functions)
+- **Configuration**: `tailwind.config.ts`, `vite.config.ts`, `components.json`
+- **Database Schema**: Managed via Supabase migrations in `supabase/migrations/`

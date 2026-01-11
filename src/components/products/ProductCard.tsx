@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { ProductVariantSelector } from './ProductVariantSelector';
 import { toast } from '@/hooks/use-toast';
 import { Product } from '@/hooks/useProducts';
 import { getCategoryLabel } from '@/lib/categories';
@@ -19,6 +20,7 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
   const { user } = useAuth();
   const { addToCart } = useCart();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isVariantSelectorOpen, setIsVariantSelectorOpen] = useState(false);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -29,19 +31,7 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
       return;
     }
 
-    addToCart({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      image_url: product.image_url || undefined,
-      vendor_id: product.vendor_id,
-      stock: product.stock,
-      quantity: 1,
-    });
-    toast({
-      title: 'Added to Cart',
-      description: `${product.name} has been added to your cart.`,
-    });
+    setIsVariantSelectorOpen(true);
   };
 
   return (
@@ -82,7 +72,7 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
           {/* Content */}
           <div className="p-3">
             <p className="mb-1 text-xs text-muted-foreground">{getCategoryLabel(product.category)}</p>
-            <h4 className="mb-1 text-sm font-medium text-foreground line-clamp-2">
+            <h4 className="mb-1 text-sm font-medium text-foreground line-clamp-1">
               {product.name}
             </h4>
             
@@ -110,6 +100,11 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
         </motion.div>
       </Link>
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      <ProductVariantSelector 
+        product={product} 
+        isOpen={isVariantSelectorOpen} 
+        onClose={() => setIsVariantSelectorOpen(false)} 
+      />
     </>
   );
 };

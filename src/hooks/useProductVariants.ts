@@ -24,7 +24,7 @@ export const useProductVariants = (productId: string | undefined) => {
           .from('product_variants')
           .select('*')
           .eq('product_id', productId)
-          .order('name', { ascending: true });
+          .order('price', { ascending: true });
 
         if (fetchError) throw fetchError;
         setVariants(data || []);
