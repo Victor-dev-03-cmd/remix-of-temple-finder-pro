@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Package, Plus, Edit, Trash2, Check, Clock, X, RefreshCw, GitCommitHorizontal, Palette, Ruler } from 'lucide-react';
+import { Package, Plus, Edit, Trash2, Check, Clock, X, RefreshCw, GitCommitHorizontal, Palette, Ruler, Weight, ExternalLink } from 'lucide-react';
 import { z } from 'zod';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -99,6 +100,7 @@ const emptyFormValues: Omit<ProductFormValues, 'temple_id'> = {
 
 
 const ProductManagement = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [vendorTemple, setVendorTemple] = useState<Temple | null>(null);
@@ -107,6 +109,24 @@ const ProductManagement = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const variantSectionRef = useRef<HTMLDivElement>(null);
+
+  // Check for colors returned from color picker page
+  useEffect(() => {
+    const storedColors = sessionStorage.getItem('selectedProductColors');
+    if (storedColors && showForm) {
+      try {
+        const colors: string[] = JSON.parse(storedColors);
+        colors.forEach((colorName) => {
+          append({ name: colorName, price: 0, stock: 0, sku: '' });
+        });
+        sessionStorage.removeItem('selectedProductColors');
+        scrollToVariants();
+        toast({ title: 'Colors Added', description: `${colors.length} color variant(s) added.` });
+      } catch (e) {
+        console.error('Failed to parse stored colors', e);
+      }
+    }
+  }, [showForm]);
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -518,39 +538,82 @@ const ProductManagement = () => {
                       </div>
                     </div>
 
-                    {/* Color Variants */}
+                    {/* Weight Variants */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Weight className="h-4 w-4 text-primary" />
+                        <span className="font-medium">Weights:</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {['50g', '100g', '250g', '500g', '1kg', '2kg', '5kg'].map((weight) => (
+                          <Button
+                            key={weight}
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            onClick={() => {
+                              append({ name: weight, price: 0, stock: 0, sku: '' });
+                              scrollToVariants();
+                            }}
+                          >
+                            {weight}
+                          </Button>
+                        ))}
+                      </div>
+                      {/* Weight Units - Add All */}
+                      <div className="flex items-center gap-4 mt-2">
+                        <span className="text-xs text-muted-foreground">Add preset:</span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 text-xs px-2"
+                          onClick={() => {
+                            ['100g', '250g', '500g', '1kg'].forEach((weight) => {
+                              append({ name: weight, price: 0, stock: 0, sku: '' });
+                            });
+                            scrollToVariants();
+                          }}
+                        >
+                          Add grams set
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 text-xs px-2"
+                          onClick={() => {
+                            ['1kg', '2kg', '5kg', '10kg'].forEach((weight) => {
+                              append({ name: weight, price: 0, stock: 0, sku: '' });
+                            });
+                            scrollToVariants();
+                          }}
+                        >
+                          Add kg set
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Color Variants - Link to separate page */}
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-sm">
                         <Palette className="h-4 w-4 text-primary" />
                         <span className="font-medium">Colors:</span>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        {[
-                          { name: 'Red', color: 'bg-red-500' },
-                          { name: 'Blue', color: 'bg-blue-500' },
-                          { name: 'Green', color: 'bg-green-500' },
-                          { name: 'Yellow', color: 'bg-yellow-500' },
-                          { name: 'Black', color: 'bg-black' },
-                          { name: 'White', color: 'bg-white border' },
-                          { name: 'Gold', color: 'bg-amber-400' },
-                          { name: 'Silver', color: 'bg-gray-300' },
-                        ].map((colorOption) => (
-                          <Button
-                            key={colorOption.name}
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs gap-1.5"
-                            onClick={() => {
-                              append({ name: colorOption.name, price: 0, stock: 0, sku: '' });
-                              scrollToVariants();
-                            }}
-                          >
-                            <span className={`h-3 w-3 rounded-full ${colorOption.color}`} />
-                            {colorOption.name}
-                          </Button>
-                        ))}
-                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="gap-2"
+                        onClick={() => navigate('/vendor/products/colors?returnUrl=/vendor/products')}
+                      >
+                        <Palette className="h-4 w-4" />
+                        Open Color Picker
+                        <ExternalLink className="h-3 w-3" />
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        Select multiple colors from our comprehensive color palette
+                      </p>
                     </div>
                   </div>
 
