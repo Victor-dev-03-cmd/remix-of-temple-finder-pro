@@ -7,6 +7,7 @@ type AppRole = 'admin' | 'vendor' | 'customer';
 interface AuthContextType {
   user: User | null;
   session: Session | null;
+  profile: any | null;
   userRole: AppRole | null;
   userRoles: AppRole[];
   activeViewRole: AppRole | null;
@@ -15,6 +16,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   switchRole: (role: AppRole) => void;
+  refreshProfile: () => Promise<void>;
   isAdmin: boolean;
   isVendor: boolean;
   isCustomer: boolean;
@@ -26,10 +28,35 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<any | null>(null);
   const [userRole, setUserRole] = useState<AppRole | null>(null);
   const [userRoles, setUserRoles] = useState<AppRole[]>([]);
   const [activeViewRole, setActiveViewRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const fetchProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+        return;
+      }
+      setProfile(data);
+    } catch (err) {
+      console.error('Error in fetchProfile:', err);
+    }
+  };
+
+  const refreshProfile = async () => {
+    if (user) {
+      await fetchProfile(user.id);
+    }
+  };
 
   const fetchUserRoles = (userId: string) => {
     // Use setTimeout to avoid deadlock with onAuthStateChange
@@ -82,7 +109,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         if (session?.user) {
           fetchUserRoles(session.user.id);
+          fetchProfile(session.user.id);
         } else {
+          setProfile(null);
           setUserRole(null);
           setUserRoles([]);
           setActiveViewRole(null);
@@ -101,6 +130,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (session?.user) {
         fetchUserRoles(session.user.id);
+        fetchProfile(session.user.id);
       }
       
       setLoading(false);
@@ -155,6 +185,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const value = {
     user,
     session,
+    profile,
     userRole,
     userRoles,
     activeViewRole,
@@ -163,6 +194,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     signIn,
     signOut,
     switchRole,
+    refreshProfile,
     isAdmin: activeViewRole === 'admin',
     isVendor: activeViewRole === 'vendor',
     isCustomer: activeViewRole === 'customer',

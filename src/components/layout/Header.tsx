@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -44,7 +45,7 @@ const Header = () => {
   const { data: siteSettings } = useSiteSettings();
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, signOut, isAdmin, isVendor, activeViewRole } = useAuth();
+  const { user, profile, signOut, isAdmin, isVendor, activeViewRole } = useAuth();
   const { totalItems, setIsCartOpen } = useCart();
 
   // 1. Theme Sync with LocalStorage
@@ -193,9 +194,16 @@ const Header = () => {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center text-white text-xs uppercase">{user.email?.[0]}</div>
-                    <span>{user.email?.split('@')[0]}</span>
+                  <Button variant="ghost" size="sm" className="gap-2 h-9 px-2">
+                    <Avatar className="h-7 w-7 border border-primary/20">
+                      <AvatarImage src={profile?.avatar_url || ''} className="object-cover" />
+                      <AvatarFallback className="bg-primary text-white text-[10px] uppercase">
+                        {profile?.full_name?.[0] || user.email?.[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="hidden lg:inline-block max-w-[100px] truncate font-medium">
+                      {profile?.full_name || user.email?.split('@')[0]}
+                    </span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
@@ -252,6 +260,24 @@ const Header = () => {
           {isMobileMenuOpen && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="md:hidden border-t bg-card overflow-hidden">
               <div className="container py-4 flex flex-col gap-4">
+                {user && (
+                  <div className="flex items-center gap-3 px-4 py-2 bg-primary/5 rounded-xl border border-primary/10">
+                    <Avatar className="h-10 w-10 border border-primary/20">
+                      <AvatarImage src={profile?.avatar_url || ''} className="object-cover" />
+                      <AvatarFallback className="bg-primary text-white text-xs uppercase">
+                        {profile?.full_name?.[0] || user.email?.[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col overflow-hidden">
+                      <span className="font-semibold text-foreground truncate">
+                        {profile?.full_name || user.email?.split('@')[0]}
+                      </span>
+                      <span className="text-xs text-muted-foreground truncate">
+                        {user.email}
+                      </span>
+                    </div>
+                  </div>
+                )}
                 <div className="flex flex-col gap-1">
                   {navLinks.map((link) => (
                     <Link key={link.href} to={link.href} onClick={() => setIsMobileMenuOpen(false)} className={cn("px-4 py-3 rounded-lg text-sm font-medium", location.pathname === link.href ? "bg-primary/10 text-primary" : "text-muted-foreground")}>
@@ -278,20 +304,25 @@ const Header = () => {
                               {currentLanguage.flag} {currentLanguage.name} <ChevronDown className="h-3 w-3" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent>
-                            {languages.map(l => (
-                              <DropdownMenuItem key={l.code} onClick={() => handleLanguageChange(l.code)}>{l.flag} {l.name}</DropdownMenuItem>
+                          <DropdownMenuContent align="end" className="w-40">
+                            {languages.map((lang) => (
+                              <DropdownMenuItem key={lang.code} onClick={() => handleLanguageChange(lang.code)} className={cn("flex items-center gap-2", selectedLanguage === lang.code && "bg-primary/10 text-primary")}>
+                                <span className="text-base">{lang.flag}</span>
+                                <span>{lang.name}</span>
+                              </DropdownMenuItem>
                             ))}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
 
-                      <Button variant="destructive" className="w-full justify-start gap-3 h-11" onClick={handleLogout}>
+                      <Button variant="ghost" className="w-full justify-start gap-3 h-11 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={handleLogout}>
                         <LogOut className="h-4 w-4" /> Sign Out
                       </Button>
                     </>
                   ) : (
-                    <Button className="w-full" onClick={() => navigate('/auth')}>Login / Sign Up</Button>
+                    <Button className="w-full h-11 gap-2" onClick={() => { navigate('/auth'); setIsMobileMenuOpen(false); }}>
+                      Sign In to Account
+                    </Button>
                   )}
                 </div>
               </div>
@@ -300,22 +331,54 @@ const Header = () => {
         </AnimatePresence>
       </header>
 
-      {/* --- Search Dialog with Loader --- */}
+      {/* SEARCH DIALOG */}
       <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
-        <DialogContent className="p-0 sm:max-w-[550px] overflow-hidden">
-          <div className="flex items-center p-4 border-b">
-            <Search className="h-5 w-5 text-muted-foreground mr-3" />
-            <Input placeholder="Search..." className="border-none focus-visible:ring-0 shadow-none flex-1" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} autoFocus />
-            {isSearching && <Loader2 className="h-4 w-4 animate-spin text-primary ml-2" />}
-          </div>
-          <ScrollArea className="max-h-[350px] p-2">
-            {searchResults.length > 0 ? searchResults.map(r => (
-              <div key={r.id} onClick={() => { navigate(`/${r.type}s/${r.id}`); setIsSearchOpen(false); }} className="p-3 hover:bg-muted rounded-md cursor-pointer flex items-center justify-between">
-                <p className="text-sm font-medium">{r.name}</p>
-                <span className="text-[10px] uppercase font-bold bg-primary/10 text-primary px-2 py-1 rounded">{r.type}</span>
+        <DialogContent className="max-w-2xl p-0 overflow-hidden border-none bg-transparent shadow-none top-[10%] translate-y-0">
+          <div className="bg-card border rounded-2xl shadow-2xl overflow-hidden">
+            <div className="flex items-center px-4 py-3 border-b">
+              <Search className="h-5 w-5 text-muted-foreground mr-3" />
+              <Input placeholder="Search temples, products, services..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="border-none focus-visible:ring-0 text-lg p-0 h-auto" autoFocus />
+              <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(false)}><X className="h-5 w-5" /></Button>
+            </div>
+            
+            <ScrollArea className="max-h-[60vh]">
+              <div className="p-2">
+                {isSearching ? (
+                  <div className="flex items-center justify-center py-12 gap-3 text-muted-foreground">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Searching...</span>
+                  </div>
+                ) : searchQuery.length > 0 && searchResults.length === 0 ? (
+                  <div className="py-12 text-center text-muted-foreground">No results found for "{searchQuery}"</div>
+                ) : searchResults.length > 0 ? (
+                  <div className="space-y-1">
+                    {searchResults.map((result) => (
+                      <div key={result.id} onClick={() => { navigate(`/${result.type === 'temple' ? 'temples' : 'product'}/${result.id}`); setIsSearchOpen(false); }} className="flex items-center gap-4 p-3 rounded-xl hover:bg-muted cursor-pointer transition-colors group">
+                        <div className="h-12 w-12 rounded-lg bg-muted flex-shrink-0 overflow-hidden border border-border group-hover:border-primary/20">
+                          {result.image_url ? <img src={result.image_url} alt={result.name} className="h-full w-full object-cover" /> : <div className="h-full w-full flex items-center justify-center text-muted-foreground uppercase text-xs">{result.type[0]}</div>}
+                        </div>
+                        <div className="flex-1 overflow-hidden">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-semibold text-foreground truncate">{result.name}</h4>
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary">{result.type}</span>
+                          </div>
+                          {result.description && <p className="text-xs text-muted-foreground truncate">{result.description}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 text-center">
+                    <p className="text-sm text-muted-foreground mb-4">Quick Links</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="outline" size="sm" onClick={() => { navigate('/temples'); setIsSearchOpen(false); }}>All Temples</Button>
+                      <Button variant="outline" size="sm" onClick={() => { navigate('/products'); setIsSearchOpen(false); }}>All Products</Button>
+                    </div>
+                  </div>
+                )}
               </div>
-            )) : searchQuery.length > 1 && !isSearching && <div className="p-8 text-center text-sm text-muted-foreground">No results found</div>}
-          </ScrollArea>
+            </ScrollArea>
+          </div>
         </DialogContent>
       </Dialog>
     </>

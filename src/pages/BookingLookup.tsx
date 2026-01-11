@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Ticket, Calendar, MapPin, User, Mail, Phone, CheckCircle2, XCircle, Clock, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -10,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface TicketDetail {
   category: string;
@@ -41,15 +43,30 @@ interface BookingDetails {
 }
 
 const BookingLookup = () => {
-  const [bookingCode, setBookingCode] = useState('');
+  const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const [bookingCode, setBookingCode] = useState(searchParams.get('code') || '');
   const [booking, setBooking] = useState<BookingDetails | null>(null);
+  const [recentBookings, setRecentBookings] = useState<BookingDetails[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!bookingCode.trim()) {
+  useEffect(() => {
+    const fetchRecentBookings = async () => {
+      if (!user?.email) return;
+      const { data } = await supabase
+        .from('bookings')
+        .select('*, temples(name, district, province, address, image_url)')
+        .eq('customer_email', user.email)
+        .order('visit_date', { ascending: false })
+        .limit(2);
+      if (data) setRecentBookings(data as unknown as BookingDetails[]);
+    };
+    fetchRecentBookings();
+  }, [user]);
+
+  const searchByCode = useCallback(async (code: string) => {
+    if (!code.trim()) {
       toast.error('Please enter a booking code');
       return;
     }
@@ -60,7 +77,7 @@ const BookingLookup = () => {
     try {
       // Use secure RPC function to lookup booking by code
       const { data: bookingData, error: bookingError } = await supabase
-        .rpc('get_booking_by_code', { p_booking_code: bookingCode.toUpperCase().trim() })
+        .rpc('get_booking_by_code', { p_booking_code: code.toUpperCase().trim() })
         .maybeSingle();
 
       if (bookingError) throw bookingError;
@@ -94,13 +111,26 @@ const BookingLookup = () => {
           : null,
       };
       setBooking(finalBooking as BookingDetails);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Lookup error:', error);
       toast.error('Failed to look up booking');
       setBooking(null);
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    const code = searchParams.get('code');
+    if (code) {
+      setBookingCode(code);
+      searchByCode(code);
+    }
+  }, [searchParams, searchByCode]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    searchByCode(bookingCode);
   };
 
   const getStatusInfo = (status: string) => {
@@ -194,6 +224,44 @@ const BookingLookup = () => {
               </form>
             </CardContent>
           </Card>
+
+          {/* Recent Bookings Section (Only show if not currently viewing a result) */}
+          {!booking && !isLoading && recentBookings.length > 0 && (
+            <div className="mb-8 space-y-4">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Your Recent Bookings</h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {recentBookings.map((b) => (
+                  <Card key={b.id} className="hover:border-primary/50 transition-colors cursor-pointer overflow-hidden group" onClick={() => searchByCode(b.booking_code)}>
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="p-2 rounded bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                          <Ticket className="h-4 w-4 text-primary" />
+                        </div>
+                        <Badge variant="secondary" className="font-mono text-[10px] uppercase">{b.status}</Badge>
+                      </div>
+                      <h3 className="font-semibold text-sm truncate mb-1">{b.temples?.name || 'Temple Visit'}</h3>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <MapPin className="h-3 w-3" />
+                          <span className="truncate">{b.temples?.district}, {b.temples?.province}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Calendar className="h-3 w-3" />
+                          <span>{format(new Date(b.visit_date), 'MMM d, yyyy')}</span>
+                        </div>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-primary font-mono">{b.booking_code}</span>
+                        <span className="text-[10px] font-medium text-muted-foreground group-hover:text-primary flex items-center gap-1 transition-colors">
+                          View Detail <Clock className="h-2.5 w-2.5" />
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Results */}
           {isLoading ? (

@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVendorTemple } from '@/hooks/useVendorTemple';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Sidebar,
   SidebarContent,
@@ -97,13 +98,16 @@ const vendorMenuItems = [
 
 const customerMenuItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
-  { title: 'Orders', url: '/dashboard/orders', icon: ShoppingCart },
-  { title: 'Favorites', url: '/dashboard/favorites', icon: Heart },
-  { title: 'Profile', url: '/dashboard/profile', icon: User },
+];
+
+const personalMenuItems = [
+  { title: 'My Orders', url: '/dashboard/orders', icon: ShoppingCart },
+  { title: 'My Favorites', url: '/dashboard/favorites', icon: Heart },
+  { title: 'Profile Settings', url: '/dashboard/profile', icon: User },
 ];
 
 const DashboardSidebar = () => {
-  const { isAdmin, isVendor, user, signOut } = useAuth();
+  const { isAdmin, isVendor, user, profile, signOut } = useAuth();
   const { temple } = useVendorTemple(user?.id);
   const location = useLocation();
   const navigate = useNavigate();
@@ -138,12 +142,17 @@ const DashboardSidebar = () => {
     <Sidebar collapsible="icon" className="border-r border-border">
       <SidebarHeader className="border-b border-border p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-            <RoleIcon className="h-5 w-5 text-primary" />
-          </div>
+          <Avatar className="h-10 w-10 shrink-0 rounded-lg border border-primary/10">
+            <AvatarImage src={profile?.avatar_url || ''} className="object-cover" />
+            <AvatarFallback className="rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <RoleIcon className="h-5 w-5" />
+            </AvatarFallback>
+          </Avatar>
           {!isCollapsed && (
             <div className="flex flex-col overflow-hidden animate-in fade-in duration-300">
-              <span className="font-semibold text-foreground truncate">{label}</span>
+              <span className="font-semibold text-foreground truncate">
+                {profile?.full_name || label}
+              </span>
               <span className="text-xs text-muted-foreground truncate">
                 {user?.email}
               </span>
@@ -172,6 +181,28 @@ const DashboardSidebar = () => {
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive(item.url)}
+                    tooltip={item.title}
+                  >
+                    <Link to={item.url} onClick={handleItemClick}>
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Personal</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {personalMenuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild

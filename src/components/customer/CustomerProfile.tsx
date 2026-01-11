@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Save, RefreshCw, Globe } from 'lucide-react';
+import { User, Save, RefreshCw, Globe, Camera, Loader2 } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Form,
   FormControl,
@@ -49,9 +50,10 @@ const profileSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
 const CustomerProfile = () => {
-  const { user } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -63,33 +65,62 @@ const CustomerProfile = () => {
   });
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user) return;
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('full_name, phone, country')
-          .eq('user_id', user.id)
-          .maybeSingle();
+    if (profile) {
+      form.reset({
+        fullName: profile.full_name || '',
+        phone: profile.phone || '',
+        country: profile.country || 'LK',
+      });
+      setLoading(false);
+    } else if (user) {
+      // If profile is not in context yet, it will be fetched by AuthProvider
+      // but we can also handle the initial loading state here
+      setLoading(false);
+    }
+  }, [profile, user, form]);
 
-        if (error) throw error;
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      if (!event.target.files || event.target.files.length === 0 || !user) return;
+      
+      setUploading(true);
+      const file = event.target.files[0];
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
 
-        if (data) {
-          form.reset({
-            fullName: data.full_name || '',
-            phone: data.phone || '',
-            country: data.country || 'LK',
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching profile:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+      const { error: uploadError } = await supabase.storage
+        .from('profile_photos')
+        .upload(fileName, file, { upsert: true });
 
-    fetchProfile();
-  }, [user, form]);
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('profile_photos')
+        .getPublicUrl(fileName);
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('user_id', user.id);
+
+      if (updateError) throw updateError;
+
+      await refreshProfile();
+      
+      toast({
+        title: "Photo Updated",
+        description: "Your profile picture has been updated successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Upload Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const onSubmit = async (values: ProfileFormValues) => {
     if (!user) return;
@@ -105,6 +136,8 @@ const CustomerProfile = () => {
         .eq('user_id', user.id);
 
       if (error) throw error;
+
+      await refreshProfile();
 
       toast({
         title: 'Profile Updated',
@@ -147,6 +180,41 @@ const CustomerProfile = () => {
       </div>
 
       <div className="p-6">
+        <div className="mb-8 flex flex-col items-center gap-4 sm:flex-row">
+          <Avatar className="h-24 w-24 border-2 border-primary/20 shadow-sm">
+            <AvatarImage src={profile?.avatar_url || ''} className="object-cover" />
+            <AvatarFallback className="text-2xl bg-primary text-primary-foreground uppercase">
+              {profile?.full_name?.[0] || user?.email?.[0]}
+            </AvatarFallback>
+          </Avatar>
+          <div className="space-y-2 text-center sm:text-left">
+            <h3 className="text-lg font-medium">Profile Picture</h3>
+            <p className="text-sm text-muted-foreground">
+              Update your photo to be visible across the platform
+            </p>
+            <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+              <input
+                type="file"
+                id="avatar-upload"
+                className="hidden"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                disabled={uploading}
+              />
+              <Button variant="outline" size="sm" className="gap-2" asChild>
+                <label htmlFor="avatar-upload" className="cursor-pointer">
+                  {uploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Camera className="h-4 w-4" />
+                  )}
+                  Change Photo
+                </label>
+              </Button>
+            </div>
+          </div>
+        </div>
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="rounded-lg border border-border bg-muted/50 p-4">

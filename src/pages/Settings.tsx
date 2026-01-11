@@ -52,7 +52,7 @@ const languages = [
 ];
 
 const Settings = () => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -158,6 +158,7 @@ const Settings = () => {
         }, { onConflict: 'user_id' });
 
       if (error) throw error;
+      await refreshProfile();
       toast({ title: 'Success', description: 'Settings saved successfully.' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, Send, X, User, Clock, CheckCheck } from 'lucide-react';
+import { MessageCircle, Send, X, User, Clock, CheckCheck, RefreshCw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -26,12 +26,20 @@ const AdminChatPanel = () => {
     setActiveConversation,
     sendMessage,
     closeConversation,
-    loading
+    loading,
+    fetchConversations
   } = useChat();
 
   const [newMessage, setNewMessage] = useState('');
   const [userProfiles, setUserProfiles] = useState<Record<string, UserProfile>>({});
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchConversations();
+    setIsRefreshing(false);
+  };
 
   // Fetch user profiles for conversations
   useEffect(() => {
@@ -88,23 +96,39 @@ const AdminChatPanel = () => {
       transition={{ duration: 0.5 }}
     >
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="flex items-center gap-2">
             <MessageCircle className="h-5 w-5" />
             Support Chat
           </CardTitle>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={handleRefresh} 
+            disabled={loading || isRefreshing}
+            className={cn((loading || isRefreshing) && "animate-spin")}
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[600px]">
             {/* Conversations List */}
-            <div className="border rounded-lg overflow-hidden">
+            <div className="border rounded-lg overflow-hidden flex flex-col">
               <div className="bg-muted p-3 border-b">
                 <h3 className="font-semibold text-sm">Conversations</h3>
               </div>
-              <ScrollArea className="h-[calc(600px-48px)]">
+              <ScrollArea className="flex-1">
                 <div className="p-2">
-                  {/* Open Conversations */}
-                  {openConversations.length > 0 && (
+                  {loading && conversations.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 gap-2">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      <p className="text-xs text-muted-foreground">Loading conversations...</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Open Conversations */}
+                      {openConversations.length > 0 && (
                     <div className="mb-4">
                       <p className="text-xs text-muted-foreground px-2 mb-2">Open ({openConversations.length})</p>
                       {openConversations.map((conv) => {
@@ -182,14 +206,19 @@ const AdminChatPanel = () => {
                     </div>
                   )}
 
-                  {conversations.length === 0 && (
-                    <p className="text-center text-muted-foreground py-8 text-sm">
-                      No conversations yet
-                    </p>
+                  {!loading && conversations.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <MessageCircle className="h-8 w-8 text-muted-foreground mb-2 opacity-20" />
+                      <p className="text-muted-foreground text-sm">
+                        No conversations yet
+                      </p>
+                    </div>
                   )}
-                </div>
-              </ScrollArea>
+                </>
+              )}
             </div>
+          </ScrollArea>
+        </div>
 
             {/* Chat Area */}
             <div className="lg:col-span-2 border rounded-lg overflow-hidden flex flex-col">

@@ -47,6 +47,12 @@ export const useChat = () => {
     };
   }, []);
 
+  const activeConvRef = useRef<ChatConversation | null>(null);
+
+  useEffect(() => {
+    activeConvRef.current = activeConversation;
+  }, [activeConversation]);
+
   // Play notification sound
   const playNotificationSound = useCallback(() => {
     if (audioRef.current) {
@@ -58,10 +64,10 @@ export const useChat = () => {
   }, []);
 
   // Fetch conversations
-  const fetchConversations = useCallback(async () => {
+  const fetchConversations = useCallback(async (showLoading = true) => {
     if (!user) return;
     
-    setLoading(true);
+    if (showLoading) setLoading(true);
     try {
       const { data, error } = await supabase
         .from('chat_conversations')
@@ -72,10 +78,15 @@ export const useChat = () => {
       setConversations(data || []);
     } catch (error: any) {
       console.error('Error fetching conversations:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load conversations',
+        variant: 'destructive'
+      });
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, toast]);
 
   // Fetch messages for a conversation
   const fetchMessages = useCallback(async (conversationId: string) => {
@@ -95,7 +106,8 @@ export const useChat = () => {
           .from('chat_messages')
           .update({ is_read: true })
           .eq('conversation_id', conversationId)
-          .neq('sender_id', user.id);
+          .neq('sender_id', user.id)
+          .eq('is_read', false);
       }
     } catch (error: any) {
       console.error('Error fetching messages:', error);
@@ -156,6 +168,9 @@ export const useChat = () => {
         .update({ updated_at: new Date().toISOString() })
         .eq('id', conversationId);
 
+      // Local update for immediate feedback
+      setMessages(prev => [...prev, data]);
+
       return data;
     } catch (error: any) {
       console.error('Error sending message:', error);
@@ -182,6 +197,10 @@ export const useChat = () => {
         prev.map(c => c.id === conversationId ? { ...c, status: 'closed' } : c)
       );
       
+      if (activeConversation?.id === conversationId) {
+        setActiveConversation(prev => prev ? { ...prev, status: 'closed' } : null);
+      }
+
       toast({
         title: 'Conversation closed',
         description: 'The conversation has been marked as closed'
@@ -199,7 +218,7 @@ export const useChat = () => {
 
     // Subscribe to new messages
     const messagesChannel = supabase
-      .channel('chat-messages')
+      .channel('chat-messages-global')
       .on(
         'postgres_changes',
         {
@@ -213,8 +232,9 @@ export const useChat = () => {
           // Play sound and show toast if message is from someone else
           if (newMessage.sender_id !== user.id) {
             playNotificationSound();
-            // Update unread count immediately
+            // Update unread count
             setUnreadCount(prev => prev + 1);
+            
             // Show toast notification
             toast({
               title: 'New Message',
@@ -224,9 +244,15 @@ export const useChat = () => {
             });
           }
           
-          // Add to messages if in active conversation
-          if (activeConversation && newMessage.conversation_id === activeConversation.id) {
-            setMessages(prev => [...prev, newMessage]);
+          // Add to messages if in active conversation and NOT sent by current user (already added locally)
+          if (activeConvRef.current && 
+              newMessage.conversation_id === activeConvRef.current.id && 
+              newMessage.sender_id !== user.id) {
+            setMessages(prev => {
+              // Avoid duplicates
+              if (prev.find(m => m.id === newMessage.id)) return prev;
+              return [...prev, newMessage];
+            });
           }
         }
       )
@@ -234,7 +260,7 @@ export const useChat = () => {
 
     // Subscribe to conversation updates
     const conversationsChannel = supabase
-      .channel('chat-conversations')
+      .channel('chat-conversations-global')
       .on(
         'postgres_changes',
         {
@@ -243,7 +269,7 @@ export const useChat = () => {
           table: 'chat_conversations'
         },
         () => {
-          fetchConversations();
+          fetchConversations(false); // Don't show loading on background updates
         }
       )
       .subscribe();
@@ -252,7 +278,7 @@ export const useChat = () => {
       supabase.removeChannel(messagesChannel);
       supabase.removeChannel(conversationsChannel);
     };
-  }, [user, activeConversation, fetchConversations, playNotificationSound]);
+  }, [user, fetchConversations, playNotificationSound, toast]);
 
   // Fetch messages when active conversation changes
   useEffect(() => {
