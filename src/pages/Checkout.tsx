@@ -106,19 +106,68 @@ const Checkout = () => {
 
         if (orderError) throw orderError;
 
-        // Create order items
-        const orderItems = vendorItems.map((item) => ({
-          order_id: order.id,
-          product_id: item.id,
-          quantity: item.quantity,
-          unit_price: item.price,
-        }));
+        // Create order items and update inventory
+        for (const item of vendorItems) {
+          // 1. Insert order item
+          const { error: itemError } = await supabase
+            .from('order_items')
+            .insert({
+              order_id: order.id,
+              product_id: item.id,
+              variant_id: item.variant_id || null,
+              quantity: item.quantity,
+              unit_price: item.price,
+            });
 
-        const { error: itemsError } = await supabase
-          .from('order_items')
-          .insert(orderItems);
+          if (itemError) throw itemError;
 
-        if (itemsError) throw itemsError;
+          // 2. Decrement variant stock if applicable
+          if (item.variant_id) {
+            const { error: variantStockError } = await supabase.rpc('decrement_variant_stock', {
+              row_id: item.variant_id,
+              quantity_to_remove: item.quantity
+            });
+            
+            // If RPC doesn't exist, fallback to manual update (might have race conditions)
+            if (variantStockError) {
+              console.warn('RPC decrement_variant_stock failed, falling back to manual update', variantStockError);
+              const { data: variantData } = await supabase
+                .from('product_variants')
+                .select('stock')
+                .eq('id', item.variant_id)
+                .single();
+              
+              if (variantData) {
+                await supabase
+                  .from('product_variants')
+                  .update({ stock: Math.max(0, variantData.stock - item.quantity) })
+                  .eq('id', item.variant_id);
+              }
+            }
+          }
+
+          // 3. Decrement main product stock
+          const { error: productStockError } = await supabase.rpc('decrement_product_stock', {
+            row_id: item.id,
+            quantity_to_remove: item.quantity
+          });
+
+          if (productStockError) {
+            console.warn('RPC decrement_product_stock failed, falling back to manual update', productStockError);
+            const { data: productData } = await supabase
+              .from('products')
+              .select('stock')
+              .eq('id', item.id)
+              .single();
+            
+            if (productData) {
+              await supabase
+                .from('products')
+                .update({ stock: Math.max(0, productData.stock - item.quantity) })
+                .eq('id', item.id);
+            }
+          }
+        }
       }
 
       clearCart();
