@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, X, GitCommitHorizontal, Palette, Ruler, Weight, ExternalLink } from 'lucide-react';
+import { Plus, X, GitCommitHorizontal, Palette, Ruler, Weight, ExternalLink, Sparkles } from 'lucide-react';
 import { z } from 'zod';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import Groq from 'groq-sdk';
 import { supabase } from '@/integrations/supabase/client';
 import { productCategories } from '@/lib/categories';
 import { useAuth } from '@/contexts/AuthContext';
@@ -72,6 +73,7 @@ const ProductForm = ({ initialData, onSuccess, onCancel }: ProductFormProps) => 
   const { user } = useAuth();
   const [vendorTemple, setVendorTemple] = useState<{ id: string; name: string } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const variantSectionRef = useRef<HTMLDivElement>(null);
 
   const form = useForm<ProductFormValues>({
@@ -96,6 +98,57 @@ const ProductForm = ({ initialData, onSuccess, onCancel }: ProductFormProps) => 
     control: form.control,
     name: "variants",
   });
+
+  const groq = new Groq({
+    apiKey: import.meta.env.VITE_GROQ_API_KEY,
+    dangerouslyAllowBrowser: true,
+  });
+
+  const handleGenerateDescription = async () => {
+    const productName = form.getValues('name');
+    if (!productName) {
+      toast({
+        title: 'Product Name is missing',
+        description: 'Please enter a product name first.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const chatCompletion = await groq.chat.completions.create({
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert e-commerce copywriter. Write a compelling, SEO-friendly product description based on the product name provided. The tone should be engaging and highlight potential benefits. Keep it under 80 words.',
+          },
+          {
+            role: 'user',
+            content: `Generate a product description for: "${productName}"`,
+          },
+        ],
+        model: 'llama-3.3-70b-versatile',
+      });
+
+      const description = chatCompletion.choices[0]?.message?.content || '';
+      form.setValue('description', description.trim());
+      toast({
+        title: 'Description Generated',
+        description: 'The AI-generated description has been filled in.',
+      });
+    } catch (error) {
+      console.error('Error generating description:', error);
+      toast({
+        title: 'Generation Failed',
+        description: 'Could not generate a description at this time.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
 
   useEffect(() => {
     const fetchTemple = async () => {
@@ -236,7 +289,20 @@ const ProductForm = ({ initialData, onSuccess, onCancel }: ProductFormProps) => 
             name="description"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Description</FormLabel>
+                <div className="flex items-center justify-between">
+                  <FormLabel>Description</FormLabel>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleGenerateDescription}
+                    disabled={isGenerating}
+                    className="gap-2 text-xs"
+                  >
+                    <Sparkles className={`h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
+                    {isGenerating ? 'Generating...' : 'Generate with AI'}
+                  </Button>
+                </div>
                 <FormControl>
                   <Textarea placeholder="Describe your product..." className="min-h-[100px]" {...field} value={field.value ?? ''} />
                 </FormControl>

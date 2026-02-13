@@ -47,6 +47,7 @@ import Profile from './pages/Profile';
 import VendorChat from './pages/VendorChat';
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import AdminChatPage from "./pages/admin/AdminChatPage";
+import SupportChat from "./pages/admin/SupportChat"; // Import the new page
 import VendorManagementPage from "./pages/admin/VendorManagementPage";
 import VendorApplications from "./pages/admin/VendorApplications";
 import UserManagementPage from "./pages/admin/UserManagementPage";
@@ -170,6 +171,7 @@ const AppRoutes = () => {
 
         <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
         <Route path="/admin/chat" element={<ProtectedRoute allowedRoles={['admin']}><AdminChatPage /></ProtectedRoute>} />
+        <Route path="/admin/support-chat" element={<ProtectedRoute allowedRoles={['admin']}><SupportChat /></ProtectedRoute>} />
         <Route path="/admin/vendors" element={<ProtectedRoute allowedRoles={['admin']}><VendorManagementPage /></ProtectedRoute>} />
         <Route path="/admin/vendor-applications" element={<ProtectedRoute allowedRoles={['admin']}><VendorApplications /></ProtectedRoute>} />
         <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><UserManagementPage /></ProtectedRoute>} />
@@ -187,7 +189,7 @@ const AppRoutes = () => {
         <Route path="/admin/settings/footer" element={<ProtectedRoute allowedRoles={['admin']}><FooterSettingsPage /></ProtectedRoute>} />
         <Route path="/admin/settings/email-templates" element={<ProtectedRoute allowedRoles={['admin']}><EmailTemplateSettingsPage /></ProtectedRoute>} />
         <Route path="/admin/settings/home-gallery" element={<ProtectedRoute allowedRoles={['admin']}><HomeGallerySettingsPage /></ProtectedRoute>} />
-        <Route path="/admin/settings/services" element={<ProtectedRoute allowedRoles={['admin']}><ServiceSettingsPage /></ProtectedRoute>} />
+        <Route path="/admin/settings/services" element={<ProtectedRoute allowed-roles={['admin']}><ServiceSettingsPage /></ProtectedRoute>} />
         <Route path="/admin/settings/layout" element={<ProtectedRoute allowedRoles={['admin']}><LayoutManagerPage /></ProtectedRoute>} />
 
         <Route path="/settings" element={<ProtectedRoute allowedRoles={['admin', 'vendor', 'customer']}><Settings /></ProtectedRoute>} />
