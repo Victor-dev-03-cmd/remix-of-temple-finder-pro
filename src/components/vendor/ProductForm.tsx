@@ -30,6 +30,13 @@ import {
 import { toast } from '@/hooks/use-toast';
 import ProductImageUpload from './ProductImageUpload';
 
+// Predefined colors list to check against
+const predefinedColors = [
+  'Red', 'Blue', 'Green', 'Yellow', 'Orange', 'Purple', 'Pink', 'Indigo', 'Teal', 'Cyan', 
+  'Black', 'White', 'Gray', 'Gold', 'Silver', 'Bronze', 'Rose Gold', 'Navy', 'Maroon', 
+  'Olive', 'Beige', 'Cream', 'Brown', 'Charcoal'
+];
+
 const variantSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, 'Variant name is required'),
@@ -174,6 +181,8 @@ const ProductForm = ({ initialData, onSuccess, onCancel }: ProductFormProps) => 
     if (storedColors) {
       try {
         const colors: string[] = JSON.parse(storedColors);
+        // Instead of just appending, we can also combine with existing variants if needed.
+        // For now, let's just append them as new variants.
         colors.forEach((colorName) => {
           append({ name: colorName, price: 0, stock: 0, sku: '' });
         });
@@ -208,7 +217,12 @@ const ProductForm = ({ initialData, onSuccess, onCancel }: ProductFormProps) => 
         image_url: productData.image_url,
         vendor_id: user.id,
         temple_id: vendorTemple.id,
-        price: variants.length > 0 ? Math.min(...variants.map(v => v.price)) : 0,
+        // Calculate min price excluding 0 price variants (like colors) unless all are 0
+        price: variants.length > 0 
+          ? (variants.some(v => v.price > 0) 
+              ? Math.min(...variants.filter(v => v.price > 0).map(v => v.price)) 
+              : 0)
+          : 0,
         stock: variants.reduce((acc, v) => acc + v.stock, 0),
       };
 
@@ -266,6 +280,11 @@ const ProductForm = ({ initialData, onSuccess, onCancel }: ProductFormProps) => 
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper to check if a variant name is a color
+  const isColorVariant = (name: string) => {
+    return predefinedColors.some(color => color.toLowerCase() === name.toLowerCase());
   };
 
   return (
@@ -365,7 +384,14 @@ const ProductForm = ({ initialData, onSuccess, onCancel }: ProductFormProps) => 
                       variant="outline"
                       className="h-7 text-xs"
                       onClick={() => {
-                        append({ name: size, price: 0, stock: 0, sku: '' });
+                        const currentVariants = form.getValues('variants');
+                        const lastVariant = currentVariants[currentVariants.length - 1];
+                        
+                        if (currentVariants.length === 1 && (lastVariant.name === 'Default' || lastVariant.name === '')) {
+                           form.setValue(`variants.${currentVariants.length - 1}.name`, size);
+                        } else {
+                           append({ name: size, price: 0, stock: 0, sku: '' });
+                        }
                         scrollToVariants();
                       }}
                     >
@@ -472,75 +498,107 @@ const ProductForm = ({ initialData, onSuccess, onCancel }: ProductFormProps) => 
                 <p className="text-xs text-muted-foreground">
                   Select multiple colors from our comprehensive color palette
                 </p>
+                
+                {/* New Feature: Combine Variants */}
+                <div className="pt-2">
+                   <Button
+                     type="button"
+                     variant="secondary"
+                     size="sm"
+                     className="w-full"
+                     onClick={() => {
+                       toast({ title: "Tip", description: "You can edit variant names to include both size and color (e.g., 'Small - Red')." });
+                     }}
+                   >
+                     <Sparkles className="mr-2 h-3 w-3" />
+                     Tip: Combine Size & Color in Name
+                   </Button>
+                </div>
               </div>
             </div>
 
-            {fields.map((field, index) => (
-              <motion.div 
-                key={field.id} 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-3 rounded-md border p-3 relative"
-              >
-                 {fields.length > 1 && (
-                   <Button
-                     type="button"
-                     variant="ghost"
-                     size="icon"
-                     className="absolute top-2 right-2 h-6 w-6"
-                     onClick={() => remove(index)}
-                   >
-                     <X className="h-4 w-4 text-destructive" />
-                   </Button>
-                 )}
-                 <FormField
-                   control={form.control}
-                   name={`variants.${index}.name`}
-                   render={({ field }) => (
-                     <FormItem>
-                       <FormLabel>Variant Name</FormLabel>
-                       <FormControl><Input placeholder="e.g., Small, Blue, 500g" {...field} /></FormControl>
-                       <FormMessage />
-                     </FormItem>
+            {fields.map((field, index) => {
+              const isColor = isColorVariant(form.watch(`variants.${index}.name`));
+              
+              return (
+                <motion.div 
+                  key={field.id} 
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-3 rounded-md border p-3 relative"
+                >
+                   {fields.length > 1 && (
+                     <Button
+                       type="button"
+                       variant="ghost"
+                       size="icon"
+                       className="absolute top-2 right-2 h-6 w-6"
+                       onClick={() => remove(index)}
+                     >
+                       <X className="h-4 w-4 text-destructive" />
+                     </Button>
                    )}
-                 />
-                 <div className="grid grid-cols-3 gap-4">
                    <FormField
                      control={form.control}
-                     name={`variants.${index}.sku`}
+                     name={`variants.${index}.name`}
                      render={({ field }) => (
                        <FormItem>
-                         <FormLabel>SKU</FormLabel>
-                         <FormControl><Input placeholder="SKU-001" {...field} value={field.value ?? ''} /></FormControl>
+                         <FormLabel>Variant Name</FormLabel>
+                         <FormControl><Input placeholder="e.g., Small, Blue, 500g" {...field} /></FormControl>
                          <FormMessage />
                        </FormItem>
                      )}
                    />
-                   <FormField
-                     control={form.control}
-                     name={`variants.${index}.price`}
-                     render={({ field }) => (
-                       <FormItem>
-                         <FormLabel>Price (LKR)</FormLabel>
-                         <FormControl><Input type="number" min="0" placeholder="0" {...field} /></FormControl>
-                         <FormMessage />
-                       </FormItem>
-                     )}
-                   />
-                   <FormField
-                     control={form.control}
-                     name={`variants.${index}.stock`}
-                     render={({ field }) => (
-                       <FormItem>
-                         <FormLabel>Stock</FormLabel>
-                         <FormControl><Input type="number" min="0" placeholder="0" {...field} /></FormControl>
-                         <FormMessage />
-                       </FormItem>
-                     )}
-                   />
-                 </div>
-              </motion.div>
-            ))}
+                   
+                   {/* Conditionally render Price and Stock based on whether it's a color variant */}
+                   {!isColor ? (
+                     <div className="grid grid-cols-3 gap-4">
+                       <FormField
+                         control={form.control}
+                         name={`variants.${index}.sku`}
+                         render={({ field }) => (
+                           <FormItem>
+                             <FormLabel>SKU</FormLabel>
+                             <FormControl><Input placeholder="SKU-001" {...field} value={field.value ?? ''} /></FormControl>
+                             <FormMessage />
+                           </FormItem>
+                         )}
+                       />
+                       <FormField
+                         control={form.control}
+                         name={`variants.${index}.price`}
+                         render={({ field }) => (
+                           <FormItem>
+                             <FormLabel>Price (LKR)</FormLabel>
+                             <FormControl><Input type="number" min="0" placeholder="0" {...field} /></FormControl>
+                             <FormMessage />
+                           </FormItem>
+                         )}
+                       />
+                       <FormField
+                         control={form.control}
+                         name={`variants.${index}.stock`}
+                         render={({ field }) => (
+                           <FormItem>
+                             <FormLabel>Stock</FormLabel>
+                             <FormControl><Input type="number" min="0" placeholder="0" {...field} /></FormControl>
+                             <FormMessage />
+                           </FormItem>
+                         )}
+                       />
+                     </div>
+                   ) : (
+                     <div className="flex items-center gap-2 p-2 bg-muted/30 rounded text-sm text-muted-foreground">
+                       <Palette className="h-4 w-4" />
+                       <span>This is a color variant. Price and stock are managed by the main product or size variants.</span>
+                       {/* Hidden fields to maintain form structure/values if needed, or just let them be 0 */}
+                       <input type="hidden" {...form.register(`variants.${index}.price`)} value="0" />
+                       <input type="hidden" {...form.register(`variants.${index}.stock`)} value="0" />
+                     </div>
+                   )}
+                </motion.div>
+              );
+            })}
           </div>
         </div>
 

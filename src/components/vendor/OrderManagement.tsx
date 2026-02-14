@@ -28,6 +28,10 @@ interface OrderItem {
   product: {
     name: string;
   } | null;
+  variant?: {
+    name: string;
+  } | null;
+  variant_name?: string | null; // Added to support variant_name from order_items if available
 }
 
 interface Order {
@@ -89,6 +93,7 @@ const OrderManagement = () => {
 
       // Fetch order items with product info
       const orderIds = ordersData.map(o => o.id);
+      
       const { data: itemsData } = await supabase
         .from('order_items')
         .select(`
@@ -96,7 +101,9 @@ const OrderManagement = () => {
           order_id,
           quantity,
           unit_price,
-          product_id
+          product_id,
+          variant_id,
+          variant_name
         `)
         .in('order_id', orderIds);
 
@@ -107,17 +114,35 @@ const OrderManagement = () => {
         .select('id, name')
         .in('id', productIds);
 
+      // Fetch variants for items
+      const variantIds = [...new Set((itemsData || []).map(i => i.variant_id).filter(Boolean))];
+      let variantsData: any[] = [];
+      if (variantIds.length > 0) {
+        const { data: vData } = await supabase
+          .from('product_variants')
+          .select('id, name')
+          .in('id', variantIds);
+        variantsData = vData || [];
+      }
+
       // Combine data
       const enrichedOrders: Order[] = ordersData.map(order => {
         const profile = profilesData?.find(p => p.user_id === order.customer_id);
         const items = (itemsData || [])
           .filter(i => i.order_id === order.id)
-          .map(item => ({
-            id: item.id,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            product: productsData?.find(p => p.id === item.product_id) || null,
-          }));
+          .map(item => {
+            const product = productsData?.find(p => p.id === item.product_id) || null;
+            const variant = item.variant_id ? variantsData.find(v => v.id === item.variant_id) : null;
+            
+            return {
+              id: item.id,
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              product,
+              variant,
+              variant_name: item.variant_name // Include variant_name from order_items
+            };
+          });
 
         return {
           ...order,
@@ -381,6 +406,12 @@ const OrderManagement = () => {
                           <p className="font-medium text-foreground">
                             {item.product?.name || 'Unknown Product'}
                           </p>
+                          {/* Show variant name from order_items (variant_name) or fallback to relation (variant.name) */}
+                          {(item.variant_name || item.variant) && (
+                            <p className="text-xs text-muted-foreground">
+                              Variant: {item.variant_name || item.variant?.name}
+                            </p>
+                          )}
                           <p className="text-sm text-muted-foreground">
                             Qty: {item.quantity} &times; LKR {Number(item.unit_price).toLocaleString()}
                           </p>

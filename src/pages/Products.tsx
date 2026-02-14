@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Filter, X, Package, Loader2 } from 'lucide-react';
 import Header from '@/components/layout/Header';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Slider } from '@/components/ui/slider';
 import {
   Select,
   SelectContent,
@@ -42,6 +43,21 @@ const Products = () => {
   const { products, loading, error } = useProducts({
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
   });
+
+  const { minPrice, maxPrice } = useMemo(() => {
+    if (!products || products.length === 0) return { minPrice: 0, maxPrice: 100000 };
+    const prices = products.map((p) => p.price);
+    return {
+      minPrice: Math.min(...prices),
+      maxPrice: Math.max(...prices),
+    };
+  }, [products]);
+
+  useEffect(() => {
+    if (products.length > 0) {
+      setPriceRange([minPrice, maxPrice]);
+    }
+  }, [products, minPrice, maxPrice]);
 
   const filteredProducts = useMemo(() => {
     let filtered = [...products];
@@ -83,7 +99,7 @@ const Products = () => {
     setSearchQuery('');
     setSelectedCategory('all');
     setSortBy('newest');
-    setPriceRange([0, 100000]);
+    setPriceRange([minPrice, maxPrice]);
   };
 
   const hasActiveFilters = searchQuery || selectedCategory !== 'all' || sortBy !== 'newest';
@@ -115,18 +131,38 @@ const Products = () => {
 
       <div className="space-y-3">
         <h3 className="font-medium text-foreground">Price Range (LKR)</h3>
+        <div className="px-2">
+          <Slider
+            defaultValue={[minPrice, maxPrice]}
+            value={[priceRange[0], priceRange[1]]}
+            min={minPrice}
+            max={maxPrice}
+            step={100}
+            onValueChange={(value) => setPriceRange([value[0], value[1]])}
+            className="my-4"
+          />
+        </div>
         <div className="flex items-center gap-2">
           <Input
             type="number"
             placeholder="Min"
-            value={priceRange[0] || ''}
-            onChange={(e) => setPriceRange([Number(e.target.value) || 0, priceRange[1]])}
+            value={priceRange[0]}
+            onChange={(e) => {
+              const val = Number(e.target.value);
+              setPriceRange([val, priceRange[1]]);
+            }}
+            className="h-8"
           />
+          <span className="text-muted-foreground">-</span>
           <Input
             type="number"
             placeholder="Max"
-            value={priceRange[1] || ''}
-            onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value) || 100000])}
+            value={priceRange[1]}
+            onChange={(e) => {
+              const val = Number(e.target.value);
+              setPriceRange([priceRange[0], val]);
+            }}
+            className="h-8"
           />
         </div>
       </div>

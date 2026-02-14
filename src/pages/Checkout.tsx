@@ -109,15 +109,18 @@ const Checkout = () => {
         // Create order items and update inventory
         for (const item of vendorItems) {
           // 1. Insert order item
+          const insertData: any = {
+            order_id: order.id,
+            product_id: item.id,
+            quantity: item.quantity,
+            unit_price: item.price,
+            variant_id: item.variant_id || null,
+            variant_name: item.variant_name || null,
+          };
+          
           const { error: itemError } = await supabase
             .from('order_items')
-            .insert({
-              order_id: order.id,
-              product_id: item.id,
-              variant_id: item.variant_id || null,
-              quantity: item.quantity,
-              unit_price: item.price,
-            });
+            .insert(insertData);
 
           if (itemError) throw itemError;
 
@@ -386,6 +389,11 @@ const Checkout = () => {
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-medium">{item.name}</p>
+                      {item.variant_name && (
+                        <p className="text-xs text-muted-foreground">
+                          Variant: {item.variant_name}
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         Qty: {item.quantity}
                       </p>
