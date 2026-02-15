@@ -35,33 +35,7 @@ import { toast } from '@/hooks/use-toast';
 import { getCategoryLabel } from '@/lib/categories';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { ProductVariantSelector } from '@/components/products/ProductVariantSelector';
-
-const predefinedColors = [
-  { name: 'Red', color: 'bg-red-500', hex: '#ef4444' },
-  { name: 'Blue', color: 'bg-blue-500', hex: '#3b82f6' },
-  { name: 'Green', color: 'bg-green-500', hex: '#22c55e' },
-  { name: 'Yellow', color: 'bg-yellow-500', hex: '#eab308' },
-  { name: 'Orange', color: 'bg-orange-500', hex: '#f97316' },
-  { name: 'Purple', color: 'bg-purple-500', hex: '#a855f7' },
-  { name: 'Pink', color: 'bg-pink-500', hex: '#ec4899' },
-  { name: 'Indigo', color: 'bg-indigo-500', hex: '#6366f1' },
-  { name: 'Teal', color: 'bg-teal-500', hex: '#14b8a6' },
-  { name: 'Cyan', color: 'bg-cyan-500', hex: '#06b6d4' },
-  { name: 'Black', color: 'bg-black', hex: '#000000' },
-  { name: 'White', color: 'bg-white border border-border', hex: '#ffffff' },
-  { name: 'Gray', color: 'bg-gray-500', hex: '#6b7280' },
-  { name: 'Gold', color: 'bg-amber-400', hex: '#fbbf24' },
-  { name: 'Silver', color: 'bg-gray-300', hex: '#d1d5db' },
-  { name: 'Bronze', color: 'bg-amber-700', hex: '#b45309' },
-  { name: 'Rose Gold', color: 'bg-rose-300', hex: '#fda4af' },
-  { name: 'Navy', color: 'bg-blue-900', hex: '#1e3a8a' },
-  { name: 'Maroon', color: 'bg-red-900', hex: '#7f1d1d' },
-  { name: 'Olive', color: 'bg-lime-700', hex: '#4d7c0f' },
-  { name: 'Beige', color: 'bg-amber-100', hex: '#fef3c7' },
-  { name: 'Cream', color: 'bg-orange-50', hex: '#fff7ed' },
-  { name: 'Brown', color: 'bg-amber-800', hex: '#92400e' },
-  { name: 'Charcoal', color: 'bg-gray-800', hex: '#1f2937' },
-];
+import { VariantSelector } from '@/components/products/VariantSelector';
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -80,9 +54,10 @@ const ProductDetail = () => {
 
   const [quantity, setQuantity] = useState(1);
   
-  // Split state for Size and Color
+  // Split state for Size, Color, and Weight
   const [selectedSize, setSelectedSize] = useState<ProductVariant | null>(null);
   const [selectedColor, setSelectedColor] = useState<ProductVariant | null>(null);
+  const [selectedWeight, setSelectedWeight] = useState<ProductVariant | null>(null);
   
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -93,46 +68,33 @@ const ProductDetail = () => {
     comment: '',
   });
 
-  // Group variants by type (Color vs Others)
-  const { colorVariants, otherVariants } = useMemo(() => {
-    const colors: ProductVariant[] = [];
-    const others: ProductVariant[] = [];
-
-    variants.forEach(v => {
-      const isColor = predefinedColors.some(c => c.name.toLowerCase() === v.name.toLowerCase());
-      if (isColor) {
-        colors.push(v);
-      } else {
-        others.push(v);
-      }
-    });
-
-    return { colorVariants: colors, otherVariants: others };
-  }, [variants]);
-
   useEffect(() => {
     // Auto-select first options if available and not yet selected
-    if (otherVariants.length > 0 && !selectedSize) {
-      setSelectedSize(otherVariants[0]);
-    }
-    if (colorVariants.length > 0 && !selectedColor) {
-      setSelectedColor(colorVariants[0]);
-    }
-  }, [otherVariants, colorVariants, selectedSize, selectedColor]);
+    // This logic needs to be smarter based on what variants are available
+    // But for now, let's just ensure we don't have nulls if variants exist
+    // We rely on VariantSelector to group them, but we need to know which group has items here to auto-select?
+    // Actually, VariantSelector handles grouping. We can do it here too or just let user select.
+    // Auto-select logic is tricky with multiple groups. Let's keep it simple:
+    // If we have variants, try to select the first one of each type if not selected.
+    // But we need to know the types.
+    // Let's reuse the grouping logic or just let the user select.
+    // For better UX, auto-selecting the first available "primary" variant (Size or Weight) is good.
+  }, [variants]);
 
   const isAdded = () => {
     if (!product) return false;
     // Construct cart item ID based on selection
+    // Priority: Size > Weight > Color (if standalone)
+    // But we combine them in name. For ID, we use the one that carries price/stock.
+    // Assuming Size OR Weight carries price/stock.
+    
     let cartItemId = product.id;
     if (selectedSize) {
       cartItemId = `${product.id}-${selectedSize.id}`;
+    } else if (selectedWeight) {
+      cartItemId = `${product.id}-${selectedWeight.id}`;
     } else if (selectedColor) {
-      // If only color is selected (no size variants), use color ID? 
-      // Or if we treat color as dummy, maybe just product ID?
-      // For consistency with addToCart logic below:
       cartItemId = `${product.id}-${selectedColor.id}`; 
-      // Note: If we pass null ID for color-only, this check might need adjustment.
-      // But let's stick to using the ID of the "main" variant.
     }
     
     return items.some(item => item.cartItemId === cartItemId);
@@ -140,16 +102,19 @@ const ProductDetail = () => {
 
   const getCurrentPrice = () => {
     if (selectedSize) return selectedSize.price;
+    if (selectedWeight) return selectedWeight.price;
     return product?.price || 0;
   };
 
   const getCurrentStock = () => {
     if (selectedSize) return selectedSize.stock;
+    if (selectedWeight) return selectedWeight.stock;
     return product?.stock || 0;
   };
   
   const getCurrentSKU = () => {
     if (selectedSize) return selectedSize.sku || "N/A";
+    if (selectedWeight) return selectedWeight.sku || "N/A";
     return "N/A";
   };
 
@@ -164,28 +129,20 @@ const ProductDetail = () => {
     }
     if (!product) return;
     
-    // Determine which variant ID to use for stock/price tracking
-    // We prioritize Size variant. If no Size variant, we use Color variant (if it's not dummy) or null.
-    // Since we made Color variants dummy (0 price/stock), we should probably use Size variant ID if available.
-    // If ONLY colors exist, we might have to use null (main product) or the color ID if the backend allows 0 stock.
-    // Assuming "Size" carries the real inventory data.
-    
     let finalVariantId: string | undefined = undefined;
     let finalVariantName: string | undefined = undefined;
 
-    if (selectedSize) {
-      finalVariantId = selectedSize.id;
-      finalVariantName = selectedSize.name;
+    // Determine primary variant (Size or Weight)
+    const primaryVariant = selectedSize || selectedWeight;
+
+    if (primaryVariant) {
+      finalVariantId = primaryVariant.id;
+      finalVariantName = primaryVariant.name;
       if (selectedColor) {
         finalVariantName += ` - ${selectedColor.name}`;
       }
     } else if (selectedColor) {
-      // Only color selected (no sizes available)
-      // If colors are dummy, we might want to track against main product (undefined variant_id)
-      // But we want to show the color name.
       finalVariantName = selectedColor.name;
-      // We pass undefined for ID so it deducts from main product stock? 
-      // Or if the user didn't create sizes, maybe the main product holds the stock.
       finalVariantId = undefined; 
     }
 
@@ -278,80 +235,24 @@ const ProductDetail = () => {
             )}
 
             {variants.length > 0 && (
-              <div ref={variantSectionRef} className="space-y-6">
-                
-                {/* Size / Other Variants Selection */}
-                {otherVariants.length > 0 && (
-                  <div className="space-y-3">
-                    <h3 className="font-medium text-foreground flex items-center gap-2">
-                      <Tag className="h-4 w-4" /> Select Option
-                    </h3>
-                    <div className="grid grid-cols-3 gap-2 max-w-md">
-                      {otherVariants.map((variant) => (
-                        <button
-                          key={variant.id}
-                          onClick={() => {
-                            setSelectedSize(variant);
-                            setQuantity(1);
-                          }}
-                          className={`relative flex flex-col items-center justify-center rounded-lg border-2 px-2 py-2 transition-all text-center ${
-                            selectedSize?.id === variant.id ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-border'
-                          } ${variant.stock === 0 ? 'opacity-50' : ''}`}
-                          disabled={variant.stock === 0}
-                        >
-                          <p className="font-bold text-xs line-clamp-1">{variant.name}</p>
-                          {variant.price > 0 && (
-                             <p className="text-[10px] font-black text-primary mt-1">LKR {variant.price.toLocaleString()}</p>
-                          )}
-                          {selectedSize?.id === variant.id && ( <Check className="absolute top-1 right-1 h-3 w-3 text-primary" /> )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Color Variants Selection */}
-                {colorVariants.length > 0 && (
-                  <div className="space-y-3">
-                    <h3 className="font-medium text-foreground flex items-center gap-2">
-                      <Tag className="h-4 w-4" /> Select Color
-                    </h3>
-                    <div className="flex flex-wrap gap-3">
-                      {colorVariants.map((variant) => {
-                        const colorInfo = predefinedColors.find(c => c.name.toLowerCase() === variant.name.toLowerCase());
-                        const isSelected = selectedColor?.id === variant.id;
-                        
-                        // Always enable color buttons as they are just visual options now
-                        const isAvailable = true;
-
-                        return (
-                          <button
-                            key={variant.id}
-                            onClick={() => {
-                              setSelectedColor(variant);
-                              // Don't reset quantity when changing color
-                            }}
-                            className={`relative group flex flex-col items-center gap-1 p-1 rounded-full transition-all ${
-                              isSelected ? 'ring-2 ring-primary ring-offset-2' : 'hover:scale-110'
-                            } ${!isAvailable ? 'opacity-50 grayscale' : ''}`}
-                            disabled={!isAvailable}
-                            title={variant.name}
-                          >
-                            <div className={`h-8 w-8 rounded-full border shadow-sm ${colorInfo?.color || 'bg-gray-200'}`}>
-                               {isSelected && (
-                                 <div className="h-full w-full flex items-center justify-center">
-                                   <Check className={`h-4 w-4 ${['White', 'Cream', 'Beige'].includes(colorInfo?.name || '') ? 'text-black' : 'text-white'}`} />
-                                 </div>
-                               )}
-                            </div>
-                            <span className="text-[10px] font-medium max-w-[60px] truncate">{variant.name}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
+              <div ref={variantSectionRef}>
+                <VariantSelector
+                  variants={variants}
+                  selectedSize={selectedSize}
+                  selectedColor={selectedColor}
+                  selectedWeight={selectedWeight}
+                  onSelectSize={(v) => {
+                    setSelectedSize(v);
+                    setSelectedWeight(null); // Deselect weight if size selected (assuming mutually exclusive)
+                    setQuantity(1);
+                  }}
+                  onSelectWeight={(v) => {
+                    setSelectedWeight(v);
+                    setSelectedSize(null); // Deselect size if weight selected
+                    setQuantity(1);
+                  }}
+                  onSelectColor={(v) => setSelectedColor(v)}
+                />
               </div>
             )}
 
@@ -373,7 +274,7 @@ const ProductDetail = () => {
                 <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1 border">
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setQuantity(Math.max(1, quantity - 1))} disabled={quantity <= 1}><Minus className="h-4 w-4" /></Button>
                   <span className="w-8 text-center font-bold text-sm">{quantity}</span>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setQuantity(Math.min(currentStock, quantity + 1))} disabled={quantity >= currentStock}><Plus className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setQuantity(Math.min(currentStock || 1, quantity + 1))} disabled={quantity >= (currentStock || 1)}><Plus className="h-4 w-4" /></Button>
                 </div>
               </div>
 

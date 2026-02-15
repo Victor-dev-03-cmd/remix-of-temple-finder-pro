@@ -181,8 +181,6 @@ const ProductForm = ({ initialData, onSuccess, onCancel }: ProductFormProps) => 
     if (storedColors) {
       try {
         const colors: string[] = JSON.parse(storedColors);
-        // Instead of just appending, we can also combine with existing variants if needed.
-        // For now, let's just append them as new variants.
         colors.forEach((colorName) => {
           append({ name: colorName, price: 0, stock: 0, sku: '' });
         });
@@ -217,7 +215,6 @@ const ProductForm = ({ initialData, onSuccess, onCancel }: ProductFormProps) => 
         image_url: productData.image_url,
         vendor_id: user.id,
         temple_id: vendorTemple.id,
-        // Calculate min price excluding 0 price variants (like colors) unless all are 0
         price: variants.length > 0 
           ? (variants.some(v => v.price > 0) 
               ? Math.min(...variants.filter(v => v.price > 0).map(v => v.price)) 
@@ -236,18 +233,75 @@ const ProductForm = ({ initialData, onSuccess, onCancel }: ProductFormProps) => 
         
         if (productError) throw productError;
 
-        await supabase.from('product_variants').delete().eq('product_id', initialData.id);
-        
-        const { error: variantError } = await supabase.from('product_variants').insert(
-          variants.map(v => ({ 
-            name: v.name,
-            sku: v.sku,
-            price: v.price,
-            stock: v.stock,
-            product_id: updatedProduct.id 
-          }))
+        const uniqueVariants = variants.filter((v, index, self) =>
+          index === self.findIndex((t) => (
+            t.name === v.name
+          ))
         );
-        if (variantError) throw variantError;
+        
+        if (uniqueVariants.length !== variants.length) {
+           toast({ title: "Duplicate Variants", description: "Removed duplicate variant names.", variant: "warning" });
+        }
+
+        const { data: currentVariants } = await supabase.from('product_variants').select('id, name').eq('product_id', initialData.id);
+        
+        const variantsToUpsert = uniqueVariants.map(v => {
+           const existing = currentVariants?.find(cv => cv.id === v.id || cv.name === v.name);
+           return {
+             id: existing?.id, // Use existing ID if found, otherwise undefined
+             product_id: initialData.id,
+             name: v.name,
+             sku: v.sku,
+             price: v.price,
+             stock: v.stock
+           };
+        });
+        
+        // Separate variants into those with IDs (update) and those without (insert)
+        const recordsToUpsert = variantsToUpsert.map(v => {
+          if (v.id) {
+            return v; // Has ID, good for update
+          } else {
+            const { id, ...rest } = v; // Remove ID for insert
+            return rest;
+          }
+        });
+        
+        // Split into updates and inserts to avoid "null value in column id" error with upsert
+        // Upsert should handle it if we omit ID, but sometimes it's tricky with mixed batch.
+        // Let's try separate operations for safety.
+        
+        const updates = recordsToUpsert.filter(r => 'id' in r);
+        const inserts = recordsToUpsert.filter(r => !('id' in r));
+        
+        if (updates.length > 0) {
+          const { error: updateError } = await supabase
+            .from('product_variants')
+            .upsert(updates);
+          if (updateError) throw updateError;
+        }
+        
+        if (inserts.length > 0) {
+          const { error: insertError } = await supabase
+            .from('product_variants')
+            .insert(inserts);
+          if (insertError) throw insertError;
+        }
+        
+        // Delete variants that are no longer in the list
+        // We need the IDs of all variants that should remain (updates + newly inserted)
+        // Since we can't easily get IDs of newly inserted in batch without return, 
+        // we might just fetch all variants again or rely on logic.
+        // But wait, if we insert, we get new IDs.
+        // Let's just delete variants that were in currentVariants but NOT in updates.
+        // This assumes we didn't delete and re-insert the same variant (which we handled by matching names).
+        
+        const updatedIds = updates.map(u => u.id);
+        const variantsToDelete = currentVariants?.filter(cv => !updatedIds.includes(cv.id)).map(v => v.id) || [];
+        
+        if (variantsToDelete.length > 0) {
+           await supabase.from('product_variants').delete().in('id', variantsToDelete);
+        }
 
         toast({ title: 'Product Updated', description: 'Your product has been updated.' });
       } else {
@@ -259,8 +313,14 @@ const ProductForm = ({ initialData, onSuccess, onCancel }: ProductFormProps) => 
 
         if (productError) throw productError;
 
+        const uniqueVariants = variants.filter((v, index, self) =>
+          index === self.findIndex((t) => (
+            t.name === v.name
+          ))
+        );
+
         const { error: variantError } = await supabase.from('product_variants').insert(
-          variants.map(v => ({ 
+          uniqueVariants.map(v => ({ 
             name: v.name,
             sku: v.sku,
             price: v.price,
@@ -282,7 +342,6 @@ const ProductForm = ({ initialData, onSuccess, onCancel }: ProductFormProps) => 
     }
   };
 
-  // Helper to check if a variant name is a color
   const isColorVariant = (name: string) => {
     return predefinedColors.some(color => color.toLowerCase() === name.toLowerCase());
   };

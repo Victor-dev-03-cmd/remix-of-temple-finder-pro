@@ -9,12 +9,12 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Minus, Plus, ShoppingCart, Loader2 } from 'lucide-react';
 import { Product } from '@/hooks/useProducts';
 import { useProductVariants, ProductVariant } from '@/hooks/useProductVariants';
 import { useCart } from '@/contexts/CartContext';
 import { toast } from '@/hooks/use-toast';
+import { VariantSelector } from './VariantSelector';
 
 interface ProductVariantSelectorProps {
   product: Product | null;
@@ -26,26 +26,61 @@ export const ProductVariantSelector = ({ product, isOpen, onClose }: ProductVari
   const { variants, loading } = useProductVariants(product?.id);
   const { addToCart } = useCart();
   
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+  const [selectedSize, setSelectedSize] = useState<ProductVariant | null>(null);
+  const [selectedColor, setSelectedColor] = useState<ProductVariant | null>(null);
+  const [selectedWeight, setSelectedWeight] = useState<ProductVariant | null>(null);
   const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
-    if (variants.length > 0 && !selectedVariant) {
-      setSelectedVariant(variants[0]);
+    if (isOpen) {
+      // Reset selections when opened
+      setSelectedSize(null);
+      setSelectedColor(null);
+      setSelectedWeight(null);
+      setQuantity(1);
     }
-  }, [variants, selectedVariant]);
+  }, [isOpen]);
+
+  const getCurrentPrice = () => {
+    if (selectedSize) return selectedSize.price;
+    if (selectedWeight) return selectedWeight.price;
+    return product?.price || 0;
+  };
+
+  const getCurrentStock = () => {
+    if (selectedSize) return selectedSize.stock;
+    if (selectedWeight) return selectedWeight.stock;
+    return product?.stock || 0;
+  };
 
   const handleAddToCart = () => {
     if (!product) return;
     
-    const price = selectedVariant ? selectedVariant.price : product.price;
-    const stock = selectedVariant ? selectedVariant.stock : product.stock;
-    const variantId = selectedVariant?.id;
-    const variantName = selectedVariant?.name;
+    const price = getCurrentPrice();
+    const stock = getCurrentStock();
+    
+    let finalVariantId: string | undefined = undefined;
+    let finalVariantName: string | undefined = undefined;
 
-    if (stock === 0) {
-      toast({ title: 'Out of Stock', variant: 'destructive' });
-      return;
+    // Determine primary variant (Size or Weight)
+    const primaryVariant = selectedSize || selectedWeight;
+
+    if (primaryVariant) {
+      finalVariantId = primaryVariant.id;
+      finalVariantName = primaryVariant.name;
+      if (selectedColor) {
+        finalVariantName += ` - ${selectedColor.name}`;
+      }
+    } else if (selectedColor) {
+      finalVariantName = selectedColor.name;
+      finalVariantId = undefined; 
+    }
+
+    if (stock === 0 && !selectedColor) { 
+       if (primaryVariant && primaryVariant.stock === 0) {
+         toast({ title: 'Out of Stock', variant: 'destructive' });
+         return;
+       }
     }
 
     addToCart({
@@ -57,13 +92,13 @@ export const ProductVariantSelector = ({ product, isOpen, onClose }: ProductVari
       stock: stock,
       quantity: quantity,
       category: product.category,
-      variant_id: variantId,
-      variant_name: variantName,
+      variant_id: finalVariantId,
+      variant_name: finalVariantName,
     });
 
     toast({
       title: 'Added to Cart',
-      description: `${product.name}${variantName ? ` (${variantName})` : ''} has been added to your cart.`,
+      description: `${product.name}${finalVariantName ? ` (${finalVariantName})` : ''} has been added to your cart.`,
     });
     
     onClose();
@@ -71,8 +106,8 @@ export const ProductVariantSelector = ({ product, isOpen, onClose }: ProductVari
 
   if (!product) return null;
 
-  const currentPrice = selectedVariant ? selectedVariant.price : product.price;
-  const currentStock = selectedVariant ? selectedVariant.stock : product.stock;
+  const currentPrice = getCurrentPrice();
+  const currentStock = getCurrentStock();
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -108,37 +143,25 @@ export const ProductVariantSelector = ({ product, isOpen, onClose }: ProductVari
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : variants.length > 0 ? (
-            <div className="space-y-3">
-              <Label className="text-base">Variants</Label>
-              <RadioGroup 
-                value={selectedVariant?.id} 
-                onValueChange={(id) => setSelectedVariant(variants.find(v => v.id === id) || null)}
-                className="grid grid-cols-3 gap-2"
-              >
-                {variants.map((variant) => (
-                  <div key={variant.id} className="relative">
-                    <RadioGroupItem
-                      value={variant.id}
-                      id={variant.id}
-                      className="peer sr-only"
-                      disabled={variant.stock === 0}
-                    />
-                    <Label
-                      htmlFor={variant.id}
-                      className={`flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-2 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary transition-all cursor-pointer h-full text-center ${variant.stock === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      <span className="font-bold text-xs line-clamp-1">{variant.name}</span>
-                      <span className="font-black text-[10px] text-primary mt-1">LKR {variant.price.toLocaleString()}</span>
-                      {variant.stock <= 3 && variant.stock > 0 && (
-                        <span className="text-[8px] text-orange-600 font-bold mt-0.5">{variant.stock} left</span>
-                      )}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </div>
-          ) : null}
+          ) : (
+            <VariantSelector
+              variants={variants}
+              selectedSize={selectedSize}
+              selectedColor={selectedColor}
+              selectedWeight={selectedWeight}
+              onSelectSize={(v) => {
+                setSelectedSize(v);
+                setSelectedWeight(null);
+                setQuantity(1);
+              }}
+              onSelectWeight={(v) => {
+                setSelectedWeight(v);
+                setSelectedSize(null);
+                setQuantity(1);
+              }}
+              onSelectColor={(v) => setSelectedColor(v)}
+            />
+          )}
 
           <div className="space-y-3">
             <Label className="text-base">Quantity</Label>
@@ -170,7 +193,7 @@ export const ProductVariantSelector = ({ product, isOpen, onClose }: ProductVari
           <Button 
             className="w-full h-12 text-lg font-bold gap-2" 
             onClick={handleAddToCart}
-            disabled={currentStock === 0}
+            disabled={currentStock === 0 && !selectedColor}
           >
             <ShoppingCart className="h-5 w-5" />
             Add to Cart
