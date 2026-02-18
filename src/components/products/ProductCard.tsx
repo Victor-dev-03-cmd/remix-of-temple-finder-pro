@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ShoppingCart, Building } from 'lucide-react';
@@ -21,6 +21,37 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
   const { addToCart } = useCart();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isVariantSelectorOpen, setIsVariantSelectorOpen] = useState(false);
+
+  // Calculate display price: 
+  // 1. If product price > 0, use it.
+  // 2. If product price is 0, find the minimum price from variants (excluding 0).
+  const displayPrice = useMemo(() => {
+    if (product.price > 0) return product.price;
+    
+    if (product.variants && product.variants.length > 0) {
+      const prices = product.variants
+        .map(v => v.price)
+        .filter(p => p > 0);
+      
+      if (prices.length > 0) {
+        return Math.min(...prices);
+      }
+    }
+    
+    return 0;
+  }, [product]);
+
+  // Calculate display stock:
+  // If product stock is 0, check if variants have stock.
+  const displayStock = useMemo(() => {
+    if (product.stock > 0) return product.stock;
+    
+    if (product.variants && product.variants.length > 0) {
+       return product.variants.reduce((acc, v) => acc + v.stock, 0);
+    }
+    
+    return 0;
+  }, [product]);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -57,12 +88,12 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
                 <ShoppingCart className="h-12 w-12 text-muted-foreground" />
               </div>
             )}
-            {product.stock <= 5 && product.stock > 0 && (
+            {displayStock <= 5 && displayStock > 0 && (
               <span className="absolute top-2 right-2 rounded-full bg-orange-500 px-2 py-0.5 text-xs font-medium text-white">
                 Low Stock
               </span>
             )}
-            {product.stock === 0 && (
+            {displayStock === 0 && (
               <span className="absolute top-2 right-2 rounded-full bg-destructive px-2 py-0.5 text-xs font-medium text-destructive-foreground">
                 Out of Stock
               </span>
@@ -85,16 +116,16 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
             )}
             
             <p className="mb-3 text-lg font-semibold text-primary">
-              LKR {product.price.toLocaleString()}
+              {displayPrice > 0 ? `LKR ${displayPrice.toLocaleString()}` : 'Price on Request'}
             </p>
             <Button
               onClick={handleAddToCart}
               size="sm"
               className="w-full gap-2"
-              disabled={product.stock === 0}
+              disabled={displayStock === 0}
             >
               <ShoppingCart className="h-4 w-4" />
-              {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+              {displayStock === 0 ? 'Out of Stock' : 'Add to Cart'}
             </Button>
           </div>
         </motion.div>

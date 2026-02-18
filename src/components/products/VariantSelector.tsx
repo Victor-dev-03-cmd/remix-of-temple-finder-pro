@@ -41,7 +41,6 @@ const predefinedColors = [
 ];
 
 const weightUnits = ['g', 'kg', 'ml', 'l', 'oz', 'lb'];
-const sizeLabels = ['S', 'M', 'L', 'XL', 'XXL', 'Small', 'Medium', 'Large'];
 
 export const VariantSelector = ({
   variants,
@@ -71,9 +70,7 @@ export const VariantSelector = ({
         return;
       }
 
-      // Check for Weight/Quantity (ends with unit or contains unit)
-      // Simple check: if it ends with a known unit (e.g. "500g", "1kg")
-      // Using regex to match number followed by unit
+      // Check for Weight/Quantity
       const isWeight = weightUnits.some(unit => {
          const regex = new RegExp(`\\d+\\s*${unit}$`, 'i');
          return regex.test(v.name);
@@ -91,6 +88,13 @@ export const VariantSelector = ({
     return { colorVariants: colors, weightVariants: weights, sizeVariants: sizes };
   }, [variants]);
 
+  // Determine if stock is tracked for each group
+  // If ANY variant in the group has stock > 0, we assume the group is tracked.
+  // If ALL variants in the group have stock 0, we assume it's just an option list (not tracked).
+  const isSizeStockTracked = useMemo(() => sizeVariants.some(v => v.stock > 0), [sizeVariants]);
+  const isWeightStockTracked = useMemo(() => weightVariants.some(v => v.stock > 0), [weightVariants]);
+  const isColorStockTracked = useMemo(() => colorVariants.some(v => v.stock > 0), [colorVariants]);
+
   if (variants.length === 0) return null;
 
   return (
@@ -102,28 +106,31 @@ export const VariantSelector = ({
             <Ruler className="h-4 w-4" /> Select Size
           </h3>
           <div className="grid grid-cols-3 gap-2 max-w-md">
-            {sizeVariants.map((variant) => (
-              <button
-                key={variant.id}
-                onClick={() => onSelectSize(variant)}
-                className={`relative flex flex-col items-center justify-center rounded-lg border-2 px-2 py-2 transition-all text-center ${
-                  selectedSize?.id === variant.id
-                    ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
-                    : 'border-border'
-                } ${variant.stock === 0 ? 'opacity-50' : ''}`}
-                disabled={variant.stock === 0}
-              >
-                <p className="font-bold text-xs line-clamp-1">{variant.name}</p>
-                {variant.price > 0 && (
-                  <p className="text-[10px] font-black text-primary mt-1">
-                    LKR {variant.price.toLocaleString()}
-                  </p>
-                )}
-                {selectedSize?.id === variant.id && (
-                  <Check className="absolute top-1 right-1 h-3 w-3 text-primary" />
-                )}
-              </button>
-            ))}
+            {sizeVariants.map((variant) => {
+              const isDisabled = isSizeStockTracked && variant.stock === 0;
+              return (
+                <button
+                  key={variant.id}
+                  onClick={() => onSelectSize(variant)}
+                  className={`relative flex flex-col items-center justify-center rounded-lg border-2 px-2 py-2 transition-all text-center ${
+                    selectedSize?.id === variant.id
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                      : 'border-border'
+                  } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={isDisabled}
+                >
+                  <p className="font-bold text-xs line-clamp-1">{variant.name}</p>
+                  {variant.price > 0 && (
+                    <p className="text-[10px] font-black text-primary mt-1">
+                      LKR {variant.price.toLocaleString()}
+                    </p>
+                  )}
+                  {selectedSize?.id === variant.id && (
+                    <Check className="absolute top-1 right-1 h-3 w-3 text-primary" />
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -135,28 +142,31 @@ export const VariantSelector = ({
             <Weight className="h-4 w-4" /> Select Quantity
           </h3>
           <div className="grid grid-cols-3 gap-2 max-w-md">
-            {weightVariants.map((variant) => (
-              <button
-                key={variant.id}
-                onClick={() => onSelectWeight(variant)}
-                className={`relative flex flex-col items-center justify-center rounded-lg border-2 px-2 py-2 transition-all text-center ${
-                  selectedWeight?.id === variant.id
-                    ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
-                    : 'border-border'
-                } ${variant.stock === 0 ? 'opacity-50' : ''}`}
-                disabled={variant.stock === 0}
-              >
-                <p className="font-bold text-xs line-clamp-1">{variant.name}</p>
-                {variant.price > 0 && (
-                  <p className="text-[10px] font-black text-primary mt-1">
-                    LKR {variant.price.toLocaleString()}
-                  </p>
-                )}
-                {selectedWeight?.id === variant.id && (
-                  <Check className="absolute top-1 right-1 h-3 w-3 text-primary" />
-                )}
-              </button>
-            ))}
+            {weightVariants.map((variant) => {
+              const isDisabled = isWeightStockTracked && variant.stock === 0;
+              return (
+                <button
+                  key={variant.id}
+                  onClick={() => onSelectWeight(variant)}
+                  className={`relative flex flex-col items-center justify-center rounded-lg border-2 px-2 py-2 transition-all text-center ${
+                    selectedWeight?.id === variant.id
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                      : 'border-border'
+                  } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={isDisabled}
+                >
+                  <p className="font-bold text-xs line-clamp-1">{variant.name}</p>
+                  {variant.price > 0 && (
+                    <p className="text-[10px] font-black text-primary mt-1">
+                      LKR {variant.price.toLocaleString()}
+                    </p>
+                  )}
+                  {selectedWeight?.id === variant.id && (
+                    <Check className="absolute top-1 right-1 h-3 w-3 text-primary" />
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -173,7 +183,7 @@ export const VariantSelector = ({
                 (c) => c.name.toLowerCase() === variant.name.toLowerCase()
               );
               const isSelected = selectedColor?.id === variant.id;
-              const isAvailable = true; // Always enable color buttons
+              const isDisabled = isColorStockTracked && variant.stock === 0;
 
               return (
                 <button
@@ -183,8 +193,8 @@ export const VariantSelector = ({
                     isSelected
                       ? 'ring-2 ring-primary ring-offset-2'
                       : 'hover:scale-110'
-                  } ${!isAvailable ? 'opacity-50 grayscale' : ''}`}
-                  disabled={!isAvailable}
+                  } ${isDisabled ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+                  disabled={isDisabled}
                   title={variant.name}
                 >
                   <div

@@ -54,7 +54,6 @@ const ProductDetail = () => {
 
   const [quantity, setQuantity] = useState(1);
   
-  // Split state for Size, Color, and Weight
   const [selectedSize, setSelectedSize] = useState<ProductVariant | null>(null);
   const [selectedColor, setSelectedColor] = useState<ProductVariant | null>(null);
   const [selectedWeight, setSelectedWeight] = useState<ProductVariant | null>(null);
@@ -68,26 +67,18 @@ const ProductDetail = () => {
     comment: '',
   });
 
+  // Helper to find the primary variant (the one with price > 0)
+  const primaryPricedVariant = useMemo(() => {
+    if (!variants || variants.length === 0) return null;
+    return variants.find(v => v.price > 0);
+  }, [variants]);
+
   useEffect(() => {
-    // Auto-select first options if available and not yet selected
-    // This logic needs to be smarter based on what variants are available
-    // But for now, let's just ensure we don't have nulls if variants exist
-    // We rely on VariantSelector to group them, but we need to know which group has items here to auto-select?
-    // Actually, VariantSelector handles grouping. We can do it here too or just let user select.
-    // Auto-select logic is tricky with multiple groups. Let's keep it simple:
-    // If we have variants, try to select the first one of each type if not selected.
-    // But we need to know the types.
-    // Let's reuse the grouping logic or just let the user select.
-    // For better UX, auto-selecting the first available "primary" variant (Size or Weight) is good.
+    // Auto-select logic could be added here if needed
   }, [variants]);
 
   const isAdded = () => {
     if (!product) return false;
-    // Construct cart item ID based on selection
-    // Priority: Size > Weight > Color (if standalone)
-    // But we combine them in name. For ID, we use the one that carries price/stock.
-    // Assuming Size OR Weight carries price/stock.
-    
     let cartItemId = product.id;
     if (selectedSize) {
       cartItemId = `${product.id}-${selectedSize.id}`;
@@ -96,25 +87,36 @@ const ProductDetail = () => {
     } else if (selectedColor) {
       cartItemId = `${product.id}-${selectedColor.id}`; 
     }
-    
     return items.some(item => item.cartItemId === cartItemId);
   };
 
   const getCurrentPrice = () => {
-    if (selectedSize) return selectedSize.price;
-    if (selectedWeight) return selectedWeight.price;
+    if (selectedSize && selectedSize.price > 0) return selectedSize.price;
+    if (selectedWeight && selectedWeight.price > 0) return selectedWeight.price;
+    if (selectedColor && selectedColor.price > 0) return selectedColor.price;
+    
+    if (primaryPricedVariant) return primaryPricedVariant.price;
+    
     return product?.price || 0;
   };
 
   const getCurrentStock = () => {
-    if (selectedSize) return selectedSize.stock;
-    if (selectedWeight) return selectedWeight.stock;
+    if (selectedSize && selectedSize.stock > 0) return selectedSize.stock;
+    if (selectedWeight && selectedWeight.stock > 0) return selectedWeight.stock;
+    if (selectedColor && selectedColor.stock > 0) return selectedColor.stock;
+    
+    if (primaryPricedVariant) return primaryPricedVariant.stock;
+
     return product?.stock || 0;
   };
   
   const getCurrentSKU = () => {
-    if (selectedSize) return selectedSize.sku || "N/A";
-    if (selectedWeight) return selectedWeight.sku || "N/A";
+    if (selectedSize && selectedSize.sku) return selectedSize.sku;
+    if (selectedWeight && selectedWeight.sku) return selectedWeight.sku;
+    if (selectedColor && selectedColor.sku) return selectedColor.sku;
+    
+    if (primaryPricedVariant) return primaryPricedVariant.sku || "N/A";
+
     return "N/A";
   };
 
@@ -132,18 +134,20 @@ const ProductDetail = () => {
     let finalVariantId: string | undefined = undefined;
     let finalVariantName: string | undefined = undefined;
 
-    // Determine primary variant (Size or Weight)
-    const primaryVariant = selectedSize || selectedWeight;
-
-    if (primaryVariant) {
-      finalVariantId = primaryVariant.id;
-      finalVariantName = primaryVariant.name;
-      if (selectedColor) {
-        finalVariantName += ` - ${selectedColor.name}`;
-      }
-    } else if (selectedColor) {
-      finalVariantName = selectedColor.name;
-      finalVariantId = undefined; 
+    let primaryVariant = selectedSize || selectedWeight || selectedColor;
+    
+    const parts = [];
+    if (selectedSize) parts.push(selectedSize.name);
+    if (selectedWeight) parts.push(selectedWeight.name);
+    if (selectedColor) parts.push(selectedColor.name);
+    
+    if (parts.length > 0) {
+      finalVariantName = parts.join(' - ');
+      if (selectedSize && selectedSize.price > 0) finalVariantId = selectedSize.id;
+      else if (selectedWeight && selectedWeight.price > 0) finalVariantId = selectedWeight.id;
+      else if (selectedColor && selectedColor.price > 0) finalVariantId = selectedColor.id;
+      else if (primaryPricedVariant) finalVariantId = primaryPricedVariant.id; 
+      else finalVariantId = primaryVariant?.id; 
     }
 
     addToCart({
@@ -243,12 +247,12 @@ const ProductDetail = () => {
                   selectedWeight={selectedWeight}
                   onSelectSize={(v) => {
                     setSelectedSize(v);
-                    setSelectedWeight(null); // Deselect weight if size selected (assuming mutually exclusive)
+                    setSelectedWeight(null); 
                     setQuantity(1);
                   }}
                   onSelectWeight={(v) => {
                     setSelectedWeight(v);
-                    setSelectedSize(null); // Deselect size if weight selected
+                    setSelectedSize(null);
                     setQuantity(1);
                   }}
                   onSelectColor={(v) => setSelectedColor(v)}
